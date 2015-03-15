@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <title>trafgrapher</title>
+  <link href="style.css" rel="stylesheet" type="text/css">
+  <script type="text/javascript" src="flot/jquery.min.js"></script>
+  <script type="text/javascript" src="flot/jquery.flot.min.js"></script>
+  <script type="text/javascript" src="flot/jquery.flot.time.min.js"></script>
+  <script type="text/javascript" src="flot/jquery.flot.selection.min.js"></script>
+  <script type="text/javascript" src="grapher.js"></script>
+</head>
+<body>
+  <div>
+    <div id="graph" class="graph">
+      <div id="loader" class="loader">
+        <h1>Loading...</h1>
+        <h2 id="progress">&nbsp;</h2>
+        <div id="index_load_error">
+          Unable to load MRTG index file: <span id="index_load_error_text"></span><br/>
+          Try to use "?f=..." parameter or download this projet files:<br/>
+          <a href="index.html">index.html</a>,
+          <a href="grapher.js">grapher.js</a>,
+          <a href="style.css">style.css</a>,<br/>
+          <a href="flot/jquery.min.js">flot/jquery.min.js</a>,
+          <a href="flot/jquery.flot.min.js">flot/jquery.flot.min.js</a>,<br/>
+          <a href="flot/jquery.flot.time.min.js">flot/jquery.flot.time.min.js</a>,
+          <a href="flot/jquery.flot.selection.min.js">flot/jquery.flot.selection.min.js</a><br/>
+        </div>
+      </div>
+    </div>
+    <div class="selection">
+      <select id="graph_type">
+        <option value="jo" selected="selected">Avg OUT/IN</option>
+        <option value="o">Avg OUT</option>
+        <option value="i">Avg IN</option>
+        <option value="JO">Max OUT/IN</option>
+        <option value="O">Max OUT</option>
+        <option value="I">Max IN</option>
+      </select>
+      <select id="units">
+        <option value="b" selected="selected">bits</option>
+        <option value="B">bytes</option>
+      </select>
+      <select id="interval">
+        <option value="4">4 hours</option>
+        <option value="8">8 hours</option>
+        <option value="24" selected="selected">1 day</option>
+        <option value="72">3 days</option>
+        <option value="168">7 days</option>
+        <option value="744">1 month</option>
+        <option value="8766">1 year</option>
+      </select>
+      <input type="submit" id="reload" value="Reload"/>
+      <input type="submit" id="zoomout" value="ZoomOut"/>
+      <input type="checkbox" name="all" checked="checked" id="checkbox_all"/>
+      <label for="checkbox_all">ALL</label>
+      <input type="text" value="" size="9" id="throughput"/>
+      <input type="text" value="" size="9" id="bytes"/>
+      <br/>
+      <input type="text" value="" size="30" id="ifname"/>
+      @ <input type="text" value="" size="20" id="switchname"/>
+      <input type="submit" value="(i)" id="more_info"/>
+    </div>
+    <div id="info_table">
+      Interface info.<br/>
+      Hover on graph to fill this.
+    </div>
+    <ul id="choices"></ul>
+  </div>
+</body>
+</html>
