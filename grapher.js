@@ -301,9 +301,9 @@ function load_mrtg_log(filename, name, switch_ip, switch_url) {
       add_callbacks();
     }
   }).fail(function(jqXHR, textStatus, error) {
-    $("#index_load_error_text").text(
-      "Failed to load log file: " + filename + ", " + error);
-    $("#index_load_error").show();
+    $("#error").text(
+      "Failed to load log file: " + filename + ": " + error);
+    $("#error").show();
   });
 }
 
@@ -353,8 +353,10 @@ function load_index(switch_url) {
       load_mrtg_log(files[fni][0], files[fni][1], files[fni][2], switch_url);
     }
   }).fail(function(jqXHR, textStatus, error) {
-    $("#index_load_error_text").text(error);
-    $("#index_load_error").show();
+    $("#error").text(
+      "Failed to load index file: " + switch_url + ": " + error);
+    $("#error").show();
+    $("#download").show();
   });
 }
 
@@ -405,7 +407,7 @@ $(function() {
     plot_graph();
   });
   $("#more_info").click(function() {
-    $("#info_table").toggle();
+    $("#info_table").animate({height: "toggle"}, 300);
   });
   refresh_graph();
 });
