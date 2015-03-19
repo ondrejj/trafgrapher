@@ -10,6 +10,7 @@ var deltas = {},
     files_to_load = -1,
     plot = null,
     range_from, range_to,
+    index_files = [],
     one_hour = 3600000,
     units = "iB/s";
 var excluded_interfaces = [
@@ -219,7 +220,7 @@ function add_callbacks() {
       }).done(function(data) {
         // don't load images from .html
         var noimgdata = data.replace(/ src=/gi, " nosrc=");
-        var table = $(noimgdata).find("table:first");
+        var table = $(noimgdata).find("table");
         $("#info_table").html(table[0]);
       });
     }
@@ -264,41 +265,35 @@ function load_mrtg_log(filename, name, switch_ip, switch_url) {
     dataType: "text",
     cache: false
   }).done(function(data) {
-    var basename = filename.substr(filename.lastIndexOf("/")+1);
-    var port_id = basename.substr(basename.indexOf("_")+1);
-    var ethid =
-          +switch_ip.replace(/[^a-z0-9]/gi, "_")
-          +port_id.split(".")[0];
-    var lines = data.split("\n");
-    name = $("<div/>").text(name).html(); // escape html in name
+    var basename = filename.substr(filename.lastIndexOf('/')+1);
+    var port_id = basename.substr(basename.indexOf('_')+1);
+    var ethid = switch_ip.replace(/[^a-z0-9]/gi, '_')
+              + port_id.replace(/\.log$/, '').replace(".", "_");
+    var lines = data.split('\n');
+    name = $('<div/>').text(name).html(); // escape html in name
     deltas[ethid] = {
       'name': name, 'url': switch_url, 'ip': switch_ip,
-      'html': filename.replace(/\.log$/, ".html"),
+      'html': filename.replace(/\.log$/, '.html'),
       'o': [], 'i': [], 'j': [], //'t': [], 'd': [],
       'O': [], 'I': [], 'J': [], //'T': [], 'D': []
     };
     for (var line=1; line<lines.length; line++) {
-      var cols = lines[line].split(" ");
+      var cols = lines[line].split(' ');
       var t = parseInt(cols[0])*1000,
           ib = parseInt(cols[1]), ob = parseInt(cols[2]),
           im = parseInt(cols[3]), om = parseInt(cols[4]);
       deltas[ethid]['i'].push([t, ib]);
       deltas[ethid]['j'].push([t, -ib]);
       deltas[ethid]['o'].push([t, ob]);
-      //deltas[ethid]['t'].push([t, ib+ob]);
-      //deltas[ethid]['d'].push([t, ob-ib]);
       deltas[ethid]['I'].push([t, im]);
       deltas[ethid]['J'].push([t, -im]);
       deltas[ethid]['O'].push([t, om]);
-      //deltas[ethid]['T'].push([t, im+om]);
-      //deltas[ethid]['D'].push([t, om-im]);
     }
     files_to_load -= 1;
     $("#progress").text(files_to_load+" files to load");
     if (files_to_load<=0) {
       update_checkboxes();
       plot_graph();
-      add_callbacks();
     }
   }).fail(function(jqXHR, textStatus, error) {
     $("#error").text(
@@ -372,27 +367,8 @@ function refresh_graph() {
   range_from = null;
   range_to = null;
   files_to_load = 0;
-  var query = window.location.search.substring(1);
-  if (query) {
-    var args = query.split("&");
-    for (var i in args) {
-      var arg = args[i].split("=");
-      if (arg[0]=="t") {
-        $("#graph_type").val(arg[1]);
-      } else if (arg[0]=="u") {
-        $("#units").val(arg[1]);
-      } else if (arg[0]=="i") {
-        $("#interval").val(arg[1]);
-      } else {
-        var sarg = arg[1].split(",");
-        var prefix = sarg[0].replace(/[^\/]*\/$/, '');
-        load_index(sarg[0]);
-        for (var i=1; i<sarg.length; i++) load_index(prefix+sarg[i]);
-      }
-    }
-  } else {
-    load_index("mrtg/");
-  }
+  for (var idx=0; idx<index_files.length; idx++)
+    load_index(index_files[idx]);
 }
 
 $(function() {
@@ -409,5 +385,46 @@ $(function() {
   $("#more_info").click(function() {
     $("#info_table").animate({height: "toggle"}, 300);
   });
+  add_callbacks();
+  // parse query string
+  var query = window.location.search.substring(1);
+  if (query) {
+    var args = query.split("&");
+    for (var i in args) {
+      var arg = args[i].split("=");
+      if (arg[0]=="t") {
+        $("#graph_type").val(arg[1]);
+      } else if (arg[0]=="u") {
+        $("#units").val(arg[1]);
+      } else if (arg[0]=="i") {
+        var arg1 = arg[1], arg1l = arg1[arg1.length-1];
+        if (arg1l=="y") {
+          arg1 = parseFloat(arg1)*8766;
+        } else if (arg1l=="m") {
+          arg1 = parseFloat(arg1)*744;
+        } else if (arg1l=="w") {
+          arg1 = parseFloat(arg1)*168;
+        } else if (arg1l=="d") {
+          arg1 = parseFloat(arg1)*24;
+        } else {
+          arg1 = parseFloat(arg1);
+        }
+        arg1 = Math.floor(arg1);
+        var itag = $("#interval option[value='"+arg1+"']");
+        if (itag.length==0)
+          $("#interval").append(
+            '<option value="'+arg1+'">'+arg1+' hours</option>'
+          );
+        $("#interval").val(arg1);
+      } else {
+        var sarg = arg[1].split(",");
+        var prefix = sarg[0].replace(/[^\/]*\/$/, '');
+        index_files.push(sarg[0]);
+        for (var i=1; i<sarg.length; i++) index_files.push(prefix+sarg[i]);
+      }
+    }
+  } else {
+    index_files.push("mrtg/");
+  }
   refresh_graph();
 });
