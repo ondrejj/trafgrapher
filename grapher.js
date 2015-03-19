@@ -23,10 +23,13 @@ var excluded_interfaces = [
   /^Backbone$/,
 ];
 
-// Set all input choices to defined value.
+// Set/unset all input choices.
 function setall() {
-  var value = $("#checkbox_all").prop("checked");
-  $("#choices input").attr("checked", value);
+  if ($("#choices input").length == $("#choices input:checked").length) {
+    $("#choices input").attr("checked", false);
+  } else {
+    $("#choices input").attr("checked", true);
+  }
   plot_graph();
   return false;
 }
@@ -138,9 +141,11 @@ function plot_graph() {
   var graph_type = $("#graph_type option:selected").attr("value");
   var unit = $("#units option:selected").attr("value");
   var placeholder = $("#graph");
-  $("#checkbox_all").attr("checked",
-    $("#choices input").length == $("#choices input:checked").length
-  );
+  if ($("#choices input").length == $("#choices input:checked").length) {
+    $("#all_none").attr("value", "NONE");
+  } else {
+    $("#all_none").attr("value", "ALL");
+  }
   var checked_choices = $("#choices").find("input:checked");
   var colors = gen_colors(checked_choices.length);
   checked_choices.each(function (n) {
@@ -253,7 +258,6 @@ function update_checkboxes() {
       + deltas[key]['name'] + "</label></li>");
   }
   $("#choices").find("input").click(plot_graph);
-  $("#checkbox_all").change(setall);
   $("#graph_type").change(plot_graph);
   $("#units").change(plot_graph);
 }
@@ -382,6 +386,7 @@ $(function() {
     range_to = Number(current_datetime); // convert to number
     plot_graph();
   });
+  $("#all_none").click(setall);
   $("#more_info").click(function() {
     $("#info_table").animate({height: "toggle"}, 300);
   });
