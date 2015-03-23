@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <title>Storage performance</title>
+  <link href="style.css" rel="stylesheet" type="text/css">
+  <script type="text/javascript" src="flot/jquery.min.js"></script>
+  <script type="text/javascript" src="flot/jquery.flot.min.js"></script>
+  <script type="text/javascript" src="flot/jquery.flot.time.min.js"></script>
+  <script type="text/javascript" src="flot/jquery.flot.selection.min.js"></script>
+  <script type="text/javascript" src="grapher.js"></script>
+</head>
+<body>
+  <div>
+    <div id="graph" class="graph">
+      <div id="loader" class="loader">
+        <h1>Loading...</h1>
+        <h2 id="progress">&nbsp;</h2>
+      </div>
+    </div>
+    <div class="selection">
+      <select id="graph_source">
+        <option value="vdsk" selected="selected">LUN</option>
+        <option value="mdsk">Pool</option>
+        <option value="disk">HDD</option>
+      </select>
+      <select id="graph_type">
+        <option value="xb" selected="selected">R/W bytes</option>
+        <option value="rb">Read bytes</option>
+        <option value="wb">Write bytes</option>
+        <option value="xo">R/W IOPS</option>
+        <option value="ro">Read IOPS</option>
+        <option value="wo">Write IOPS</option>
+        <option value="xl">R/W response</option>
+        <option value="rl">Read response</option>
+        <option value="wl">Write response</option>
+        <option value="xt">Track r/w</option>
+        <option value="rt">Track reads</option>
+        <option value="wt">Track writes</option>
+      </select>
+      <select id="interval">
+        <option value="4">4 hours</option>
+        <option value="8">8 hours</option>
+        <option value="24" selected="selected">1 day</option>
+        <option value="72">3 days</option>
+        <option value="168">7 days</option>
+      </select>
+      <input type="submit" id="reload" value="Reload"/>
+      <input type="submit" id="zoomout" value="ZoomOut"/>
+      <input type="submit" id="all_none" value="ALL"/>
+      <br/>
+      <input type="text" value="" size="30" id="ifname"/>
+      <input type="text" value="" size="9" id="throughput"/>
+      <input type="bytes" value="" size="9" id="bytes"/>
+      </div>
+    <ul id="choices"></ul>
+  </div>
+</body>
+</html>
