@@ -351,10 +351,13 @@ function update_checkboxes() {
   for (var keyid in keys) {
     var key = keys[keyid];
     choiceContainer.append("<li id='li" + key +
-      "'><div class='box'>&nbsp;</div><input type='checkbox' name='" + key +
-      "' checked='checked' id='cb" + key + "'></input>" +
-      "<label for='cb" + key + "'>"
-      + deltas[key]['name'] + "</label></li>");
+      "'><table><tr>" +
+      "<td><div class='box'>&nbsp;</div></td>" +
+      "<td><input type='checkbox' name='" + key +
+        "' checked='checked' id='cb" + key + "'></input></td><td>" +
+      //"<label for='cb" + key + "'>" + deltas[key]['name'] + "</label>" +
+      deltas[key]['name'] +
+      "</td></tr></table></li>");
   }
   $("#choices").find("input").click(plot_graph);
   $("#graph_type").change(plot_graph);

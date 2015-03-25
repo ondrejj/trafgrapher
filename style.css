@@ -78,3 +78,15 @@ div#info_table table {
   margin-right: auto;
   text-align: left;
 }
+
+table {
+  border: 0px;
+  margin: 0px;
+  padding: 0px;
+}
+
+table tr td {
+  vertical-align: top;
+  padding: 0px;
+  margin: 0px;
+}
