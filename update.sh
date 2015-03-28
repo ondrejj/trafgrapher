@@ -5,7 +5,7 @@ DIR=${1:-iostats}
 # cleanup old files
 tmpwatch --ctime 168 $DIR
 
-pushd $DIR > /dev/null
+pushd $DIR > /dev/null || exit 1
 
 (
 echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"

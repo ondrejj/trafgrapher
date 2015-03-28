@@ -1,0 +1,29 @@
+TrafGrapher
+
+Supported hardware:
+	Any switch/router supported by MRTG
+	IBM Storwize (tested on V3700)
+	EMC Clarion CX4-120
+
+Requirements:
+	flotcharts from http://flotcharts.org
+	installed and configured MRTG (for MRTG graphs only)
+	web server with allowed directory indexing (for storage graph only)
+
+How to install?
+
+Download flotcharts and unpack it into "flots" directory.
+Create "mrtg" or "iostats" directory and copy statistics data from storage.
+
+For IBM storwize you have to use these commands:
+	IOSTATS=/var/log/storwize
+	NODE=1
+	HOST=192.168.1.$((NODE+1))
+	ssh -q $HOST "cpdumps -prefix /dumps/iostats $NODE"
+	scp $HOST:"/dumps/iostats/N*_stats_*" $IOSTATS/
+Open URL to your web server and enjoy graphs:
+	http://localhost/trafgrapher/?m=/path/to/mrtg/index.html
+	http://localhost/trafgrapher/?s=/path/to/iostats/
+
+No need for PHP or other daemon on your server. Everything is done in your
+favorite browser using javascript.

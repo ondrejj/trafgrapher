@@ -1,110 +1,11 @@
 /*
   trafgrapher
-  version 0.7
+  version 0.8
   (c) 2015 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
   Licensed under the MIT license.
 */
 
-// Global variables
-var deltas = {}, counters = {}, data_items = [],
-    mrtg_files = [], storage_files = [], files_to_load = -1,
-    plot = null, range_from, range_to,
-    one_hour = 3600000, units = "iB/s",
-    range_multiplier = {y: 8766, m: 744, w: 168, d: 24};
-
-var excluded_interfaces = [
-  // CISCO
-  /^unrouted-VLAN-/,
-  // DELL
-  /^-Link-Aggregate-/,
-  /^-CPU-Interface-for-Unit:-/,
-  /^Unit:-/,
-  /^Backbone$/,
-];
-
-// Set/unset all input choices.
-function setall() {
-  if ($("#choices input").length == $("#choices input:checked").length) {
-    $("#choices input").attr("checked", false);
-  } else {
-    $("#choices input").attr("checked", true);
-  }
-  plot_graph();
-  return false;
-}
-
-// Convert unit to kilo, mega, giga or tera.
-function kilomega(val, axis, unit) {
-  var k = 1024, precision = 2, aval = Math.abs(val);
-  if (axis && axis.tickDecimals) precision = axis.tickDecimals;
-  if (typeof(axis)=="number") precision = axis;
-  if (unit==undefined) unit = units;
-  if (unit=="ms") {
-    if (aval>=k) return (aval/k).toFixed(precision)+" s";
-  } else {
-    if (aval>=(k*k*k*k))
-      return (aval/k/k/k/k).toFixed(precision)+" T"+unit;
-    if (aval>=(k*k*k))
-      return (aval/k/k/k).toFixed(precision)+" G"+unit;
-    if (aval>=(k*k))
-      return (aval/k/k).toFixed(precision)+" M"+unit;
-    if (aval>=k)
-      return (aval/k).toFixed(precision)+" k"+unit;
-  }
-  if (unit[0]=="i")
-    return aval.toFixed(precision)+" "+unit.substr(1);
-  return aval.toFixed(precision)+" "+unit;
-}
-
-// Array bytes
-function arraybytes(arr) {
-  var bytes = 0, last = null;
-  if (arr.length==0) return 0;
-  for (var idx=arr.length-1; idx>=0; idx--) {
-    var t = arr[idx][0];
-    if (range_from<=t && t<range_to && arr[idx][1]!=undefined) {
-      if (last==null) last = t;
-      bytes += Math.abs(arr[idx][1])*(t-last)/1000;
-      last = t;
-    }
-  }
-  return bytes;
-}
-
-// Get data for current time interval
-function filter_interval(data, unit, use_max) {
-  var ret = [];
-  var multiply = 1;
-  if (unit=="b") multiply = 8; // bits
-  for (i=0; i<data.length; i++)
-    if (data[i][0]>=range_from && data[i][0]<range_to)
-      ret.push([data[i][0], data[i][1]*multiply]);
-  if (ret.length>400) {
-    // group data
-    var min_t = ret[0][0], max_t = ret[ret.length-1][0];
-    var vsum = [], vcnt = [], vmax = [], gi = Math.abs(max_t-min_t)/400;
-    for (i=0; i<ret.length; i++) {
-      var ti = Math.floor(ret[i][0]/gi);
-      if (ti in vcnt) {
-        vcnt[ti] += 1;
-        vsum[ti] += ret[i][1];
-        vmax[ti] = Math.max(vmax[ti], ret[i][1]);
-      } else {
-        vcnt[ti] = 1;
-        vsum[ti] = ret[i][1];
-        vmax[ti] = ret[i][1];
-      }
-    }
-    ret = [];
-    for (var key in vcnt)
-      if (use_max) {
-        ret.push([key*gi, vmax[key]]);
-      } else {
-        ret.push([key*gi, vsum[key]/vcnt[key]]);
-      }
-  }
-  return ret;
-}
+var one_hour = 3600000;
 
 // Join two arrays into one. For same keys sum values.
 function joinarrays(arr) {
@@ -199,46 +100,263 @@ function gen_colors(neededColors) {
   return colors;
 }
 
+var Graph = function(ID) {
+  this.ID = ID;
+  this.div = $("div#"+ID);
+  this.deltas = {};
+  this.counters = {};
+  this.data_items = [];
+  this.mrtg_files = [];
+  this.storage_files = [];
+  this.files_to_load = -1;
+  this.plot = null;
+  this.range_from = null; this.range_to = null;
+  this.unit = "iB/s";
+  this.all_units = {
+    'b': "B/s",
+    'o': "io/s",
+    'l': "ms",
+    't': "tr/s",
+  };
+  this.excluded_interfaces = [
+    // CISCO
+    /^unrouted-VLAN-/,
+    // DELL
+    /^-Link-Aggregate-/,
+    /^-CPU-Interface-for-Unit:-/,
+    /^Unit:-/,
+    /^Backbone$/,
+  ];
+  this.loader = this.div.find("[id^=loader]");
+  this.placeholder = this.div.find("[id^=placeholder]");
+  this.choices = this.div.find("[id^=choices]");
+  this.interval = this.div.find("[id^=interval]");
+  this.graph_source = this.div.find("[id^=graph_source]");
+  this.graph_type = this.div.find("[id^=graph_type]");
+  this.unit_type = this.div.find("[id^=unit_type]");
+  this.progress = this.div.find("[id^=progress]");
+  this.add_callbacks();
+}
+
+Graph.prototype.find = function(id, selectors) {
+  var sel = "[id^="+id+"]";
+  if (selectors===undefined) {
+    return this.div.find(sel);
+  } else {
+    return this.div.find(sel+" "+selectors);
+  }
+}
+
+// Set/unset all input choices.
+Graph.prototype.setall = function() {
+  var inputs_all = this.choices.find("input"),
+      inputs_checked = this.choices.find("input:checked");
+  if ($(inputs_all).length == $(inputs_checked).length) {
+    $(inputs_all).attr("checked", false);
+  } else {
+    $(inputs_all).attr("checked", true);
+  }
+  this.plot_graph();
+}
+
+// Convert unit to kilo, mega, giga or tera.
+Graph.prototype.unit_si = function(val, axis, unit) {
+  var k = 1024, precision = 2, aval = Math.abs(val);
+  if (axis && axis.tickDecimals) precision = axis.tickDecimals;
+  if (typeof(axis)=="number") precision = axis;
+  if (unit===undefined) unit = graph1.unit;
+  if (unit=="ms") {
+    if (aval>=k) return (aval/k).toFixed(precision)+" s";
+  } else {
+    if (aval>=(k*k*k*k))
+      return (aval/k/k/k/k).toFixed(precision)+" T"+unit;
+    if (aval>=(k*k*k))
+      return (aval/k/k/k).toFixed(precision)+" G"+unit;
+    if (aval>=(k*k))
+      return (aval/k/k).toFixed(precision)+" M"+unit;
+    if (aval>=k)
+      return (aval/k).toFixed(precision)+" k"+unit;
+  }
+  if (unit[0]=="i")
+    return aval.toFixed(precision)+" "+unit.substr(1);
+  return aval.toFixed(precision)+" "+unit;
+}
+
+// Array bytes
+Graph.prototype.arraybytes = function(arr) {
+  var bytes = 0, last = null;
+  if (arr.length==0) return 0;
+  for (var idx=arr.length-1; idx>=0; idx--) {
+    var t = arr[idx][0];
+    if (this.range_from<=t && t<this.range_to && arr[idx][1]!=undefined) {
+      if (last==null) last = t;
+      bytes += Math.abs(arr[idx][1])*(t-last)/1000;
+      last = t;
+    }
+  }
+  return bytes;
+}
+
+// Get data for current time interval
+Graph.prototype.filter_interval = function(data, unit, use_max) {
+  var ret = [];
+  var multiply = 1;
+  if (unit=="b") multiply = 8; // bits
+  for (i=0; i<data.length; i++)
+    if (data[i][0]>=this.range_from && data[i][0]<this.range_to)
+      ret.push([data[i][0], data[i][1]*multiply]);
+  if (ret.length>400) {
+    // group data
+    var min_t = ret[0][0], max_t = ret[ret.length-1][0];
+    var vsum = [], vcnt = [], vmax = [], gi = Math.abs(max_t-min_t)/400;
+    for (i=0; i<ret.length; i++) {
+      var ti = Math.floor(ret[i][0]/gi);
+      if (ti in vcnt) {
+        vcnt[ti] += 1;
+        vsum[ti] += ret[i][1];
+        vmax[ti] = Math.max(vmax[ti], ret[i][1]);
+      } else {
+        vcnt[ti] = 1;
+        vsum[ti] = ret[i][1];
+        vmax[ti] = ret[i][1];
+      }
+    }
+    ret = [];
+    for (var key in vcnt)
+      if (use_max) {
+        ret.push([key*gi, vmax[key]]);
+      } else {
+        ret.push([key*gi, vsum[key]/vcnt[key]]);
+      }
+  }
+  return ret;
+}
+
+// Add callbacks for graph
+Graph.prototype.add_callbacks = function() {
+  var self = this;
+  // buttons and selectors
+  this.interval.change(function() {self.refresh_range()});
+  this.graph_source.change(function() {self.change_source()});
+  this.find("reload").click(function() {self.refresh_graph()});
+  this.find("zoomout").click(function() {self.zoom_out()});
+  this.find("all_none").click(function() {self.setall()});
+  this.find("more_info").click(function() {
+    self.find("info_table").animate({height: "toggle"}, 300);
+  });
+  // selection
+  this.placeholder.bind("plotselected", function (event, ranges) {
+    // zoom
+    self.range_from = ranges.xaxis.from;
+    self.range_to = ranges.xaxis.to;
+    self.plot.clearSelection();
+    self.plot_graph();
+  });
+  // hover and click
+  this.placeholder.bind("plothover", function(event, pos, item) {
+    if (item) {
+      var label = item.series.label.name;
+      self.choices.find("li").css("border-color", "transparent");
+      self.choices.find("li#li"+label).css("border-color", "black");
+      self.find("throughput").attr("value",
+        self.unit_si(item.datapoint[1], 2, self.unit));
+      // compute bytes
+      var graph_type = item.series.label.gt;
+      self.find("bytes").attr("value",
+        self.unit_si(self.arraybytes(self.deltas[label][graph_type]),
+          null, 'iB'));
+      self.find("ifname").attr("value", self.deltas[label]['name']);
+      self.find("switchname").attr("value", self.deltas[label]['ip']);
+      // load table information from MRTG html file
+      if (self.mrtg_files.length>0) {
+        $.ajax({
+          url: self.deltas[label]['html'],
+          dataType: "html",
+        }).done(function(data) {
+          // don't load images from .html
+          var noimgdata = data.replace(/ src=/gi, " nosrc=");
+          var table = $(noimgdata).find("table");
+          self.find("info_table").html(table[0]);
+        });
+      }
+    }
+  });
+  this.placeholder.bind("plotclick", function(event, pos, item) {
+    if (item) {
+      var label = item.series.label.name;
+      self.div.find("input#cb"+self.ID+label).attr("checked",
+        !self.div.find("input#cb"+self.ID+label).prop("checked")
+      );
+      self.plot_graph();
+    }
+  });
+}
+
+// File loaded, update counter, show graph if all files processed.
+Graph.prototype.file_loaded = function() {
+  this.files_to_load -= 1;
+  this.progress.text(this.files_to_load+" files to load");
+  return this.files_to_load<=0;
+}
+
+// Update checkboxes according to number of graphs.
+Graph.prototype.update_checkboxes = function() {
+  var self = this;
+  if (this.choices.find("input:checked").length>0) return;
+  this.choices.empty();
+  var keys = [];
+  for (var key in this.deltas) keys.push(key);
+  keys.sort();
+  for (var keyid in keys) {
+    var key = keys[keyid], idkey = this.ID+key;
+    this.choices.append("<li id='li" + idkey +
+      "'><table><tr>" +
+      "<td><div class='box'>&nbsp;</div></td>" +
+      "<td><input type='checkbox' name='" + key +
+        "' checked='checked' id='cb" + idkey + "'></input></td><td>" +
+      //"<label for='cb" + idkey + "'>" + deltas[key]['name'] + "</label>" +
+      this.deltas[key]['name'] +
+      "</td></tr></table></li>");
+  }
+  this.choices.find("input").click(function() {self.plot_graph()});
+  this.graph_type.change(function() {self.plot_graph()});
+  this.unit_type.change(function() {self.plot_graph()});
+}
+
 // Plot current graph.
-function plot_graph() {
+Graph.prototype.plot_graph = function() {
   var flots = [];
-  var placeholder = $("#graph");
-  var graph_type = $("#graph_type option:selected").attr("value");
-  var unit = $("#units option:selected").attr("value");
+  var graph_type = this.graph_type.find("option:selected").attr("value");
+  var unit = this.unit_type.find("option:selected").attr("value");
   if (unit===undefined) {
-    var all_units = {
-      'b': "B/s",
-      'o': "io/s",
-      'l': "ms",
-      't': "tr/s",
-    };
-    if (graph_type[1] in all_units) {
-      units = all_units[graph_type[1]];
+    if (graph_type[1] in this.all_units) {
+      this.unit = this.all_units[graph_type[1]];
     } else {
-      units = "";
+      this.unit = "";
     }
   } else {
-    units = 'i'+unit+"/s";
+    this.unit = 'i'+unit+"/s";
   }
-  if ($("#choices input").length == $("#choices input:checked").length) {
-    $("#all_none").attr("value", "NONE");
+  if (this.find("choices", "input").length == this.find("choices", "input:checked").length) {
+    this.find("all_none").attr("value", "NONE");
   } else {
-    $("#all_none").attr("value", "ALL");
+    this.find("all_none").attr("value", "ALL");
   }
-  var checked_choices = $("#choices").find("input:checked");
+  var checked_choices = this.find("choices", "input:checked");
   var colors = gen_colors(checked_choices.length);
-  checked_choices.each(function (n, choice) {
+  for (var n=0; n<checked_choices.length; n++) {
+    var choice = checked_choices[n];
     var name = $(choice).attr("name");
-    if (mrtg_files.length>0) {
+    if (this.mrtg_files.length>0) {
       // mrtg graph
-      for (var grapht=0; grapht<graph_type.length; grapht++) {
+      for (var gt=0; gt<graph_type.length; gt++) {
         flots.push({
-          //label: graph_type[grapht]+"_"+name,
-          label: {name: name, gt: graph_type[grapht]},
+          //label: graph_type[gt]+"_"+name,
+          label: {name: name, gt: graph_type[gt]},
           color: colors[n],
-          data: filter_interval(
-                  deltas[name][graph_type[grapht]], unit,
-                  graph_type[grapht]==graph_type[grapht].toUpperCase()
+          data: this.filter_interval(
+                  this.deltas[name][graph_type[gt]], unit,
+                  graph_type[gt]==graph_type[gt].toUpperCase()
                 )
         })
       }
@@ -247,26 +365,27 @@ function plot_graph() {
       flots.push({
         label: {name: name, gt: 'r'+graph_type[1]},
         color: colors[n],
-        data: filter_interval(deltas[name]['r'+graph_type[1]])
+        data: this.filter_interval(this.deltas[name]['r'+graph_type[1]])
       })
       flots.push({
         label: {name: name, gt: 'w'+graph_type[1]},
         color: colors[n],
-        data: filter_interval(arrayinverse(deltas[name]['w'+graph_type[1]]))
+        data: this.filter_interval(arrayinverse(
+                this.deltas[name]['w'+graph_type[1]]))
       })
     } else {
       // storage one way graph (read or write only)
       flots.push({
         label: {name: name, gt: graph_type[0]},
         color: colors[n],
-        data: filter_interval(deltas[name][graph_type])
+        data: this.filter_interval(this.deltas[name][graph_type])
       })
     }
-  });
-  plot = $.plot(placeholder, flots, {
+  }
+  this.plot = $.plot(this.placeholder, flots, {
     xaxis: { mode: "time", timezone: "browser" },
     yaxis: {
-      tickFormatter: kilomega,
+      tickFormatter: this.unit_si,
       tickDecimals: 1
     },
     legend: { show: false },
@@ -274,94 +393,21 @@ function plot_graph() {
     selection: { mode: "x" }
   });
   // set checkbox colors
-  var series = plot.getData();
-  $("li div.box").css("background-color", "transparent"
+  var series = this.plot.getData();
+  this.div.find("li div.box").css("background-color", "transparent"
     ).css("border-color", "transparent");
   for (var i=0; i<series.length; i++) {
-    $("li#li"+series[i].label.name+" div").css(
+    this.div.find("li#li"+this.ID+series[i].label.name+" div").css(
       "background-color", series[i].color.toString()).css(
       "border-color", "black").css(
       "color", "white");
   }
   // clear last graph values
-  $("#throughput").attr("value", "");
-  $("#bytes").attr("value", "");
-  $("#ifname").attr("value", "");
-  $("#switchname").attr("value", "");
-  $("#info_table").empty();
-}
-
-// Add callbacks for graph
-function add_callbacks() {
-  var placeholder = $("#graph");
-  // selection
-  placeholder.bind("plotselected", function (event, ranges) {
-    // zoom
-    range_from = ranges.xaxis.from;
-    range_to = ranges.xaxis.to;
-    plot.clearSelection();
-    plot_graph();
-  });
-  // hover and click
-  placeholder.bind("plothover", function(event, pos, item) {
-    if (item) {
-      var label = item.series.label.name;
-      $("ul#choices li").css("border-color", "transparent");
-      $("ul#choices li#li"+label).css("border-color", "black");
-      $("#throughput").attr("value", kilomega(item.datapoint[1], 2));
-      // compute bytes
-      var graph_type = item.series.label.gt;
-      $("#bytes").attr("value",
-        kilomega(arraybytes(deltas[label][graph_type]), null, 'iB'));
-      $("#ifname").attr("value", deltas[label]['name']);
-      $("#switchname").attr("value",
-        deltas[label]['ip']
-      );
-      // load table information from MRTG html file
-      $.ajax({
-        url: deltas[label]['html'],
-        dataType: "html",
-      }).done(function(data) {
-        // don't load images from .html
-        var noimgdata = data.replace(/ src=/gi, " nosrc=");
-        var table = $(noimgdata).find("table");
-        $("#info_table").html(table[0]);
-      });
-    }
-  });
-  placeholder.bind("plotclick", function(event, pos, item) {
-    if (item) {
-      var label = item.series.label.name;
-      $("input#cb"+label).attr("checked",
-        !$("input#cb"+label).prop("checked")
-      );
-      plot_graph();
-    }
-  });
-}
-
-// Update checkboxes according to number of graphs.
-function update_checkboxes() {
-  var choiceContainer = $("#choices");
-  if (choiceContainer.find("input:checked").length>0) return;
-  choiceContainer.empty();
-  var keys = [];
-  for (var key in deltas) keys.push(key);
-  keys.sort();
-  for (var keyid in keys) {
-    var key = keys[keyid];
-    choiceContainer.append("<li id='li" + key +
-      "'><table><tr>" +
-      "<td><div class='box'>&nbsp;</div></td>" +
-      "<td><input type='checkbox' name='" + key +
-        "' checked='checked' id='cb" + key + "'></input></td><td>" +
-      //"<label for='cb" + key + "'>" + deltas[key]['name'] + "</label>" +
-      deltas[key]['name'] +
-      "</td></tr></table></li>");
-  }
-  $("#choices").find("input").click(plot_graph);
-  $("#graph_type").change(plot_graph);
-  $("#units").change(plot_graph);
+  this.find("throughput").attr("value", "");
+  this.find("bytes").attr("value", "");
+  this.find("ifname").attr("value", "");
+  this.find("switchname").attr("value", "");
+  this.find("info_table").empty();
 }
 
 /*
@@ -370,7 +416,8 @@ function update_checkboxes() {
 */
 
 // Load MRTG stats for one file.
-function load_mrtg_log(filename, name, switch_ip, switch_url) {
+Graph.prototype.load_mrtg_log = function(filename, name, switch_ip, switch_url) {
+  var self = this, deltas = this.deltas;
   $.ajax({
     url: filename,
     dataType: "text",
@@ -400,35 +447,34 @@ function load_mrtg_log(filename, name, switch_ip, switch_url) {
       deltas[ethid]['J'].push([t, -im]);
       deltas[ethid]['O'].push([t, om]);
     }
-    files_to_load -= 1;
-    $("#progress").text(files_to_load+" files to load");
-    if (files_to_load<=0) {
-      update_checkboxes();
-      plot_graph();
+    if (self.file_loaded()) {
+      self.update_checkboxes();
+      self.plot_graph();
     }
   }).fail(function(jqXHR, textStatus, error) {
-    $("#error").text(
+    self.find("error").text(
       "Failed to load log file: " + filename + ": " + error);
-    $("#error").show();
+    self.find("error").show();
   });
 }
 
 // Load file index and start loading of files.
-function load_mrtg_index(switch_url) {
-  $("#graph").empty();
-  $("#graph").append(loader);
-  $("#progress").text("");
+Graph.prototype.load_mrtg_index = function(switch_url) {
+  var self = this;
+  this.placeholder.empty();
+  this.placeholder.append(this.loader);
+  this.progress.text("");
+  this.deltas = {};
   $.ajax({
     url: switch_url,
     dataType: "text",
     cache: false
   }).done(function(data) {
     var files = [];
-    deltas = {};
     var current_datetime = new Date();
-    var interval = parseInt($("#interval").attr("value"));
-    range_from = Number(current_datetime - interval*one_hour);
-    range_to = Number(current_datetime); // convert to number
+    var interval = parseInt(self.interval.attr("value"));
+    self.range_from = Number(current_datetime - interval*one_hour);
+    self.range_to = Number(current_datetime); // convert to number
     // don't load images from index.html
     var noimgdata = data.replace(/ src=/gi, " nosrc=");
     $(noimgdata).find("td").each(function(tagi, tag) {
@@ -445,22 +491,22 @@ function load_mrtg_index(switch_url) {
           switch_ip = name.substr(0, name_idx);
           name = name.substr(name_idx+2);
         }
-        for (i in excluded_interfaces)
-          if (name.search(excluded_interfaces[i])>=0)
+        for (i in self.excluded_interfaces)
+          if (name.search(self.excluded_interfaces[i])>=0)
             return;
         files.push([switch_url+fname+".log", name, switch_ip]);
       }
     });
-    files_to_load += files.length;
-    if (files_to_load<=0)
-      $("#progress").text("No data to load");
+    self.files_to_load += files.length;
+    if (self.files_to_load<=0)
+      this.progress.text("No data to load");
     for (var fni=0; fni<files.length; fni++)
-      load_mrtg_log(files[fni][0], files[fni][1], files[fni][2], switch_url);
+      self.load_mrtg_log(files[fni][0], files[fni][1], files[fni][2], switch_url);
   }).fail(function(jqXHR, textStatus, error) {
-    $("#error").text(
+    self.find("error").text(
       "Failed to load index file: " + switch_url + ": " + error);
-    $("#error").show();
-    $("#download").show();
+    self.find("error").show();
+    self.find("download").show();
   });
 }
 
@@ -470,7 +516,8 @@ function load_mrtg_index(switch_url) {
 */
 
 // Load storwize stats for one file.
-function load_storwize(filename, tagsrc) {
+Graph.prototype.load_storwize = function(filename, tagsrc) {
+  var self = this, counters = this.counters, deltas = this.deltas;
   $.ajax({
     url: filename,
     dataType: "xml"
@@ -508,10 +555,7 @@ function load_storwize(filename, tagsrc) {
         }
       }
     }
-    files_to_load -= 1;
-    $("#progress").text(files_to_load+" files to load");
-    if (files_to_load<=0) {
-      deltas = {};
+    if (self.file_loaded()<=0) {
       for (var name in counters) {
         if (!deltas[name]) {
           deltas[name] = {name: name};
@@ -525,20 +569,20 @@ function load_storwize(filename, tagsrc) {
           ]);
         }
       }
-      update_checkboxes();
-      plot_graph();
+      self.update_checkboxes();
+      self.plot_graph();
     }
   });
 }
 
 // Load unisphere stats for one file.
-function load_unisphere(filename, tagsrc) {
+Graph.prototype.load_unisphere = function(filename, tagsrc) {
+  var self = this, counters = this.counters, deltas = this.deltas;
   $.ajax({
     url: filename
   }).done(function(data) {
     var rows = data.split("\n");
     var nodeid, name = "", lun="", rg="", timestamp, sizeunit=512;
-
     for (var row_id=0; row_id<rows.length; row_id++) {
       var row = rows[row_id];
       var args = row.split(" ");
@@ -628,10 +672,9 @@ function load_unisphere(filename, tagsrc) {
         }
       }
     }
-    files_to_load -= 1;
-    $("#progress").text(files_to_load+" files to load");
-    if (files_to_load<=0) {
-      deltas = {};
+    self.files_to_load -= 1;
+    self.progress.text(self.files_to_load+" files to load");
+    if (self.files_to_load<=0) {
       for (var name in counters) {
         if (!deltas[name]) {
           deltas[name] = {name: name};
@@ -645,31 +688,33 @@ function load_unisphere(filename, tagsrc) {
           deltas[name][rw] = joinarrays(arrs);
         }
       }
-      update_checkboxes();
-      plot_graph();
+      self.update_checkboxes();
+      self.plot_graph();
     }
   });
 }
 
 // Load file index and start loading of files.
-function load_storage_index() {
+Graph.prototype.load_storage_index = function(storage_url) {
+  var self = this;
   // global variable
   data_items = ["rb", "wb", "ro", "wo", "rl", "wl", "rt", "wt"];
-  $("#graph").empty();
-  $("#graph").append(loader);
-  $("#progress").text("");
-  counters = {};
+  this.placeholder.empty();
+  this.placeholder.append(this.loader);
+  this.progress.text("");
+  var tagsrc = this.find("graph_source", "option:selected").attr("value");
+  this.counters = {};
+  this.deltas = {};
   $.ajax({
-    url: "iostats/",
+    url: storage_url,
     cache: false
   }).done(function(data) {
     var files = [];
-    var tagsrc = $("#graph_source option:selected").attr("value");
     var tags = $(data).find("a");
     var current_datetime = new Date();
-    var interval = parseInt($("#interval").attr("value"));
-    range_from = Number(current_datetime - interval*one_hour);
-    range_to = Number(current_datetime); // convert to number
+    var interval = parseInt(self.interval.attr("value"));
+    self.range_from = Number(current_datetime - interval*one_hour);
+    self.range_to = Number(current_datetime); // convert to number
     for (var tagi=0; tagi<tags.length; tagi++) {
       var href = tags[tagi].getAttribute("href");
       if (href[href.length-1]=="/") continue;
@@ -678,27 +723,32 @@ function load_storage_index() {
         var hrefa = href.split("_");
         var d = hrefa[3], t = hrefa[4];
         if (current_datetime-parsedatetime(d, t)<interval*one_hour)
-          files.push("iostats/"+href);
+          files.push(storage_url+href);
       }
       // Unisphere
       if (href.indexOf("Uni_")==0) {
         var hrefa = href.split("_");
         var d = hrefa[hrefa.length-2], t = hrefa[hrefa.length-1];
         if (current_datetime-parsedatetime(d, t)<interval*one_hour)
-          files.push("iostats/"+href);
+          files.push(storage_url+href);
       }
     }
-    files_to_load = files.length;
-    if (files_to_load<=0) {
-      $("#progress").text("No data to load");
+    self.files_to_load = files.length;
+    if (self.files_to_load<=0) {
+      self.progress.text("No data to load");
     }
-    for (var fni=0; fni<files_to_load; fni++) {
-      if (files[fni].indexOf("iostats/N")==0) {
-        load_storwize(files[fni], tagsrc);
-      } else if (files[fni].indexOf("iostats/U")==0) {
-        load_unisphere(files[fni], tagsrc);
+    for (var fni=0; fni<self.files_to_load; fni++) {
+      if (files[fni].indexOf(storage_url+"N")==0) {
+        self.load_storwize(files[fni], tagsrc);
+      } else if (files[fni].indexOf(storage_url+"U")==0) {
+        self.load_unisphere(files[fni], tagsrc);
       }
     }
+  }).fail(function(jqXHR, textStatus, error) {
+    self.find("error").text(
+      "Failed to load index file: " + storage_url + ": " + error);
+    self.find("error").show();
+    self.find("download").show();
   });
 }
 
@@ -707,59 +757,54 @@ function load_storage_index() {
   =================
 */
 
-function refresh_range() {
-  if (storage_files.length>0) {
-    refresh_graph();
+Graph.prototype.refresh_range = function() {
+  if (this.storage_files.length>0) {
+    this.refresh_graph();
   } else {
     var current_datetime = new Date();
-    var interval = parseInt($("#interval").attr("value"));
-    range_from = Number(current_datetime - interval*one_hour);
-    range_to = Number(current_datetime); // convert to number
-    plot_graph();
+    var interval = parseInt(this.interval.attr("value"));
+    this.range_from = Number(current_datetime - interval*one_hour);
+    this.range_to = Number(current_datetime); // convert to number
+    this.plot_graph();
   }
 }
 
-function refresh_graph() {
-  range_from = null;
-  range_to = null;
-  files_to_load = 0;
-  for (var idx=0; idx<mrtg_files.length; idx++)
-    load_mrtg_index(mrtg_files[idx]);
-  for (var idx=0; idx<storage_files.length; idx++)
-    load_storage_index(storage_files[idx]);
+Graph.prototype.refresh_graph = function() {
+  this.range_from = null;
+  this.range_to = null;
+  this.files_to_load = 0;
+  for (var idx=0; idx<this.mrtg_files.length; idx++)
+    this.load_mrtg_index(this.mrtg_files[idx]);
+  for (var idx=0; idx<this.storage_files.length; idx++)
+    this.load_storage_index(this.storage_files[idx]);
 }
 
-$(function() {
-  loader = $("#loader");
-  $("#interval").change(refresh_range);
-  $("#graph_source").change(function() {
-    // Remove checkboxes, because new source has different checkboxes.
-    $("#choices").empty();
-    refresh_graph();
-  });
-  $("#reload").click(refresh_graph);
-  $("#zoomout").click(function() {
-    var current_datetime = new Date();
-    var interval = parseInt($("#interval").attr("value"));
-    range_from = Number(current_datetime - interval*one_hour);
-    range_to = Number(current_datetime); // convert to number
-    plot_graph();
-  });
-  $("#all_none").click(setall);
-  $("#more_info").click(function() {
-    $("#info_table").animate({height: "toggle"}, 300);
-  });
-  add_callbacks();
+Graph.prototype.change_source = function() {
+  // Remove checkboxes, because new source has different checkboxes.
+  this.find("choices").empty();
+  this.refresh_graph();
+}
+
+Graph.prototype.zoom_out = function() {
+  var current_datetime = new Date();
+  var interval = parseInt(this.interval.attr("value"));
+  this.range_from = Number(current_datetime - interval*one_hour);
+  this.range_to = Number(current_datetime); // convert to number
+  this.plot_graph();
+}
+
+Graph.prototype.parse_query_string = function() {
   // parse query string
+  var range_multiplier = {y: 8766, m: 744, w: 168, d: 24};
   var query = window.location.search.substring(1);
   if (query) {
     var args = query.split("&");
     for (var i in args) {
       var arg = args[i].split("=");
       if (arg[0]=="t") {
-        $("#graph_type").val(arg[1]);
+        this.graph_type.val(arg[1]);
       } else if (arg[0]=="u") {
-        $("#units").val(arg[1]);
+        this.unit_type.val(arg[1]);
       } else if (arg[0]=="i") {
         var arg1 = arg[1], arg1l = arg1[arg1.length-1];
         if (arg1l in range_multiplier) {
@@ -767,27 +812,37 @@ $(function() {
         } else {
           arg1 = Math.floor(parseFloat(arg1));
         }
-        var itag = $("#interval option[value='"+arg1+"']");
+        var itag = this.interval.find("option[value='"+arg1+"']");
         if (itag.length==0)
-          $("#interval").append(
+          this.interval.append(
             '<option value="'+arg1+'">'+arg1+' hours</option>'
           );
-        $("#interval").val(arg1);
+        this.interval.val(arg1);
       } else if (arg[0]=="s") {
-        storage_files.push(arg[i]);
+        var sarg = arg[1].split(",");
+        var prefix = sarg[0].replace(/[^\/]*\/$/, '');
+        this.storage_files.push(sarg[0]);
+        for (var i=1; i<sarg.length; i++)
+          this.storage_files.push(prefix+sarg[i]);
       } else {
         var sarg = arg[1].split(",");
         var prefix = sarg[0].replace(/[^\/]*\/$/, '');
-        mrtg_files.push(sarg[0]);
-        for (var i=1; i<sarg.length; i++) mrtg_files.push(prefix+sarg[i]);
+        this.mrtg_files.push(sarg[0]);
+        for (var i=1; i<sarg.length; i++)
+          this.mrtg_files.push(prefix+sarg[i]);
       }
     }
   } else {
-    if ($("#graph_type").length>0) {
-      storage_files.push("iostats/");
+    if (this.graph_type.length>0) {
+      this.storage_files.push("iostats/");
     } else {
-      mrtg_files.push("mrtg/");
+      this.mrtg_files.push("mrtg/");
     }
   }
-  refresh_graph();
+}
+
+$(function() {
+  graph1 = new Graph("graph1");
+  graph1.parse_query_string();
+  graph1.refresh_graph();
 });
