@@ -100,6 +100,11 @@ function gen_colors(neededColors) {
   return colors;
 }
 
+/*
+  Graph object
+  =============
+*/
+
 var Graph = function(ID) {
   this.ID = ID;
   this.div = $("div#"+ID);
@@ -107,13 +112,13 @@ var Graph = function(ID) {
   this.mrtg_files = []; this.storage_files = [];
   this.plot = null;
   this.range_from = null; this.range_to = null;
-  this.unit = "iB/s";
   this.unit_by_type = {
     'b': "B/s",
     'o': "io/s",
     'l': "ms",
     't': "tr/s",
   };
+  this.unit = this.unit_by_type['b'];
   this.excluded_interfaces = [
     // CISCO
     /^unrouted-VLAN-/,
@@ -125,7 +130,7 @@ var Graph = function(ID) {
   ];
   this.loader = this.div.find("[id^=loader]");
   this.placeholder = this.div.find("[id^=placeholder]");
-  this.choices = this.div.find("[id^=choices]");
+  this.filter = this.div.find("[id^=filter]");
   this.interval = this.div.find("[id^=interval]");
   this.graph_source = this.div.find("[id^=graph_source]");
   this.graph_type = this.div.find("[id^=graph_type]");
@@ -142,10 +147,10 @@ Graph.prototype.find = function(id, selectors) {
   }
 }
 
-// Set/unset all input choices.
+// Set/unset all input choices for filter.
 Graph.prototype.toggleall = function() {
-  var inputs_all = this.choices.find("input"),
-      inputs_checked = this.choices.find("input:checked");
+  var inputs_all = this.filter.find("input"),
+      inputs_checked = this.filter.find("input:checked");
   if ($(inputs_all).length == $(inputs_checked).length) {
     $(inputs_all).attr("checked", false);
   } else {
@@ -236,8 +241,11 @@ Graph.prototype.add_callbacks = function() {
   this.find("reload").click(function() {self.refresh_graph()});
   this.find("zoomout").click(function() {self.zoom_out()});
   this.find("all_none").click(function() {self.toggleall()});
-  this.find("more_info").click(function() {
+  this.find("toggle_info").click(function() {
     self.find("info_table").animate({height: "toggle"}, 300);
+  });
+  this.find("toggle_filter").click(function() {
+    self.filter.animate({height: "toggle"}, 300);
   });
   // selection
   this.placeholder.bind("plotselected", function (event, ranges) {
@@ -251,8 +259,8 @@ Graph.prototype.add_callbacks = function() {
   this.placeholder.bind("plothover", function(event, pos, item) {
     if (item) {
       var label = item.series.label.name;
-      self.choices.find("li").css("border-color", "transparent");
-      self.choices.find("li#li"+label).css("border-color", "black");
+      self.filter.find("li").css("border-color", "transparent");
+      self.filter.find("li#li"+label).css("border-color", "black");
       self.find("throughput").attr("value",
         self.unit_si(item.datapoint[1], 2, self.unit));
       // compute bytes
@@ -290,14 +298,17 @@ Graph.prototype.add_callbacks = function() {
 // Update checkboxes according to number of graphs.
 Graph.prototype.update_checkboxes = function() {
   var self = this;
-  if (this.choices.find("input:checked").length>0) return;
-  this.choices.empty();
+  // Skip updating filter checkboxes if at least one of them is checked.
+  // All checkboxes are unchecked when switching graph source to allow
+  // update.
+  if (this.filter.find("input:checked").length>0) return;
+  this.filter.empty();
   var keys = [];
   for (var key in this.deltas) keys.push(key);
   keys.sort();
   for (var keyid in keys) {
     var key = keys[keyid], idkey = this.ID+key;
-    this.choices.append("<li id='li" + idkey +
+    this.filter.append("<li id='li" + idkey +
       "'><table><tr>" +
       "<td><div class='box'>&nbsp;</div></td>" +
       "<td><input type='checkbox' name='" + key +
@@ -306,7 +317,7 @@ Graph.prototype.update_checkboxes = function() {
       this.deltas[key]['name'] +
       "</td></tr></table></li>");
   }
-  this.choices.find("input").click(function() {self.plot_graph()});
+  this.filter.find("input").click(function() {self.plot_graph()});
   this.graph_type.change(function() {self.plot_graph()});
   this.unit_type.change(function() {self.plot_graph()});
 }
@@ -325,12 +336,12 @@ Graph.prototype.plot_graph = function() {
   } else {
     this.unit = 'i'+unit+"/s";
   }
-  if (this.choices.find("input").length == this.choices.find("input:checked").length) {
+  if (this.filter.find("input").length == this.filter.find("input:checked").length) {
     this.find("all_none").attr("value", "NONE");
   } else {
     this.find("all_none").attr("value", "ALL");
   }
-  var checked_choices = this.choices.find("input:checked");
+  var checked_choices = this.filter.find("input:checked");
   var colors = gen_colors(checked_choices.length);
   for (var n=0; n<checked_choices.length; n++) {
     var choice = checked_choices[n];
@@ -608,7 +619,7 @@ StorageLoader.prototype.load_unisphere = function(filename) {
     url: filename
   }).done(function(data) {
     var rows = data.split("\n");
-    var nodeid, name = "", lun="", rg="", timestamp, sizeunit=512;
+    var name = "", lun="", rg="", timestamp, sizeunit=512;
     for (var row_id=0; row_id<rows.length; row_id++) {
       var row = rows[row_id];
       var args = row.split(" ");
@@ -782,7 +793,7 @@ Graph.prototype.refresh_graph = function() {
 
 Graph.prototype.change_source = function() {
   // Remove checkboxes, because new source has different checkboxes.
-  this.choices.empty();
+  this.filter.empty();
   this.refresh_graph();
 }
 
@@ -792,6 +803,12 @@ Graph.prototype.zoom_out = function() {
   this.range_from = Number(current_datetime - interval*one_hour);
   this.range_to = Number(current_datetime); // convert to number
   this.plot_graph();
+}
+
+Graph.prototype.select_device = function() {
+  var self = this;
+  var devices = this.find("device");
+  this.mrtg_files = [devices.find("option:selected").attr("value")];
 }
 
 Graph.prototype.parse_query_string = function() {
@@ -846,5 +863,6 @@ $(function() {
   $("#footer").text($("#footer").text()+" version "+trafgrapher_version);
   graph1 = new Graph("graph1");
   graph1.parse_query_string();
+  //graph1.select_device();
   graph1.refresh_graph();
 });
