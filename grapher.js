@@ -1,11 +1,11 @@
 /*
-  trafgrapher
-  version 0.8
+  TrafGrapher
   (c) 2015 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
   Licensed under the MIT license.
 */
 
-var one_hour = 3600000;
+var trafgrapher_version = 0.8,
+    one_hour = 3600000;
 
 // Join two arrays into one. For same keys sum values.
 function joinarrays(arr) {
@@ -103,15 +103,12 @@ function gen_colors(neededColors) {
 var Graph = function(ID) {
   this.ID = ID;
   this.div = $("div#"+ID);
-  this.deltas = {};
-  this.counters = {};
-  this.data_items = [];
-  this.mrtg_files = [];
-  this.storage_files = [];
+  this.deltas = {}; this.counters = {};
+  this.mrtg_files = []; this.storage_files = [];
   this.plot = null;
   this.range_from = null; this.range_to = null;
   this.unit = "iB/s";
-  this.all_units = {
+  this.unit_by_type = {
     'b': "B/s",
     'o': "io/s",
     'l': "ms",
@@ -146,7 +143,7 @@ Graph.prototype.find = function(id, selectors) {
 }
 
 // Set/unset all input choices.
-Graph.prototype.setall = function() {
+Graph.prototype.toggleall = function() {
   var inputs_all = this.choices.find("input"),
       inputs_checked = this.choices.find("input:checked");
   if ($(inputs_all).length == $(inputs_checked).length) {
@@ -162,7 +159,7 @@ Graph.prototype.unit_si = function(val, axis, unit) {
   var k = 1024, precision = 2, aval = Math.abs(val);
   if (axis && axis.tickDecimals) precision = axis.tickDecimals;
   if (typeof(axis)=="number") precision = axis;
-  if (unit===undefined) unit = graph1.unit;
+  if (unit===undefined && axis) unit = axis.options.si_unit;
   if (unit=="ms") {
     if (aval>=k) return (aval/k).toFixed(precision)+" s";
   } else {
@@ -238,7 +235,7 @@ Graph.prototype.add_callbacks = function() {
   this.graph_source.change(function() {self.change_source()});
   this.find("reload").click(function() {self.refresh_graph()});
   this.find("zoomout").click(function() {self.zoom_out()});
-  this.find("all_none").click(function() {self.setall()});
+  this.find("all_none").click(function() {self.toggleall()});
   this.find("more_info").click(function() {
     self.find("info_table").animate({height: "toggle"}, 300);
   });
@@ -320,20 +317,20 @@ Graph.prototype.plot_graph = function() {
   var graph_type = this.graph_type.find("option:selected").attr("value");
   var unit = this.unit_type.find("option:selected").attr("value");
   if (unit===undefined) {
-    if (graph_type[1] in this.all_units) {
-      this.unit = this.all_units[graph_type[1]];
+    if (graph_type[1] in this.unit_by_type) {
+      this.unit = this.unit_by_type[graph_type[1]];
     } else {
       this.unit = "";
     }
   } else {
     this.unit = 'i'+unit+"/s";
   }
-  if (this.find("choices", "input").length == this.find("choices", "input:checked").length) {
+  if (this.choices.find("input").length == this.choices.find("input:checked").length) {
     this.find("all_none").attr("value", "NONE");
   } else {
     this.find("all_none").attr("value", "ALL");
   }
-  var checked_choices = this.find("choices", "input:checked");
+  var checked_choices = this.choices.find("input:checked");
   var colors = gen_colors(checked_choices.length);
   for (var n=0; n<checked_choices.length; n++) {
     var choice = checked_choices[n];
@@ -377,6 +374,7 @@ Graph.prototype.plot_graph = function() {
     xaxis: { mode: "time", timezone: "browser" },
     yaxis: {
       tickFormatter: this.unit_si,
+      si_unit: this.unit,
       tickDecimals: 1
     },
     legend: { show: false },
@@ -411,6 +409,7 @@ Loader = function(graph, files) {
   this.files = files;
   graph.placeholder.empty();
   graph.placeholder.append(graph.loader);
+  this.tagsrc = graph.graph_source.find("option:selected").attr("value");
   this.progress = graph.loader.find("[id^=progress]");
   this.progress.text("");
   this.files_to_load = 0;
@@ -422,7 +421,25 @@ Loader = function(graph, files) {
 Loader.prototype.file_loaded = function() {
   this.files_to_load -= 1;
   this.progress.text(this.files_to_load+" files to load");
-  return this.files_to_load<=0;
+  if (this.files_to_load<=0) {
+    var counters = this.graph.counters, deltas = this.graph.deltas;
+    // if counters is empty, this is skipped
+    for (var name in counters) {
+      if (!deltas[name]) {
+        deltas[name] = {name: name};
+        for (var key in this.data_items)
+          deltas[name][this.data_items[key]] = [];
+      }
+      for (var rw in counters[name]) {
+        var arrs = [];
+        for (nodeid in counters[name][rw])
+          arrs.push(arraydelta(counters[name][rw][nodeid], rw));
+        deltas[name][rw] = joinarrays(arrs);
+      }
+    }
+    this.graph.update_checkboxes();
+    this.graph.plot_graph();
+  }
 }
 
 Loader.prototype.load_all = function() {
@@ -458,8 +475,8 @@ MRTGLoader.prototype.load_log = function(filename, name, switch_ip, switch_url) 
     deltas[ethid] = {
       'name': name, 'url': switch_url, 'ip': switch_ip,
       'html': filename.replace(/\.log$/, '.html'),
-      'o': [], 'i': [], 'j': [], //'t': [], 'd': [],
-      'O': [], 'I': [], 'J': [], //'T': [], 'D': []
+      'o': [], 'i': [], 'j': [],
+      'O': [], 'I': [], 'J': [],
     };
     for (var line=1; line<lines.length; line++) {
       var cols = lines[line].split(' ');
@@ -473,10 +490,7 @@ MRTGLoader.prototype.load_log = function(filename, name, switch_ip, switch_url) 
       deltas[ethid]['J'].push([t, -im]);
       deltas[ethid]['O'].push([t, om]);
     }
-    if (self.file_loaded()) {
-      self.graph.update_checkboxes();
-      self.graph.plot_graph();
-    }
+    self.file_loaded();
   }).fail(function(jqXHR, textStatus, error) {
     self.graph.find("error").text(
       "Failed to load log file: " + filename + ": " + error);
@@ -544,15 +558,15 @@ StorageLoader = function(graph, files) {
 StorageLoader.prototype = Object.create(Loader.prototype);
 
 // Load storwize stats for one file.
-StorageLoader.prototype.load_storwize = function(filename, tagsrc) {
+StorageLoader.prototype.load_storwize = function(filename) {
   var self = this, counters = this.graph.counters, deltas = this.graph.deltas;
   $.ajax({
     url: filename,
     dataType: "xml"
   }).done(function(data) {
-    var nodeid = 'node'+(filename.split("_")[2].split("-")[1]);
+    var nodeid = parseInt(filename.split("_")[2].split("-")[1])-1;
     var colls = data.getElementsByTagName("diskStatsColl");
-    if (tagsrc=="disk") tagsrc = "mdsk";
+    if (self.tagsrc=="disk") self.tagsrc = "mdsk";
     for (var coll_id=0; coll_id<colls.length; coll_id++) {
       var coll = colls[coll_id];
       var timestamp = Date.parse(
@@ -561,15 +575,15 @@ StorageLoader.prototype.load_storwize = function(filename, tagsrc) {
       var sizeunit = parseInt(
         coll.attributes["sizeUnits"].value.replace("B", "")
       );
-      var dsks = coll.getElementsByTagName(tagsrc);
+      var dsks = coll.getElementsByTagName(self.tagsrc);
       for (var dsk_id=0; dsk_id<dsks.length; dsk_id++) {
         var dsk = dsks[dsk_id], value,
             name = dsk.attributes['id'].value;
         if (!name) name = dsk.attributes['idx'].value;
         if (!counters[name]) {
           counters[name] = {};
-          for (var key in data_items)
-            counters[name][data_items[key]] = { node1: [], node2: [] };
+          for (var key in self.data_items)
+            counters[name][self.data_items[key]] = [[], []];
         }
         for (var rw in counters[name]) {
           if (rw=="rt") srw = "ctr"
@@ -583,28 +597,12 @@ StorageLoader.prototype.load_storwize = function(filename, tagsrc) {
         }
       }
     }
-    if (self.file_loaded()<=0) {
-      for (var name in counters) {
-        if (!deltas[name]) {
-          deltas[name] = {name: name};
-          for (var key in data_items)
-            deltas[name][data_items[key]] = [];
-        }
-        for (var rw in counters[name]) {
-          deltas[name][rw] = joinarrays([
-            arraydelta(counters[name][rw]['node1'], rw),
-            arraydelta(counters[name][rw]['node2'], rw)
-          ]);
-        }
-      }
-      self.graph.update_checkboxes();
-      self.graph.plot_graph();
-    }
+    self.file_loaded();
   });
 }
 
 // Load unisphere stats for one file.
-StorageLoader.prototype.load_unisphere = function(filename, tagsrc) {
+StorageLoader.prototype.load_unisphere = function(filename) {
   var self = this, counters = this.graph.counters, deltas = this.graph.deltas;
   $.ajax({
     url: filename
@@ -619,11 +617,11 @@ StorageLoader.prototype.load_unisphere = function(filename, tagsrc) {
       if (row.indexOf("Name   ")==0) {
         if (rargs[1]!="LUN") {
           name = rargs[0];
-          if (tagsrc=="vdsk") {
+          if (self.tagsrc=="vdsk") {
             if (!counters[name]) {
               counters[name] = {};
-              for (var key in data_items)
-                counters[name][data_items[key]] = [];
+              for (var key in self.data_items)
+                counters[name][self.data_items[key]] = [];
             }
           }
         } else {
@@ -631,11 +629,11 @@ StorageLoader.prototype.load_unisphere = function(filename, tagsrc) {
         }
       } else if (row.indexOf("RAIDGroup ID:")==0) {
         rg = rargs[0];
-        if (tagsrc=="mdsk") {
+        if (self.tagsrc=="mdsk") {
           if (!counters[rg]) {
             counters[rg] = {};
-            for (var key in data_items)
-              counters[rg][data_items[key]] = [];
+            for (var key in self.data_items)
+              counters[rg][self.data_items[key]] = [];
           }
         }
       } else if (row.indexOf("Statistics logging current time:")==0) {
@@ -645,7 +643,7 @@ StorageLoader.prototype.load_unisphere = function(filename, tagsrc) {
         )
       }
       if (name!="") {
-        if (tagsrc=="vdsk") {
+        if (self.tagsrc=="vdsk") {
           if (row.indexOf("Blocks Read")==0) {
             var idx = args[2];
             if (!counters[name].rb[idx]) counters[name].rb[idx] = [];
@@ -671,7 +669,7 @@ StorageLoader.prototype.load_unisphere = function(filename, tagsrc) {
             if (!counters[name].wl.one) counters[name].wl.one = [];
             counters[name].wl.one.push([timestamp, parseInt(rargs[0])]);
           }
-        } else if (tagsrc=="mdsk") {
+        } else if (self.tagsrc=="mdsk") {
           if (row.indexOf("Blocks Read")==0) {
             var idx = name+args[2];
             if (!counters[rg].rb[idx]) counters[rg].rb[idx] = [];
@@ -700,32 +698,14 @@ StorageLoader.prototype.load_unisphere = function(filename, tagsrc) {
         }
       }
     }
-    if (self.file_loaded()<=0) {
-      for (var name in counters) {
-        if (!deltas[name]) {
-          deltas[name] = {name: name};
-          for (var key in data_items)
-            deltas[name][data_items[key]] = [];
-        }
-        for (var rw in counters[name]) {
-          var arrs = [];
-          for (nodeid in counters[name][rw])
-            arrs.push(arraydelta(counters[name][rw][nodeid], rw));
-          deltas[name][rw] = joinarrays(arrs);
-        }
-      }
-      self.graph.update_checkboxes();
-      self.graph.plot_graph();
-    }
+    self.file_loaded();
   });
 }
 
 // Load file index and start loading of files.
 StorageLoader.prototype.load_index = function(storage_url) {
   var self = this, graph = this.graph;
-  // global variable
-  data_items = ["rb", "wb", "ro", "wo", "rl", "wl", "rt", "wt"];
-  var tagsrc = graph.graph_source.find("option:selected").attr("value");
+  this.data_items = ["rb", "wb", "ro", "wo", "rl", "wl", "rt", "wt"];
   $.ajax({
     url: storage_url,
     cache: false
@@ -740,7 +720,7 @@ StorageLoader.prototype.load_index = function(storage_url) {
       var href = tags[tagi].getAttribute("href");
       if (href[href.length-1]=="/") continue;
       // Storwize
-      if (href.indexOf("N"+tagsrc[0]+"_stats_")==0) {
+      if (href.indexOf("N"+self.tagsrc[0]+"_stats_")==0) {
         var hrefa = href.split("_");
         var d = hrefa[3], t = hrefa[4];
         if (current_datetime-parsedatetime(d, t)<interval*one_hour)
@@ -759,9 +739,9 @@ StorageLoader.prototype.load_index = function(storage_url) {
       self.progress.text("No data to load");
     for (var fni=0; fni<self.files_to_load; fni++) {
       if (files[fni].indexOf(storage_url+"N")==0) {
-        self.load_storwize(files[fni], tagsrc);
+        self.load_storwize(files[fni]);
       } else if (files[fni].indexOf(storage_url+"U")==0) {
-        self.load_unisphere(files[fni], tagsrc);
+        self.load_unisphere(files[fni]);
       }
     }
   }).fail(function(jqXHR, textStatus, error) {
@@ -802,7 +782,7 @@ Graph.prototype.refresh_graph = function() {
 
 Graph.prototype.change_source = function() {
   // Remove checkboxes, because new source has different checkboxes.
-  this.find("choices").empty();
+  this.choices.empty();
   this.refresh_graph();
 }
 
@@ -863,6 +843,7 @@ Graph.prototype.parse_query_string = function() {
 }
 
 $(function() {
+  $("#footer").text($("#footer").text()+" version "+trafgrapher_version);
   graph1 = new Graph("graph1");
   graph1.parse_query_string();
   graph1.refresh_graph();

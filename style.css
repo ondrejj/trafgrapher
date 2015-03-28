@@ -9,6 +9,11 @@ div.graph {
   margin-right: auto;
 }
 
+div#footer {
+  text-align: center;
+  font-size: 10pt;
+}
+
 div.loader {
   position: absolute;
   width: 95%;
