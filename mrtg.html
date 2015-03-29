@@ -14,12 +14,11 @@
   <div id="graph1">
     <div id="placeholder" class="graph">
       <div id="loader" class="loader">
-        <div id="error"></div>
+        <div id="error" class="error"></div>
         <h1>Loading...</h1>
         <h2 id="progress">&nbsp;</h2>
-        <div id="download">
+        <div id="download" class="download">
           TrafGrapher projet files:<br/>
-          <a href="index.html">index.html</a>,
           <a href="grapher.js">grapher.js</a>,
           <a href="style.css">style.css</a>,<br/>
           <a href="flot/jquery.min.js">flot/jquery.min.js</a>,
@@ -30,14 +29,6 @@
       </div>
     </div>
     <div class="selection">
-      <!--
-      <select id="device">
-        <option value="/SANET/dell-he.sados.upjs.sk/">DELL HE</option>
-        <option value="/SANET/dell-ke-srob.sados.upjs.sk/">DELL Srobarova</option>
-        <option value="/SANET/dell-ke-srob2.sados.upjs.sk/">DELL Srobarova2</option>
-        <option value="/SANET/dell-ke-park.sados.upjs.sk/">DELL Park Angelinum</option>
-      </select>
-      -->
       <select id="graph_type">
         <option value="jo" selected="selected">Avg OUT/IN</option>
         <option value="o">Avg OUT</option>
@@ -64,20 +55,20 @@
       <input type="submit" id="reload" value="Reload"/>
       <input type="submit" id="zoomout" value="ZoomOut"/>
       <input type="submit" id="all_none" value="ALL"/>
-      <input type="text" value="" size="9" id="throughput"/>
-      <input type="text" value="" size="9" id="bytes"/>
+      <input type="text" value="" size="9" id="throughput" class="right"/>
+      <input type="text" value="" size="9" id="bytes" class="right"/>
       <br/>
       <input type="text" value="" size="30" id="ifname"/>
       @ <input type="text" value="" size="20" id="switchname"/>
       <input type="submit" value="(i)" id="toggle_info"/>
       <input type="submit" value="(f)" id="toggle_filter"/>
     </div>
-    <div id="info_table">
+    <div id="info_table" class="info">
       Interface info.<br/>
       Hover on graph to fill this.
     </div>
     <ul id="filter"></ul>
-    <div id="footer">TrafGrapher</div>
+    <div class="footer">TrafGrapher</div>
   </div>
 </body>
 </html>

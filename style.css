@@ -1,4 +1,4 @@
-div.selection {
+div, h1, h2 {
   text-align: center;
 }
 
@@ -9,7 +9,8 @@ div.graph {
   margin-right: auto;
 }
 
-div#footer {
+div.footer {
+  margin-top: 10pt;
   text-align: center;
   font-size: 10pt;
 }
@@ -21,7 +22,7 @@ div.loader {
   /* border: 1px solid black; */
 }
 
-div#error, div#download {
+div.error, div.download {
   display: none;
   position: absolute;
   width: 100%;
@@ -32,10 +33,6 @@ div#error, div#download {
 
 h1 {
   margin-top: 150px;
-  text-align: center;
-}
-
-h2 {
   text-align: center;
 }
 
@@ -69,16 +66,16 @@ ul li div {
   height: 17px;
 }
 
-input#throughput, input#bytes {
+input.right {
   text-align: right;
 }
 
-div#info_table {
+div.info {
   display: none;
   text-align: center;
 }
 
-div#info_table table {
+div.info table {
   margin-left: auto;
   margin-right: auto;
   text-align: left;

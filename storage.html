@@ -14,8 +14,18 @@
   <div id="graph1">
     <div id="placeholder" class="graph">
       <div id="loader" class="loader">
+        <div id="error" class="error"></div>
         <h1>Loading...</h1>
         <h2 id="progress">&nbsp;</h2>
+        <div id="download" class="download">
+          TrafGrapher projet files:<br/>
+          <a href="grapher.js">grapher.js</a>,
+          <a href="style.css">style.css</a>,<br/>
+          <a href="flot/jquery.min.js">flot/jquery.min.js</a>,
+          <a href="flot/jquery.flot.min.js">flot/jquery.flot.min.js</a>,<br/>
+          <a href="flot/jquery.flot.time.min.js">flot/jquery.flot.time.min.js</a>,
+          <a href="flot/jquery.flot.selection.min.js">flot/jquery.flot.selection.min.js</a><br/>
+        </div>
       </div>
     </div>
     <div class="selection">
@@ -50,12 +60,12 @@
       <input type="submit" id="all_none" value="ALL"/>
       <br/>
       <input type="text" value="" size="30" id="ifname"/>
-      <input type="text" value="" size="9" id="throughput"/>
-      <input type="text" value="" size="9" id="bytes"/>
+      <input type="text" value="" size="9" id="throughput" class="right"/>
+      <input type="text" value="" size="9" id="bytes" class="right"/>
       <input type="submit" value="(f)" id="toggle_filter"/>
       </div>
     <ul id="filter"></ul>
-    <div id="footer">TrafGrapher</div>
+    <div class="footer">TrafGrapher</div>
   </div>
 </body>
 </html>

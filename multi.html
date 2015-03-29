@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <title>TrafGrapher</title>
+  <link href="style.css" rel="stylesheet" type="text/css">
+  <script type="text/javascript" src="flot/jquery.min.js"></script>
+  <script type="text/javascript" src="flot/jquery.flot.min.js"></script>
+  <script type="text/javascript" src="flot/jquery.flot.time.min.js"></script>
+  <script type="text/javascript" src="flot/jquery.flot.selection.min.js"></script>
+  <script type="text/javascript" src="grapher.js"></script>
+</head>
+<body>
+  <div id="graph1">
+    <div id="placeholder1" class="graph">
+      <div id="loader1" class="loader">
+        <div id="error1" class="error"></div>
+        <h1>Loading...</h1>
+        <h2 id="progress1">&nbsp;</h2>
+      </div>
+    </div>
+    <div class="selection">
+      <input type="hidden" value="/6513/" name="device"/>
+      <select id="graph_type1">
+        <option value="jo" selected="selected">Avg OUT/IN</option>
+        <option value="o">Avg OUT</option>
+        <option value="i">Avg IN</option>
+        <option value="JO">Max OUT/IN</option>
+        <option value="O">Max OUT</option>
+        <option value="I">Max IN</option>
+      </select>
+      <select id="unit_type1">
+        <option value="b" selected="selected">bits</option>
+        <option value="B">bytes</option>
+      </select>
+      <select id="interval1">
+        <option value="4">4 hours</option>
+        <option value="8">8 hours</option>
+        <option value="24" selected="selected">1 day</option>
+        <option value="72">3 days</option>
+        <option value="168">7 days</option>
+        <option value="744">1 month</option>
+        <option value="8766">1 year</option>
+        <option value="17532">2 years</option>
+        <option value="26298">3 years</option>
+      </select>
+      <input type="submit" id="reload1" value="Reload"/>
+      <input type="submit" id="zoomout1" value="ZoomOut"/>
+      <input type="submit" id="all_none1" value="ALL"/>
+      <input type="text" value="" size="9" id="throughput1" class="right"/>
+      <input type="text" value="" size="9" id="bytes1" class="right"/>
+      <br/>
+      <input type="text" value="" size="30" id="ifname1"/>
+      @ <input type="text" value="" size="20" id="switchname1"/>
+      <input type="submit" value="(i)" id="toggle_info1"/>
+      <input type="submit" value="(f)" id="toggle_filter1"/>
+    </div>
+    <div id="info_table1" class="info">
+      Interface info.<br/>
+      Hover on graph to fill this.
+    </div>
+    <ul id="filter1" style="display: none"></ul>
+  </div>
+  <div id="graph2">
+    <div id="placeholder2" class="graph">
+      <div id="loader2" class="loader">
+        <div id="error2" class="error"></div>
+        <h1>Loading...</h1>
+        <h2 id="progress2">&nbsp;</h2>
+      </div>
+    </div>
+    <div class="selection">
+      <input type="hidden" value="/rtu/" name="device"/>
+      <select id="graph_type2">
+        <option value="jo" selected="selected">Avg OUT/IN</option>
+        <option value="o">Avg OUT</option>
+        <option value="i">Avg IN</option>
+        <option value="JO">Max OUT/IN</option>
+        <option value="O">Max OUT</option>
+        <option value="I">Max IN</option>
+      </select>
+      <select id="unit_type2">
+        <option value="b" selected="selected">bits</option>
+        <option value="B">bytes</option>
+      </select>
+      <select id="interval2">
+        <option value="4">4 hours</option>
+        <option value="8">8 hours</option>
+        <option value="24" selected="selected">1 day</option>
+        <option value="72">3 days</option>
+        <option value="168">7 days</option>
+        <option value="744">1 month</option>
+        <option value="8766">1 year</option>
+        <option value="17532">2 years</option>
+        <option value="26298">3 years</option>
+      </select>
+      <input type="submit" id="reload2" value="Reload"/>
+      <input type="submit" id="zoomout2" value="ZoomOut"/>
+      <input type="submit" id="all_none2" value="ALL"/>
+      <input type="text" value="" size="9" id="throughput2" class="right"/>
+      <input type="text" value="" size="9" id="bytes2" class="right"/>
+      <br/>
+      <input type="text" value="" size="30" id="ifname2"/>
+      @ <input type="text" value="" size="20" id="switchname2"/>
+      <input type="submit" value="(i)" id="toggle_info2"/>
+      <input type="submit" value="(f)" id="toggle_filter2"/>
+    </div>
+    <div id="info_table2" class="info">
+      Interface info.<br/>
+      Hover on graph to fill this.
+    </div>
+    <ul id="filter2" style="display: none"></ul>
+  </div>
+  <div class="footer">TrafGrapher</div>
+</body>
+</html>

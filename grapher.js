@@ -147,6 +147,13 @@ Graph.prototype.find = function(id, selectors) {
   }
 }
 
+// Show error message
+Graph.prototype.error = function(msg) {
+  this.find("error").text(msg);
+  this.find("error").show();
+  this.find("download").show();
+}
+
 // Set/unset all input choices for filter.
 Graph.prototype.toggleall = function() {
   var inputs_all = this.filter.find("input"),
@@ -245,7 +252,7 @@ Graph.prototype.add_callbacks = function() {
     self.find("info_table").animate({height: "toggle"}, 300);
   });
   this.find("toggle_filter").click(function() {
-    self.filter.animate({height: "toggle"}, 300);
+    self.filter.toggle();
   });
   // selection
   this.placeholder.bind("plotselected", function (event, ranges) {
@@ -503,9 +510,7 @@ MRTGLoader.prototype.load_log = function(filename, name, switch_ip, switch_url) 
     }
     self.file_loaded();
   }).fail(function(jqXHR, textStatus, error) {
-    self.graph.find("error").text(
-      "Failed to load log file: " + filename + ": " + error);
-    self.graph.find("error").show();
+    self.graph.error("Failed to load log file: " + filename + ": " + error);
   });
 }
 
@@ -550,10 +555,7 @@ MRTGLoader.prototype.load_index = function(switch_url) {
     for (var fni=0; fni<files.length; fni++)
       self.load_log(files[fni][0], files[fni][1], files[fni][2], switch_url);
   }).fail(function(jqXHR, textStatus, error) {
-    graph.find("error").text(
-      "Failed to load index file: " + switch_url + ": " + error);
-    graph.find("error").show();
-    graph.find("download").show();
+    graph.error("Failed to load index file: " + switch_url + ": " + error);
   });
 }
 
@@ -756,10 +758,7 @@ StorageLoader.prototype.load_index = function(storage_url) {
       }
     }
   }).fail(function(jqXHR, textStatus, error) {
-    graph.find("error").text(
-      "Failed to load index file: " + storage_url + ": " + error);
-    graph.find("error").show();
-    graph.find("download").show();
+    graph.error("Failed to load index file: " + storage_url + ": " + error);
   });
 }
 
@@ -787,6 +786,8 @@ Graph.prototype.refresh_graph = function() {
     var loader = new MRTGLoader(this, this.mrtg_files);
   } else if (this.storage_files.length>0) {
     var loader = new StorageLoader(this, this.storage_files);
+  } else {
+    this.error("No files to load.");
   }
   loader.load_all();
 }
@@ -805,10 +806,11 @@ Graph.prototype.zoom_out = function() {
   this.plot_graph();
 }
 
-Graph.prototype.select_device = function() {
+Graph.prototype.select_devices = function() {
   var self = this;
-  var devices = this.find("device");
-  this.mrtg_files = [devices.find("option:selected").attr("value")];
+  this.div.find("[name^=device]").each(function() {
+    self.mrtg_files.push($(this).attr("value"));
+  });
 }
 
 Graph.prototype.parse_query_string = function() {
@@ -851,18 +853,15 @@ Graph.prototype.parse_query_string = function() {
       }
     }
   } else {
-    if (this.graph_type.length>0) {
-      this.storage_files.push("iostats/");
-    } else {
-      this.mrtg_files.push("mrtg/");
-    }
+    this.select_devices();
   }
 }
 
 $(function() {
-  $("#footer").text($("#footer").text()+" version "+trafgrapher_version);
-  graph1 = new Graph("graph1");
-  graph1.parse_query_string();
-  //graph1.select_device();
-  graph1.refresh_graph();
+  $(".footer").text($(".footer").text()+" v"+trafgrapher_version);
+  $("div[id^=graph]").each(function() {
+    var graph1 = new Graph($(this).attr("id"));
+    graph1.parse_query_string();
+    graph1.refresh_graph();
+  });
 });
