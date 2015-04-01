@@ -239,6 +239,15 @@ Graph.prototype.filter_interval = function(data, unit, use_max) {
   return ret;
 }
 
+// Reset range
+Graph.prototype.reset_range = function() {
+  // set current interval
+  var current_datetime = new Date();
+  this.time_interval = parseInt(this.interval.attr("value"));
+  this.range_from = Number(current_datetime - this.time_interval*one_hour);
+  this.range_to = Number(current_datetime); // convert to number
+}
+
 // Add callbacks for graph
 Graph.prototype.add_callbacks = function() {
   var self = this;
@@ -275,8 +284,12 @@ Graph.prototype.add_callbacks = function() {
       self.find("bytes").attr("value",
         self.unit_si(self.arraybytes(self.deltas[label][graph_type]),
           null, 'iB'));
-      self.find("ifname").attr("value", self.deltas[label]['name']);
-      self.find("switchname").attr("value", self.deltas[label]['ip']);
+      var description = self.deltas[label]['name'],
+          switchname = self.deltas[label]['ip'];
+      if (self.deltas[label]['port_id'])
+        switchname = switchname + " [" + self.deltas[label]['port_id'] + "]";
+      self.find("ifname").attr("value", description);
+      self.find("switchname").attr("value", switchname);
       // load table information from MRTG html file
       if (self.mrtg_files.length>0) {
         $.ajax({
@@ -320,7 +333,6 @@ Graph.prototype.update_checkboxes = function() {
       "<td><div class='box'>&nbsp;</div></td>" +
       "<td><input type='checkbox' name='" + key +
         "' checked='checked' id='cb" + idkey + "'></input></td><td>" +
-      //"<label for='cb" + idkey + "'>" + deltas[key]['name'] + "</label>" +
       this.deltas[key]['name'] +
       "</td></tr></table></li>");
   }
@@ -343,7 +355,9 @@ Graph.prototype.plot_graph = function() {
   } else {
     this.unit = 'i'+unit+"/s";
   }
-  if (this.filter.find("input").length == this.filter.find("input:checked").length) {
+  var inputs_all = this.filter.find("input"),
+      inputs_checked = this.filter.find("input:checked");
+  if ($(inputs_all).length == $(inputs_checked).length) {
     this.find("all_none").attr("value", "NONE");
   } else {
     this.find("all_none").attr("value", "ALL");
@@ -359,7 +373,7 @@ Graph.prototype.plot_graph = function() {
         flots.push({
           //label: graph_type[gt]+"_"+name,
           label: {name: name, gt: graph_type[gt]},
-          color: colors[n],
+          color: String(colors[n]),
           data: this.filter_interval(
                   this.deltas[name][graph_type[gt]], unit,
                   graph_type[gt]==graph_type[gt].toUpperCase()
@@ -425,14 +439,17 @@ Graph.prototype.plot_graph = function() {
 Loader = function(graph, files) {
   this.graph = graph;
   this.files = files;
-  graph.placeholder.empty();
-  graph.placeholder.append(graph.loader);
   this.tagsrc = graph.graph_source.find("option:selected").attr("value");
   this.progress = graph.loader.find("[id^=progress]");
   this.progress.text("");
   this.files_to_load = 0;
   graph.deltas = {};
   graph.counters = {};
+  // show loader
+  graph.placeholder.empty();
+  graph.placeholder.append(graph.loader);
+  // set current interval
+  graph.reset_range();
 }
 
 // File loaded, update counter, show graph if all files processed.
@@ -465,6 +482,15 @@ Loader.prototype.load_all = function() {
     this.load_index(this.files[idx]);
 }
 
+// Old browser support
+if (!Object.create) {
+  Object.create = function(proto) {
+    function f() {}
+    f.prototype = proto;
+    return new f();
+  }
+}
+
 /*
   MRTG functions
   ===============
@@ -477,25 +503,19 @@ MRTGLoader = function(graph, files) {
 MRTGLoader.prototype = Object.create(Loader.prototype);
 
 // Load MRTG stats for one file.
-MRTGLoader.prototype.load_log = function(filename, name, switch_ip, switch_url) {
+MRTGLoader.prototype.load_log = function(filename, args) {
   var self = this, deltas = this.graph.deltas;
   $.ajax({
     url: filename,
     dataType: "text",
     cache: false
   }).done(function(data) {
-    var basename = filename.substr(filename.lastIndexOf('/')+1);
-    var port_id = basename.substr(basename.indexOf('_')+1);
-    var ethid = switch_ip.replace(/[^a-z0-9]/gi, '_')
-              + port_id.replace(/\.log$/, '').replace(".", "_");
+    var ethid = args.ip.replace(/[^a-z0-9]/gi, '_')
+              + args.port_id.replace(".", "_");
     var lines = data.split('\n');
-    name = $('<div/>').text(name).html(); // escape html in name
-    deltas[ethid] = {
-      'name': name, 'url': switch_url, 'ip': switch_ip,
-      'html': filename.replace(/\.log$/, '.html'),
-      'o': [], 'i': [], 'j': [],
-      'O': [], 'I': [], 'J': [],
-    };
+    name = $('<div/>').text(args.name).html(); // escape html in name
+    deltas[ethid] = {'o': [], 'i': [], 'j': [], 'O': [], 'I': [], 'J': []};
+    for (var key in args) deltas[ethid][key] = args[key]; // copy args
     for (var line=1; line<lines.length; line++) {
       var cols = lines[line].split(' ');
       var t = parseInt(cols[0])*1000,
@@ -517,28 +537,24 @@ MRTGLoader.prototype.load_log = function(filename, name, switch_ip, switch_url) 
 // Load file index and start loading of files.
 MRTGLoader.prototype.load_index = function(switch_url) {
   var self = this, graph = this.graph;
+  var interfaces = switch_url.split(";");
+  switch_url = interfaces.shift().replace(/[^\/]*$/, ""); // remove filename
   $.ajax({
     url: switch_url,
     dataType: "text",
     cache: false
   }).done(function(data) {
     var files = [];
-    var current_datetime = new Date();
-    var interval = parseInt(graph.interval.attr("value"));
-    graph.range_from = Number(current_datetime - interval*one_hour);
-    graph.range_to = Number(current_datetime); // convert to number
     // don't load images from index.html
     var noimgdata = data.replace(/ src=/gi, " nosrc=");
     $(noimgdata).find("td").each(function(tagi, tag) {
-      var tag = $(tag);
-      var diva = tag.find("div a");
+      var tag = $(tag), diva = tag.find("div a");
       if (diva[0]) {
-        var href = diva.attr("href");
-        var fname = href.substr(0, href.lastIndexOf("."));
-        switch_url = switch_url.replace(/[^\/]*$/, ""); // remove filename
-        var switch_ip = switch_url;
-        var name = tag.find("div b").text();
-        var name_idx = name.indexOf(": ");
+        var href = diva.attr("href"),
+            fname = href.substr(0, href.lastIndexOf(".")),
+            name = tag.find("div b").text(),
+            name_idx = name.indexOf(": "),
+            switch_ip = switch_url;
         if (name_idx>=0) {
           switch_ip = name.substr(0, name_idx);
           name = name.substr(name_idx+2);
@@ -546,14 +562,26 @@ MRTGLoader.prototype.load_index = function(switch_url) {
         for (i in graph.excluded_interfaces)
           if (name.search(graph.excluded_interfaces[i])>=0)
             return;
-        files.push([switch_url+fname+".log", name, switch_ip]);
+        var file_prefix = switch_url+fname,
+            basename = file_prefix.substr(file_prefix.lastIndexOf('/')+1),
+            port_id = basename.substr(basename.indexOf('_')+1);
+        // skip interfaces
+        if (interfaces.length==0 || $.inArray(port_id, interfaces)>=0) {
+          files.push({
+            'filename': file_prefix+".log",
+            'port_id': port_id,
+            'name': name,
+            'ip': switch_ip,
+            'html': file_prefix+".html"
+          });
+        }
       }
     });
     self.files_to_load += files.length;
     if (files.length<=0)
       self.progress.text("No data to load");
     for (var fni=0; fni<files.length; fni++)
-      self.load_log(files[fni][0], files[fni][1], files[fni][2], switch_url);
+      self.load_log(files[fni]["filename"], files[fni]);
   }).fail(function(jqXHR, textStatus, error) {
     graph.error("Failed to load index file: " + switch_url + ": " + error);
   });
@@ -717,7 +745,7 @@ StorageLoader.prototype.load_unisphere = function(filename) {
 
 // Load file index and start loading of files.
 StorageLoader.prototype.load_index = function(storage_url) {
-  var self = this, graph = this.graph;
+  var self = this;
   this.data_items = ["rb", "wb", "ro", "wo", "rl", "wl", "rt", "wt"];
   $.ajax({
     url: storage_url,
@@ -725,10 +753,7 @@ StorageLoader.prototype.load_index = function(storage_url) {
   }).done(function(data) {
     var files = [];
     var tags = $(data).find("a");
-    var current_datetime = new Date();
-    var interval = parseInt(graph.interval.attr("value"));
-    graph.range_from = Number(current_datetime - interval*one_hour);
-    graph.range_to = Number(current_datetime); // convert to number
+    var current_datetime = new Date(), interval = self.graph.time_interval;
     for (var tagi=0; tagi<tags.length; tagi++) {
       var href = tags[tagi].getAttribute("href");
       if (href[href.length-1]=="/") continue;
@@ -758,7 +783,9 @@ StorageLoader.prototype.load_index = function(storage_url) {
       }
     }
   }).fail(function(jqXHR, textStatus, error) {
-    graph.error("Failed to load index file: " + storage_url + ": " + error);
+    self.graph.error(
+      "Failed to load index file: " + storage_url + ": " + error
+    );
   });
 }
 
@@ -771,10 +798,7 @@ Graph.prototype.refresh_range = function() {
   if (this.storage_files.length>0) {
     this.refresh_graph();
   } else {
-    var current_datetime = new Date();
-    var interval = parseInt(this.interval.attr("value"));
-    this.range_from = Number(current_datetime - interval*one_hour);
-    this.range_to = Number(current_datetime); // convert to number
+    this.reset_range();
     this.plot_graph();
   }
 }
@@ -799,17 +823,17 @@ Graph.prototype.change_source = function() {
 }
 
 Graph.prototype.zoom_out = function() {
-  var current_datetime = new Date();
-  var interval = parseInt(this.interval.attr("value"));
-  this.range_from = Number(current_datetime - interval*one_hour);
-  this.range_to = Number(current_datetime); // convert to number
+  this.reset_range();
   this.plot_graph();
 }
 
 Graph.prototype.select_devices = function() {
   var self = this;
-  this.div.find("[name^=device]").each(function() {
+  this.div.find("[name^=mrtg_file]").each(function() {
     self.mrtg_files.push($(this).attr("value"));
+  });
+  this.div.find("[name^=storage_file]").each(function() {
+    self.storage_files.push($(this).attr("value"));
   });
 }
 
@@ -858,10 +882,12 @@ Graph.prototype.parse_query_string = function() {
 }
 
 $(function() {
-  $(".footer").text($(".footer").text()+" v"+trafgrapher_version);
+  $(".footer").text($(".footer").text().replace("#.#", trafgrapher_version));
+  graphs = [];
   $("div[id^=graph]").each(function() {
-    var graph1 = new Graph($(this).attr("id"));
-    graph1.parse_query_string();
-    graph1.refresh_graph();
+    var graph = new Graph($(this).attr("id"));
+    graph.parse_query_string();
+    graph.refresh_graph();
+    graphs.push(graph);
   });
 });
