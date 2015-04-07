@@ -1,3 +1,4 @@
 flot
 mrtg
+*.py[co]
 rsync.sh

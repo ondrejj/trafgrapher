@@ -77,7 +77,7 @@ function gen_colors(neededColors) {
   var colorPool = ["#4da74d", "#cb4b4b", "#9440ed", "#edc240", "#afd8f8"],
       colorPoolSize = colorPool.length,
       colors = [], variation = 0;
-  for (i = 0; i < neededColors; i++) {
+  for (var i = 0; i < neededColors; i++) {
     c = $.color.parse(colorPool[i % colorPoolSize] || "#666");
 
     // Each time we exhaust the colors in the pool we adjust
@@ -109,7 +109,7 @@ var Graph = function(ID) {
   this.ID = ID;
   this.div = $("div#"+ID);
   this.deltas = {}; this.counters = {};
-  this.mrtg_files = []; this.storage_files = [];
+  this.json_files = []; this.mrtg_files = []; this.storage_files = [];
   this.plot = null;
   this.range_from = null; this.range_to = null;
   this.unit_by_type = {
@@ -121,7 +121,8 @@ var Graph = function(ID) {
   this.unit = this.unit_by_type['b'];
   this.excluded_interfaces = [
     // CISCO
-    /^unrouted-VLAN-/,
+    /^unrouted[ -]VLAN/,
+    /^Control.Plane.Interface/,
     // DELL
     /^-Link-Aggregate-/,
     /^-CPU-Interface-for-Unit:-/,
@@ -209,14 +210,14 @@ Graph.prototype.filter_interval = function(data, unit, use_max) {
   var ret = [];
   var multiply = 1;
   if (unit=="b") multiply = 8; // bits
-  for (i=0; i<data.length; i++)
+  for (var i=0; i<data.length; i++)
     if (data[i][0]>=this.range_from && data[i][0]<this.range_to)
       ret.push([data[i][0], data[i][1]*multiply]);
   if (ret.length>400) {
     // group data
     var min_t = ret[0][0], max_t = ret[ret.length-1][0];
     var vsum = [], vcnt = [], vmax = [], gi = Math.abs(max_t-min_t)/400;
-    for (i=0; i<ret.length; i++) {
+    for (var i=0; i<ret.length; i++) {
       var ti = Math.floor(ret[i][0]/gi);
       if (ti in vcnt) {
         vcnt[ti] += 1;
@@ -290,8 +291,20 @@ Graph.prototype.add_callbacks = function() {
         switchname = switchname + " [" + self.deltas[label]['port_id'] + "]";
       self.find("ifname").attr("value", description);
       self.find("switchname").attr("value", switchname);
+      // display information from json file
+      if (self.json_files.length>0 && self.deltas[label]['info']) {
+        var table = ['<table>'], info = self.deltas[label]['info'];
+        for (var key in info)
+          if (key!="log")
+            table.push(
+              "<tr><td>"+key+"</td><td>"
+              +info[key]+"</td></tr>"
+            );
+        table.push("</table>");
+        self.find("info_table").html($(table.join('\n')));
+      }
       // load table information from MRTG html file
-      if (self.mrtg_files.length>0) {
+      if (self.mrtg_files.length>0 && self.deltas[label]['html']) {
         $.ajax({
           url: self.deltas[label]['html'],
           dataType: "html",
@@ -367,7 +380,7 @@ Graph.prototype.plot_graph = function() {
   for (var n=0; n<checked_choices.length; n++) {
     var choice = checked_choices[n];
     var name = $(choice).attr("name");
-    if (this.mrtg_files.length>0) {
+    if (this.mrtg_files.length>0 || this.json_files.length>0) {
       // mrtg graph
       for (var gt=0; gt<graph_type.length; gt++) {
         flots.push({
@@ -467,7 +480,7 @@ Loader.prototype.file_loaded = function() {
       }
       for (var rw in counters[name]) {
         var arrs = [];
-        for (nodeid in counters[name][rw])
+        for (var nodeid in counters[name][rw])
           arrs.push(arraydelta(counters[name][rw][nodeid], rw));
         deltas[name][rw] = joinarrays(arrs);
       }
@@ -492,18 +505,18 @@ if (!Object.create) {
 }
 
 /*
-  MRTG functions
-  ===============
+  JSON functions
+  ============
 */
 
-MRTGLoader = function(graph, files) {
+JSONLoader = function(graph, files) {
   Loader.call(this, graph, files);
 }
 
-MRTGLoader.prototype = Object.create(Loader.prototype);
+JSONLoader.prototype = Object.create(Loader.prototype);
 
-// Load MRTG stats for one file.
-MRTGLoader.prototype.load_log = function(filename, args) {
+// Load log file.
+JSONLoader.prototype.load_log = function(filename, args) {
   var self = this, deltas = this.graph.deltas;
   $.ajax({
     url: filename,
@@ -516,11 +529,16 @@ MRTGLoader.prototype.load_log = function(filename, args) {
     name = $('<div/>').text(args.name).html(); // escape html in name
     deltas[ethid] = {'o': [], 'i': [], 'j': [], 'O': [], 'I': [], 'J': []};
     for (var key in args) deltas[ethid][key] = args[key]; // copy args
-    for (var line=1; line<lines.length; line++) {
-      var cols = lines[line].split(' ');
-      var t = parseInt(cols[0])*1000,
-          ib = parseInt(cols[1]), ob = parseInt(cols[2]),
-          im = parseInt(cols[3]), om = parseInt(cols[4]);
+    lines.shift(); // remove couter line
+    lines = lines.map(function(row) {
+      return row.split(" ").map(function(col) { return parseInt(col) })
+    });
+    lines.sort(function(a, b) { return a[0]-b[0]});
+    for (var line=0; line<lines.length; line++) {
+      var cols = lines[line];
+      var t = cols[0]*1000,
+          ib = cols[1], ob = cols[2],
+          im = cols[3], om = cols[4];
       deltas[ethid]['i'].push([t, ib]);
       deltas[ethid]['j'].push([t, -ib]);
       deltas[ethid]['o'].push([t, ob]);
@@ -534,13 +552,76 @@ MRTGLoader.prototype.load_log = function(filename, args) {
   });
 }
 
-// Load file index and start loading of files.
-MRTGLoader.prototype.load_index = function(switch_url) {
+// Load json index and start loading of files.
+JSONLoader.prototype.load_index = function(url) {
   var self = this, graph = this.graph;
-  var interfaces = switch_url.split(";");
-  switch_url = interfaces.shift().replace(/[^\/]*$/, ""); // remove filename
+  // load index file
+  var interfaces = url.split(";");
+  url = interfaces.shift();
+  var urldir = url.replace(/[^\/]*$/, "");
   $.ajax({
-    url: switch_url,
+    url: url,
+    dataType: "json",
+    cache: false
+  }).done(function(data) {
+    var files = [];
+    for (var port_id in data.ifs) {
+      for (var i in graph.excluded_interfaces)
+        if (data.ifs[port_id].ifDescr.search(graph.excluded_interfaces[i])>=0) {
+          port_id = null;
+          break;
+        }
+      if (port_id==null) continue;
+      if (interfaces.length==0 || $.inArray(port_id, interfaces)>=0) {
+        files.push({
+          'filename': urldir + data.ifs[port_id].log,
+          'port_id': port_id,
+          'name': data.ifs[port_id].ifAlias || data.ifs[port_id].ifDescr,
+          'ip': data.ip,
+          'info': data.ifs[port_id]
+        });
+      }
+    }
+    self.files_to_load += files.length;
+    if (files.length<=0)
+      self.progress.text("No data to load");
+    for (var fni=0; fni<files.length; fni++)
+      self.load_log(files[fni]["filename"], files[fni]);
+  }).fail(function(jqXHR, textStatus, error) {
+    graph.error("Failed to load index file: " + url + ": " + error);
+  });
+}
+
+/*
+  MRTG functions
+  ===============
+*/
+
+MRTGLoader = function(graph, files) {
+  Loader.call(this, graph, files);
+}
+
+MRTGLoader.prototype = Object.create(JSONLoader.prototype);
+
+// Load file index and start loading of files.
+MRTGLoader.prototype.load_index = function(url) {
+  var self = this, graph = this.graph;
+  // loading separate log file?
+  if (url.search(/\.log$/)>0) {
+    self.files_to_load += 1;
+    self.load_log(url, {
+      'filename': url,
+      'port_id': '1',
+      'name': url,
+      'ip': url
+    });
+    return;
+  }
+  // load index file
+  var interfaces = url.split(";");
+  url = interfaces.shift().replace(/[^\/]*$/, ""); // remove filename
+  $.ajax({
+    url: url,
     dataType: "text",
     cache: false
   }).done(function(data) {
@@ -554,15 +635,15 @@ MRTGLoader.prototype.load_index = function(switch_url) {
             fname = href.substr(0, href.lastIndexOf(".")),
             name = tag.find("div b").text(),
             name_idx = name.indexOf(": "),
-            switch_ip = switch_url;
+            switch_ip = url;
         if (name_idx>=0) {
           switch_ip = name.substr(0, name_idx);
           name = name.substr(name_idx+2);
         }
-        for (i in graph.excluded_interfaces)
+        for (var i in graph.excluded_interfaces)
           if (name.search(graph.excluded_interfaces[i])>=0)
             return;
-        var file_prefix = switch_url+fname,
+        var file_prefix = url+fname,
             basename = file_prefix.substr(file_prefix.lastIndexOf('/')+1),
             port_id = basename.substr(basename.indexOf('_')+1);
         // skip interfaces
@@ -583,7 +664,7 @@ MRTGLoader.prototype.load_index = function(switch_url) {
     for (var fni=0; fni<files.length; fni++)
       self.load_log(files[fni]["filename"], files[fni]);
   }).fail(function(jqXHR, textStatus, error) {
-    graph.error("Failed to load index file: " + switch_url + ": " + error);
+    graph.error("Failed to load index file: " + url + ": " + error);
   });
 }
 
@@ -806,7 +887,9 @@ Graph.prototype.refresh_range = function() {
 Graph.prototype.refresh_graph = function() {
   this.range_from = null;
   this.range_to = null;
-  if (this.mrtg_files.length>0) {
+  if (this.json_files.length>0) {
+    var loader = new JSONLoader(this, this.json_files);
+  } else if (this.mrtg_files.length>0) {
     var loader = new MRTGLoader(this, this.mrtg_files);
   } else if (this.storage_files.length>0) {
     var loader = new StorageLoader(this, this.storage_files);
@@ -838,6 +921,15 @@ Graph.prototype.select_devices = function() {
 }
 
 Graph.prototype.parse_query_string = function() {
+  function split_arg(arg, arr) {
+    var sarg = arg.split(",");
+    var prefix = "";
+    if (sarg[0].search("/")>=0)
+      prefix = sarg[0].replace(/[^\/]*\/$/, '');
+    arr.push(sarg[0]);
+    for (var i=1; i<sarg.length; i++)
+      arr.push(prefix+sarg[i]);
+  }
   // parse query string
   var range_multiplier = {y: 8766, m: 744, w: 168, d: 24};
   var query = window.location.search.substring(1);
@@ -863,17 +955,11 @@ Graph.prototype.parse_query_string = function() {
           );
         this.interval.val(arg1);
       } else if (arg[0]=="s") {
-        var sarg = arg[1].split(",");
-        var prefix = sarg[0].replace(/[^\/]*\/$/, '');
-        this.storage_files.push(sarg[0]);
-        for (var i=1; i<sarg.length; i++)
-          this.storage_files.push(prefix+sarg[i]);
+        split_arg(arg[1], this.storage_files);
+      } else if (arg[0]=="j") {
+        split_arg(arg[1], this.json_files);
       } else {
-        var sarg = arg[1].split(",");
-        var prefix = sarg[0].replace(/[^\/]*\/$/, '');
-        this.mrtg_files.push(sarg[0]);
-        for (var i=1; i<sarg.length; i++)
-          this.mrtg_files.push(prefix+sarg[i]);
+        split_arg(arg[1], this.mrtg_files);
       }
     }
   } else {
