@@ -176,6 +176,8 @@ Graph.prototype.unit_si = function(val, axis, unit) {
   if (unit=="ms") {
     if (aval>=k) return (aval/k).toFixed(precision)+" s";
   } else {
+    if (aval>=(k*k*k*k*k))
+      return (aval/k/k/k/k/k).toFixed(precision)+" P"+unit;
     if (aval>=(k*k*k*k))
       return (aval/k/k/k/k).toFixed(precision)+" T"+unit;
     if (aval>=(k*k*k))
@@ -466,9 +468,11 @@ Loader = function(graph, files) {
 }
 
 // File loaded, update counter, show graph if all files processed.
-Loader.prototype.file_loaded = function() {
-  this.files_to_load -= 1;
-  this.progress.text(this.files_to_load+" files to load");
+Loader.prototype.file_loaded = function(remaining_files) {
+  if (remaining_files===undefined)
+    this.files_to_load -= 1;
+  else
+    this.files_to_load = remaining_files;
   if (this.files_to_load<=0) {
     var counters = this.graph.counters, deltas = this.graph.deltas;
     // if counters is empty, this is skipped
@@ -487,6 +491,15 @@ Loader.prototype.file_loaded = function() {
     }
     this.graph.update_checkboxes();
     this.graph.plot_graph();
+  } else {
+    this.progress.html(this.files_to_load+
+      " files to load (<a href=\"\">skip</a>)"
+    );
+    var loader = this;
+    this.progress.find("a").click(function() {
+      loader.file_loaded(0);
+      return false;
+    });
   }
 }
 

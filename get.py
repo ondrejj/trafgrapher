@@ -1,5 +1,12 @@
 #!/usr/bin/python
 
+'''
+TrafGrapher SNMP client
+
+Usage: get.py cfg IP_or_hostname [cpmmunity [ifName]] > config.json
+       get.py config.json [community]
+'''
+
 import sys, os, socket, time, json
 from pysnmp.entity.rfc3413.oneliner import cmdgen
 
@@ -84,16 +91,17 @@ def get_info(IP, community_name="public", ifid='ifIndex', oids=oids_info):
           for x in zip(oids, row)
         ])
         data['log'] = "%s_%s.log" % (IP,
-          data[ifid].lower().replace("/", "_").replace("vlan-", "vl")
+          data[ifid].lower().replace("/", "_")
         )
         if data['ifName']!='Nu0':
           ret[data['ifIndex']] = data
       return ret
 
 class SNMP:
+  port = 161
   def __init__(self, addr, community_name="public"):
       self.community = cmdgen.CommunityData(community_name)
-      self.transport = cmdgen.UdpTransportTarget((addr, 161))
+      self.transport = cmdgen.UdpTransportTarget((addr, self.port))
   def getall(self, ids, n=16):
       ret = {}
       while ids:
@@ -103,8 +111,8 @@ class SNMP:
         result = self.getsome(request)
         for id in request:
           ret[id] = dict(
-            ifInOctets = long(result.pop(0)[1]),
-            ifOutOctets = long(result.pop(0)[1])
+            ifInOctets = long(result.pop(0)),
+            ifOutOctets = long(result.pop(0))
           )
       return ret
   def getsome(self, ids):
@@ -123,16 +131,20 @@ class SNMP:
       )
       if errorIndication:
         print(errorIndication)
-        return
+        return []
       elif errorStatus:
         print('%s at %s' % (
             errorStatus.prettyPrint(),
             errorIndex and varBindTable[-1][int(errorIndex)-1] or '?'
           )
         )
-        return
+        return []
       try:
-        return varBinds
+        ret = []
+        vars = dict(varBinds)
+        for key in mibvars:
+          ret.append(vars[key])
+        return ret
       except AttributeError, err:
         print(err, id)
         return []
@@ -198,6 +210,7 @@ class logfile:
   def save(self, delta):
       if self.deltas:
         # save data when converting to new format
+        print "Full save:", self.filename
         self.f.close()
         self.deltas[delta[0]] = delta[1:] # add current values
         self.compress()
@@ -231,6 +244,8 @@ class logfile:
           delta_in/delta_t, delta_out/delta_t,
           delta_in/delta_t, delta_out/delta_t
         )
+        #if delta[1]>12**8 or delta[2]>12**8 or delta[1]<0 or delta[2]<0:
+        #  print delta
       else:
         delta = (t, 0, 0, 0, 0)
       self.counter = (t, data_in, data_out)
@@ -254,7 +269,10 @@ class logfile:
       self.deltas = dict(ret.items())
 
 if __name__ == "__main__":
-  if sys.argv[1]=="cfg":
+  if len(sys.argv)==1:
+    print __doc__
+    sys.exit()
+  elif sys.argv[1]=="cfg":
     name = sys.argv[2]
     try:
       name = socket.gethostbyaddr(name)[0]
@@ -269,4 +287,5 @@ if __name__ == "__main__":
     print SNMP(sys.argv[2]).getall(sys.argv[3:])
   else:
     cfg = json.load(open(sys.argv[1]))
-    update_io(cfg, sys.argv[2], *sys.argv[3:])
+    tdir = os.path.dirname(os.path.realpath(sys.argv[1]))
+    update_io(cfg, tdir, *sys.argv[2:])
