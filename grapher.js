@@ -458,6 +458,7 @@ Loader = function(graph, files) {
   this.progress = graph.loader.find("[id^=progress]");
   this.progress.text("");
   this.files_to_load = 0;
+  this.loaded_bytes = 0;
   graph.deltas = {};
   graph.counters = {};
   // show loader
@@ -559,6 +560,8 @@ JSONLoader.prototype.load_log = function(filename, args) {
       deltas[ethid]['J'].push([t, -im]);
       deltas[ethid]['O'].push([t, om]);
     }
+    self.loaded_bytes += data.length | 0;
+    console.log(self.loaded_bytes, data.length);
     self.file_loaded();
   }).fail(function(jqXHR, textStatus, error) {
     self.graph.error("Failed to load log file: " + filename + ": " + error);
@@ -595,6 +598,7 @@ JSONLoader.prototype.load_index = function(url) {
         });
       }
     }
+    self.loaded_bytes += data.length | 0;
     self.files_to_load += files.length;
     if (files.length<=0)
       self.progress.text("No data to load");
@@ -671,6 +675,7 @@ MRTGLoader.prototype.load_index = function(url) {
         }
       }
     });
+    self.loaded_bytes += data.length | 0;
     self.files_to_load += files.length;
     if (files.length<=0)
       self.progress.text("No data to load");
@@ -732,6 +737,7 @@ StorageLoader.prototype.load_storwize = function(filename) {
         }
       }
     }
+    self.loaded_bytes += data.length | 0;
     self.file_loaded();
   });
 }
@@ -833,6 +839,7 @@ StorageLoader.prototype.load_unisphere = function(filename) {
         }
       }
     }
+    self.loaded_bytes += data.length | 0;
     self.file_loaded();
   });
 }
@@ -866,6 +873,7 @@ StorageLoader.prototype.load_index = function(storage_url) {
           files.push(storage_url+href);
       }
     }
+    self.loaded_bytes += data.length | 0;
     self.files_to_load = files.length;
     if (self.files_to_load<=0)
       self.progress.text("No data to load");

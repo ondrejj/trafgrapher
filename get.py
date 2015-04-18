@@ -3,11 +3,11 @@
 '''
 TrafGrapher SNMP client
 
-Usage: get.py cfg IP_or_hostname [cpmmunity [ifName]] > config.json
-       get.py config.json [community]
+Usage: get.py --cfg IP_or_hostname [cpmmunity [ifName]] > config.json
+       get.py [community@]config.json
 '''
 
-import sys, os, socket, time, json
+import sys, os, socket, time, json, getopt
 from pysnmp.entity.rfc3413.oneliner import cmdgen
 
 def pp(x):
@@ -149,14 +149,6 @@ class SNMP:
         print(err, id)
         return []
 
-def update_io(cfg, tdir, community_name="public"):
-    ids = cfg['ifs'].keys()
-    IP = cfg['ip']
-    for idx, io in SNMP(IP, community_name).getall(ids).items():
-      logfile(os.path.join(tdir, cfg['ifs'][idx]['log'])).update(
-        io['ifInOctets'], io['ifOutOctets']
-      )
-
 class grouper(dict):
   def __getitem__(self, key):
       if not key in self:
@@ -185,7 +177,7 @@ class logfile:
     62*one_day: 7200,
     int(4*365.25*one_day): one_day
   }
-  def __init__(self, filename):
+  def __init__(self, filename, force_compress=False):
       self.filename = filename
       self.deltas = {}
       try:
@@ -194,11 +186,17 @@ class logfile:
         counter = self.f.readline()
         if counter:
           self.counter = tuple(long(x, 10) for x in counter.split(" ", 2))
+          if self.counter[0]/self.one_day!=time.time()/self.one_day:
+            # next day, force compress
+            force_compress = True
         else:
           self.counter = ()
         if len(counter)!=self.counter_length:
           # load deltas and convert this file from MRTG to trafgrapher
           print "Converting file:", self.filename
+          self.load()
+        elif force_compress:
+          #print "Compress:", self.filename
           self.load()
       except IOError:
         self.f = open(self.filename, "wb")
@@ -210,7 +208,7 @@ class logfile:
   def save(self, delta):
       if self.deltas:
         # save data when converting to new format
-        print "Full save:", self.filename
+        #print "Full save:", self.filename
         self.f.close()
         self.deltas[delta[0]] = delta[1:] # add current values
         self.compress()
@@ -268,12 +266,26 @@ class logfile:
         ret[st].append(self.deltas[t])
       self.deltas = dict(ret.items())
 
+def update_io(cfg, tdir, community_name="public", force_compress=False):
+    ids = cfg['ifs'].keys()
+    IP = cfg['ip']
+    for idx, io in SNMP(IP, community_name).getall(ids).items():
+      logfile(
+        os.path.join(tdir, cfg['ifs'][idx]['log']),
+        force_compress
+      ).update(
+        io['ifInOctets'], io['ifOutOctets']
+      )
+
 if __name__ == "__main__":
-  if len(sys.argv)==1:
+  opts, files = getopt.gnu_getopt(sys.argv[1:], 'hctz',
+    ['help', 'cfg', 'test'])
+  opts = dict(opts)
+  if not files:
     print __doc__
     sys.exit()
-  elif sys.argv[1]=="cfg":
-    name = sys.argv[2]
+  elif "--cfg" in opts or "-c" in opts:
+    name = files[0]
     try:
       name = socket.gethostbyaddr(name)[0]
     except:
@@ -281,11 +293,16 @@ if __name__ == "__main__":
     print json.dumps(dict(
       name = name,
       ip = socket.gethostbyname(name),
-      ifs = get_info(*sys.argv[2:])
+      ifs = get_info(*files)
     ), indent=2, separators=(',', ': '))
-  elif sys.argv[1]=="test":
-    print SNMP(sys.argv[2]).getall(sys.argv[3:])
+  elif "--test" in opts or "-t" in opts:
+    print SNMP(files[0]).getall(files[1:])
   else:
-    cfg = json.load(open(sys.argv[1]))
-    tdir = os.path.dirname(os.path.realpath(sys.argv[1]))
-    update_io(cfg, tdir, *sys.argv[2:])
+    for fn in files:
+      if '@' in fn:
+        community, fn = fn.split('@', 1)
+      else:
+        community = 'public'
+      cfg = json.load(open(fn))
+      tdir = os.path.dirname(os.path.realpath(fn))
+      update_io(cfg, tdir, community, '-z' in opts)
