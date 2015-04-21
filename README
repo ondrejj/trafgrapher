@@ -12,7 +12,16 @@ Requirements:
 
 How to install?
 
-Download flotcharts and unpack it into "flots" directory.
+Download salstar.sk scripts:
+	git clone http://git.salstar.sk/scripts.git
+	cd scripts/trafgrapher
+Download flotcharts and unpack it into "flot" directory:
+	git clone https://github.com/flot/flot
+	make
+   or:
+	curl http://www.flotcharts.org/downloads/flot-0.8.3.tar.gz \
+          | tar xvzf -
+
 Create "mrtg" or "iostats" directory and copy statistics data from storage.
 
 For IBM storwize you have to use these commands:
