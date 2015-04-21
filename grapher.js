@@ -561,7 +561,6 @@ JSONLoader.prototype.load_log = function(filename, args) {
       deltas[ethid]['O'].push([t, om]);
     }
     self.loaded_bytes += data.length | 0;
-    console.log(self.loaded_bytes, data.length);
     self.file_loaded();
   }).fail(function(jqXHR, textStatus, error) {
     self.graph.error("Failed to load log file: " + filename + ": " + error);
