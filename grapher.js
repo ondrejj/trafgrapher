@@ -257,9 +257,7 @@ Graph.prototype.add_callbacks = function() {
   // buttons and selectors
   this.interval.change(function() {self.refresh_range()});
   this.graph_source.change(function() {self.change_source()});
-  this.find("reload").click(function() {self.refresh_graph()});
-  this.find("zoomout").click(function() {self.zoom_out()});
-  this.find("all_none").click(function() {self.toggleall()});
+  this.find("menu").change(function() {self.menu_selected()}).val("");
   this.find("toggle_info").click(function() {
     self.find("info_table").animate({height: "toggle"}, 300);
   });
@@ -328,6 +326,30 @@ Graph.prototype.add_callbacks = function() {
       self.plot_graph();
     }
   });
+}
+Graph.prototype.menu_selected = function() {
+  var sel = this.find("menu", "option:selected").val(),
+      inputs_all = this.filter.find("input");
+  if (sel=="") {
+    return;
+  } else if (sel=="all") {
+    $(inputs_all).attr("checked", true);
+    this.plot_graph();
+  } else if (sel=="none") {
+    $(inputs_all).attr("checked", false);
+    this.plot_graph();
+  } else if (sel=="inv") {
+    $(inputs_all).each(function() {
+      var sel = $(this);
+      sel.attr("checked", !sel.attr("checked"));
+    });
+    this.plot_graph();
+  } else if (sel=="zoomout") {
+    this.zoom_out();
+  } else if (sel=="reload") {
+    this.refresh_graph();
+  }
+  this.find("menu").val("");
 }
 
 // Update checkboxes according to number of graphs.
