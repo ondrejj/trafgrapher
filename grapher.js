@@ -245,8 +245,10 @@ Graph.prototype.filter_interval = function(data, unit, use_max) {
 // Reset range
 Graph.prototype.reset_range = function() {
   // set current interval
-  var current_datetime = new Date();
+  var current_datetime = new Date(),
+      range_end = this.div.find("[name^=range_end]").attr("value");
   this.time_interval = parseInt(this.interval.attr("value"));
+  if (range_end) current_datetime = range_end * 1000;
   this.range_from = Number(current_datetime - this.time_interval*one_hour);
   this.range_to = Number(current_datetime); // convert to number
 }
@@ -954,6 +956,9 @@ Graph.prototype.zoom_out = function() {
 
 Graph.prototype.select_devices = function() {
   var self = this;
+  this.div.find("[name^=json_file]").each(function() {
+    self.json_files.push($(this).attr("value"));
+  });
   this.div.find("[name^=mrtg_file]").each(function() {
     self.mrtg_files.push($(this).attr("value"));
   });
