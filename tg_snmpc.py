@@ -3,8 +3,8 @@
 '''
 TrafGrapher SNMP client
 
-Usage: get.py --cfg IP_or_hostname [cpmmunity [ifName]] > config.json
-       get.py [community@]config.json
+Usage: tg_snmpc.py --cfg IP_or_hostname [cpmmunity [ifName]] > config.json
+       tg_snmpc.py [community@]config.json
 '''
 
 import sys, os, socket, time, json, getopt
