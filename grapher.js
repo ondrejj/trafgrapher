@@ -279,7 +279,7 @@ Graph.prototype.add_callbacks = function() {
     if (item) {
       var label = item.series.label.name;
       self.filter.find("li").css("border-color", "transparent");
-      self.filter.find("li#li"+label).css("border-color", "black");
+      self.filter.find("li#li"+self.ID+label).css("border-color", "black");
       self.find("throughput").attr("value",
         self.unit_si(item.datapoint[1], 2, self.unit));
       // compute bytes
