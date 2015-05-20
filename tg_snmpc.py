@@ -9,7 +9,7 @@ Usage: tg_snmpc.py --cfg IP_or_hostname [cpmmunity [ifName]] > config.json
 
 import sys, os, socket, time, json, getopt
 from pysnmp.entity.rfc3413.oneliner import cmdgen
-from pysnmp.proto.rfc1905 import NoSuchInstance
+#from pysnmp.proto.rfc1905 import NoSuchInstance
 
 def pp(x):
     return x.prettyPrint()
@@ -118,14 +118,19 @@ class SNMP:
         for id in request:
           ino = result.pop(0)
           outo = result.pop(0)
-          if isinstance(ino, NoSuchInstance) \
-             or isinstance(outo, NoSuchInstance):
+          #if isinstance(ino, NoSuchInstance) \
+          #   or isinstance(outo, NoSuchInstance):
+          #  print "No such instance: ip: %s:%d, id: %s" \
+          #        % (self.addr, self.port, id)
+          try:
+            ret[id] = dict(
+              ifInOctets = long(ino),
+              ifOutOctets = long(outo)
+            )
+          except AttributeError, err:
+            ret[id] = dict(ifInOctets = 0, ifOutOctets = 0)
             print "No such instance: ip: %s:%d, id: %s" \
                   % (self.addr, self.port, id)
-          ret[id] = dict(
-            ifInOctets = long(ino or 0),
-            ifOutOctets = long(outo or 0)
-          )
       return ret
   def getsome(self, ids):
       mibvars = []

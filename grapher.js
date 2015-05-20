@@ -330,7 +330,8 @@ Graph.prototype.add_callbacks = function() {
   });
 }
 Graph.prototype.menu_selected = function() {
-  var sel = this.find("menu", "option:selected").val(),
+  var self = this,
+      sel = this.find("menu", "option:selected").val(),
       inputs_all = this.filter.find("input");
   if (sel=="") {
     return;
@@ -344,6 +345,14 @@ Graph.prototype.menu_selected = function() {
     $(inputs_all).each(function() {
       var sel = $(this);
       sel.attr("checked", !sel.attr("checked"));
+    });
+    this.plot_graph();
+  } else if (sel=="virtual") {
+    $(inputs_all).each(function() {
+      var sel = $(this);
+      if (self.deltas[this.name]['info']
+          && self.deltas[this.name]['info']['ifType']=='propVirtual')
+        sel.attr("checked", !sel.attr("checked"));
     });
     this.plot_graph();
   } else if (sel=="zoomout") {
