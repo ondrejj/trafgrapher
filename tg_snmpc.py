@@ -9,6 +9,7 @@ Usage: tg_snmpc.py --cfg IP_or_hostname [cpmmunity [ifName]] > config.json
 
 import sys, os, socket, time, json, getopt
 from pysnmp.entity.rfc3413.oneliner import cmdgen
+from pysnmp.proto.rfc1905 import NoSuchInstance
 
 def pp(x):
     return x.prettyPrint()
@@ -34,6 +35,9 @@ def ifspeed(speed, unit="b/s"):
     if (speed>=k): return "%d k%s" % (speed/k, unit)
     return "%d %s" % (speed, unit)
 
+def ifhighspeed(speed):
+    return ifspeed(long(speed)*1000000)
+
 def iftype(ift):
     iana = cmdGen.snmpEngine.msgAndPduDsp.mibInstrumController.mibBuilder.mibSymbols['IANAifType-MIB']
     return repr(iana['IANAifType'](ift)).split("'")[1]
@@ -46,6 +50,7 @@ oids_info = dict(
   ifType=iftype,
   ifMtu=int,
   ifSpeed=ifspeed,
+  ifHighSpeed=ifhighspeed,
   ifPhysAddress=macaddr
 )
 
@@ -100,6 +105,7 @@ def get_info(IP, community_name="public", ifid='ifIndex', oids=oids_info):
 class SNMP:
   port = 161
   def __init__(self, addr, community_name="public"):
+      self.addr = addr
       self.community = cmdgen.CommunityData(community_name)
       self.transport = cmdgen.UdpTransportTarget((addr, self.port))
   def getall(self, ids, n=16):
@@ -110,9 +116,15 @@ class SNMP:
           request.append(ids.pop(0))
         result = self.getsome(request)
         for id in request:
+          ino = result.pop(0)
+          outo = result.pop(0)
+          if isinstance(ino, NoSuchInstance) \
+             or isinstance(outo, NoSuchInstance):
+            print "No such instance: ip: %s:%d, id: %s" \
+                  % (self.addr, self.port, id)
           ret[id] = dict(
-            ifInOctets = long(result.pop(0)),
-            ifOutOctets = long(result.pop(0))
+            ifInOctets = long(ino or 0),
+            ifOutOctets = long(outo or 0)
           )
       return ret
   def getsome(self, ids):
