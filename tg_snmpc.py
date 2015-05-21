@@ -3,7 +3,7 @@
 '''
 TrafGrapher SNMP client
 
-Usage: tg_snmpc.py --cfg IP_or_hostname [cpmmunity [ifName]] > config.json
+Usage: tg_snmpc.py --mkcfg [community@]IP_or_hostname [ifName] > config.json
        tg_snmpc.py [community@]config.json
 '''
 
@@ -296,13 +296,17 @@ def update_io(cfg, tdir, community_name="public", force_compress=False):
 
 if __name__ == "__main__":
   opts, files = getopt.gnu_getopt(sys.argv[1:], 'hctz',
-    ['help', 'cfg', 'test'])
+    ['help', 'mkcfg', 'test'])
   opts = dict(opts)
   if not files:
     print __doc__
     sys.exit()
-  elif "--cfg" in opts or "-c" in opts:
+  elif "--mkcfg" in opts or "-c" in opts:
     name = files[0]
+    if "@" in name:
+      community, name = name.split("@", 1)
+    else:
+      community = "public"
     try:
       name = socket.gethostbyaddr(name)[0]
     except:
@@ -310,7 +314,7 @@ if __name__ == "__main__":
     print json.dumps(dict(
       name = name,
       ip = socket.gethostbyname(name),
-      ifs = get_info(*files)
+      ifs = get_info(name, community, *files[1:])
     ), indent=2, separators=(',', ': '))
   elif "--test" in opts or "-t" in opts:
     print SNMP(files[0]).getall(files[1:])
