@@ -3,7 +3,8 @@
 '''
 TrafGrapher SNMP client
 
-Usage: tg_snmpc.py --mkcfg [community@]IP_or_hostname [ifName] > config.json
+Usage: tg_snmpc.py [--mkcfg|-c [community@]IP_or_hostname] \\
+		[--write|-w index.json] [--id ifName] [--check]
        tg_snmpc.py [community@]config.json
 '''
 
@@ -295,8 +296,8 @@ def update_io(cfg, tdir, community_name="public", force_compress=False):
       )
 
 if __name__ == "__main__":
-  opts, files = getopt.gnu_getopt(sys.argv[1:], 'hctz',
-    ['help', 'mkcfg', 'test'])
+  opts, files = getopt.gnu_getopt(sys.argv[1:], 'hctzw:',
+    ['help', 'mkcfg', 'test', 'write=', 'id=', 'check'])
   opts = dict(opts)
   if not files:
     print __doc__
@@ -311,11 +312,28 @@ if __name__ == "__main__":
       name = socket.gethostbyaddr(name)[0]
     except:
       pass
-    print json.dumps(dict(
-      name = name,
-      ip = socket.gethostbyname(name),
-      ifs = get_info(name, community, *files[1:])
-    ), indent=2, separators=(',', ': '))
+    if "--id" in opts:
+      ifid = opts['--id']
+    else:
+      ifid = "ifIndex"
+    ifs = get_info(name, community, ifid)
+    ret = json.dumps(
+      dict(name = name, ip = socket.gethostbyname(name), ifs = ifs),
+      indent=2, separators=(',', ': ')
+    )
+    if "--write" in opts:
+      open(opts["--write"], "wt").write(ret)
+      dir = os.path.dirname(opts["--write"])
+    elif "-w" in opts:
+      open(opts["-w"], "wt").write(ret)
+      dir = os.path.dirname(opts["-w"])
+    else:
+      print ret
+      dir = "."
+    if "--check" in opts:
+      for key, value in ifs.items():
+        if not os.path.exists(os.path.join(dir, value['log'])):
+          print "Missing log file:", value['log']
   elif "--test" in opts or "-t" in opts:
     print SNMP(files[0]).getall(files[1:])
   else:
