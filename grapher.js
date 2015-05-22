@@ -124,9 +124,8 @@ var Graph = function(ID) {
     /^unrouted[ -]VLAN/,
     /^Control.Plane.Interface/,
     // DELL
-    /^-Link-Aggregate-/,
-    /^-CPU-Interface-for-Unit:-/,
-    /^Unit:-/,
+    /^[ -]Link[ -]Aggregate[ -]/,
+    /^[ -]CPU[ -]Interface[ -]for[ -]Unit:[ -]/,
     /^Backbone$/,
   ];
   this.loader = this.div.find("[id^=loader]");
