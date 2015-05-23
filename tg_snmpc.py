@@ -4,7 +4,7 @@
 TrafGrapher SNMP client
 
 Usage: tg_snmpc.py [--mkcfg|-c [community@]IP_or_hostname] \\
-		[--write|-w index.json] [--id ifName] [--nodns] [--check]
+		[--write|-w index.json] [--id ifName] [--check]
        tg_snmpc.py [community@]config.json
 '''
 
@@ -14,6 +14,10 @@ from pysnmp.entity.rfc3413.oneliner import cmdgen
 
 def pp(x):
     return x.prettyPrint()
+
+def ustr(x):
+    '''Encode as UTF8 string.'''
+    return str(x).decode("utf8", "replace")
 
 def macaddr(x):
     ret = []
@@ -47,7 +51,7 @@ oids_info = dict(
   ifIndex=str,
   ifDescr=str,
   ifName=str,
-  ifAlias=str,
+  ifAlias=ustr,
   ifType=iftype,
   ifMtu=int,
   ifSpeed=ifspeed,
@@ -71,7 +75,11 @@ cmdGen = cmdgen.CommandGenerator()
 mib_source = \
   os.path.join(os.path.dirname(os.path.realpath(__file__)), 'pysnmp_mibs')
 
-def get_info(IP, community_name="public", ifid='ifIndex', oids=oids_info):
+def get_info(IP, community_name="public", ifid='ifIndex', log_prefix=None,
+             oids=oids_info):
+    if log_prefix is None:
+      log_prefix = IP
+
     errorIndication, errorStatus, errorIndex, varBindTable = cmdGen.nextCmd(
       cmdgen.CommunityData(community_name),
       cmdgen.UdpTransportTarget((IP, 161)),
@@ -96,7 +104,7 @@ def get_info(IP, community_name="public", ifid='ifIndex', oids=oids_info):
           (x[0].replace("ifHC", "if"), oids[x[0]](x[1][1]))
           for x in zip(oids, row)
         ])
-        data['log'] = "%s_%s.log" % (IP,
+        data['log'] = "%s_%s.log" % (log_prefix,
           data[ifid].lower().replace("/", "_")
         )
         if data['ifName']!='Nu0':
@@ -297,7 +305,7 @@ def update_io(cfg, tdir, community_name="public", force_compress=False):
 
 if __name__ == "__main__":
   opts, files = getopt.gnu_getopt(sys.argv[1:], 'hctzw:',
-    ['help', 'mkcfg', 'test', 'write=', 'id=', 'nodns', 'check'])
+    ['help', 'mkcfg', 'test', 'write=', 'id=', 'check'])
   opts = dict(opts)
   if not files:
     print __doc__
@@ -308,33 +316,39 @@ if __name__ == "__main__":
       community, name = name.split("@", 1)
     else:
       community = "public"
-    if "--nodns" not in opts:
-      try:
-        name = socket.gethostbyaddr(name)[0]
-      except:
-        pass
+    log_prefix = name
+    try:
+      name = socket.gethostbyaddr(name)[0]
+    except:
+      pass
     if "--id" in opts:
       ifid = opts['--id']
     else:
       ifid = "ifIndex"
-    ifs = get_info(name, community, ifid)
+    print "Connecting to: %s@%s" % (community, name)
+    ifs = get_info(name, community, ifid, log_prefix)
     ret = json.dumps(
       dict(name = name, ip = socket.gethostbyname(name), ifs = ifs),
       indent=2, separators=(',', ': ')
     )
     if "--write" in opts:
-      open(opts["--write"], "wt").write(ret)
-      dir = os.path.dirname(opts["--write"])
+      out_filename = opts["--write"]
+      dir = os.path.dirname(out_filename)
     elif "-w" in opts:
-      open(opts["-w"], "wt").write(ret)
-      dir = os.path.dirname(opts["-w"])
+      out_filename = opts["-w"]
+      dir = os.path.dirname(out_filename)
     else:
+      out_filename = ""
       print ret
       dir = "."
-    if "--check" in opts:
+    if "--check" in opts and ifs is not None:
       for key, value in ifs.items():
         if not os.path.exists(os.path.join(dir, value['log'])):
           print "Missing log file:", value['log']
+    if out_filename:
+      open(out_filename, "wt").write(ret)
+      print "Update command: %s %s@%s" \
+            % (sys.argv[0], community, out_filename)
   elif "--test" in opts or "-t" in opts:
     print SNMP(files[0]).getall(files[1:])
   else:
