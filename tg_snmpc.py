@@ -4,13 +4,17 @@
 TrafGrapher SNMP client
 
 Usage: tg_snmpc.py [--mkcfg|-c [community@]IP_or_hostname] \\
-		[--write|-w index.json] [--id ifName] [--check]
-       tg_snmpc.py [community@]config.json
+		[--write|-w index.json] [--mkdir|-d] [--id ifName] \\
+		[--verbose|-v] [--check]
+       tg_snmpc.py [--verbose|-v] [community@]config.json \\
+		[--filter=timestamp]
 '''
 
 import sys, os, socket, time, json, getopt
 from pysnmp.entity.rfc3413.oneliner import cmdgen
 #from pysnmp.proto.rfc1905 import NoSuchInstance
+
+VERBOSE = False
 
 def pp(x):
     return x.prettyPrint()
@@ -75,48 +79,63 @@ cmdGen = cmdgen.CommandGenerator()
 mib_source = \
   os.path.join(os.path.dirname(os.path.realpath(__file__)), 'pysnmp_mibs')
 
-def get_info(IP, community_name="public", ifid='ifIndex', log_prefix=None,
-             oids=oids_info):
-    if log_prefix is None:
-      log_prefix = IP
-
-    errorIndication, errorStatus, errorIndex, varBindTable = cmdGen.nextCmd(
-      cmdgen.CommunityData(community_name),
-      cmdgen.UdpTransportTarget((IP, 161)),
-      *[
-        cmdgen.MibVariable('IF-MIB', x).addMibSource(mib_source)
-        for x in oids
-       ]
-    )
-
-    if errorIndication:
-      print(errorIndication)
-    elif errorStatus:
-      print('%s at %s' % (
-          errorStatus.prettyPrint(),
-          errorIndex and varBindTable[-1][int(errorIndex)-1] or '?'
-        )
-      )
-    else:
-      ret = {}
-      for row in varBindTable:
-        data = dict([
-          (x[0].replace("ifHC", "if"), oids[x[0]](x[1][1]))
-          for x in zip(oids, row)
-        ])
-        data['log'] = "%s_%s.log" % (log_prefix,
-          data[ifid].lower().replace("/", "_")
-        )
-        if data['ifName']!='Nu0':
-          ret[data['ifIndex']] = data
-      return ret
-
 class SNMP:
   port = 161
   def __init__(self, addr, community_name="public"):
       self.addr = addr
       self.community = cmdgen.CommunityData(community_name)
       self.transport = cmdgen.UdpTransportTarget((addr, self.port))
+  def get_info(self, ifid='ifIndex', log_prefix=None, oids=oids_info):
+      if log_prefix is None:
+        log_prefix = self.addr
+
+      errorIndication, errorStatus, errorIndex, varBindTable = cmdGen.nextCmd(
+        self.community,
+        self.transport,
+        *[
+          cmdgen.MibVariable('IF-MIB', x).addMibSource(mib_source)
+          for x in oids
+         ]
+      )
+
+      if errorIndication:
+        print(errorIndication)
+      elif errorStatus:
+        print('%s at %s' % (
+            errorStatus.prettyPrint(),
+            errorIndex and varBindTable[-1][int(errorIndex)-1] or '?'
+          )
+        )
+      else:
+        ret = {}
+        for row in varBindTable:
+          data = dict([
+            (x[0].replace("ifHC", "if"), oids[x[0]](x[1][1]))
+            for x in zip(oids, row)
+          ])
+          # check IO retrieval
+          ifindex = data['ifIndex']
+          io = self.getall([ifindex])
+          if io[ifindex]['error']:
+            print("Unable to get IO for id %s, ignoring ..." % ifindex)
+            if VERBOSE:
+              print(data)
+              print(io)
+            continue
+          # ignored types and names
+          if 'ifType' in data and data['ifType']=='ieee8023adLag':
+            continue
+          # use HighSpeed if possible
+          if 'ifHighSpeed' in data:
+            data['ifSpeed'] = data['ifHighSpeed']
+            del data['ifHighSpeed']
+          # append to log
+          data['log'] = "%s_%s.log" % (log_prefix,
+            data[ifid].lower().replace("/", "_")
+          )
+          if data['ifName']!='Nu0':
+            ret[ifindex] = data
+        return ret
   def getall(self, ids, n=16):
       ret = {}
       while ids:
@@ -127,19 +146,22 @@ class SNMP:
         for id in request:
           #if isinstance(ino, NoSuchInstance) \
           #   or isinstance(outo, NoSuchInstance):
-          #  print "No such instance: ip: %s:%d, id: %s" \
-          #        % (self.addr, self.port, id)
+          #  print("No such instance: ip: %s:%d, id: %s"
+          #        % (self.addr, self.port, id))
           try:
             ino = result.pop(0)
             outo = result.pop(0)
             ret[id] = dict(
               ifInOctets = long(ino),
-              ifOutOctets = long(outo)
+              ifOutOctets = long(outo),
+              error = None
             )
           except (AttributeError, IndexError), err:
-            ret[id] = dict(ifInOctets = 0, ifOutOctets = 0)
-            print "No such instance: ip: %s:%d, id: %s" \
-                  % (self.addr, self.port, id)
+            ret[id] = dict(
+              ifInOctets = 0, ifOutOctets = 0,
+              error = "No such instance: ip: %s:%d, id: %s"
+                      % (self.addr, self.port, id)
+            )
       return ret
   def getsome(self, ids):
       mibvars = []
@@ -165,15 +187,15 @@ class SNMP:
           )
         )
         return []
+      ret = []
       try:
-        ret = []
         vars = dict(varBinds)
         for key in mibvars:
-          ret.append(vars[key])
-        return ret
+          if key in vars:
+            ret.append(vars[key])
       except AttributeError, err:
         print(err, id)
-        return []
+      return ret
 
 class grouper(dict):
   def __getitem__(self, key):
@@ -219,10 +241,10 @@ class logfile:
           self.counter = ()
         if len(counter)!=self.counter_length:
           # load deltas and convert this file from MRTG to trafgrapher
-          print "Converting file:", self.filename
+          print("Converting file:", self.filename)
           self.load()
         elif force_compress:
-          #print "Compress:", self.filename
+          #print("Compress:", self.filename)
           self.load()
       except IOError:
         self.f = open(self.filename, "wb")
@@ -234,7 +256,7 @@ class logfile:
   def save(self, delta):
       if self.deltas:
         # save data when converting to new format
-        #print "Full save:", self.filename
+        #print("Full save:", self.filename)
         self.f.close()
         self.deltas[delta[0]] = delta[1:] # add current values
         self.compress()
@@ -269,7 +291,7 @@ class logfile:
           delta_in/delta_t, delta_out/delta_t
         )
         #if delta[1]>12**8 or delta[2]>12**8 or delta[1]<0 or delta[2]<0:
-        #  print delta
+        #  print(delta)
       else:
         delta = (t, 0, 0, 0, 0)
       self.counter = (t, data_in, data_out)
@@ -291,24 +313,45 @@ class logfile:
         st = int(t/range)*range
         ret[st].append(self.deltas[t])
       self.deltas = dict(ret.items())
+  def filter(self, filter):
+      if not filter:
+        return self
+      self.load()
+      #for key, value in self.deltas.items():
+      #  print key, value
+      for key in filter.split(","):
+        key = int(key)
+        if key in self.deltas:
+          del self.deltas[key]
+      return self
 
-def update_io(cfg, tdir, community_name="public", force_compress=False):
+def update_io(cfg, tdir, community_name="public", force_compress=False,
+              filter=None):
     ids = cfg['ifs'].keys()
     IP = cfg['ip']
     for idx, io in SNMP(IP, community_name).getall(ids).items():
+      if io['error']:
+        print(io['error'])
+        if VERBOSE:
+          print(json.dumps(cfg['ifs'][idx], indent=2, separators=(',', ': ')))
       logfile(
         os.path.join(tdir, cfg['ifs'][idx]['log']),
         force_compress
+      ).filter(
+        filter
       ).update(
         io['ifInOctets'], io['ifOutOctets']
       )
 
 if __name__ == "__main__":
-  opts, files = getopt.gnu_getopt(sys.argv[1:], 'hctzw:',
-    ['help', 'mkcfg', 'test', 'write=', 'id=', 'check'])
+  opts, files = getopt.gnu_getopt(sys.argv[1:], 'hctzw:dv',
+    ['help', 'mkcfg', 'test', 'write=', 'mkdir', 'id=', 'verbose', 'check',
+     'filter='])
   opts = dict(opts)
+  if "--verbose" in opts or "-v" in opts:
+    VERBOSE = True
   if not files:
-    print __doc__
+    print(__doc__)
     sys.exit()
   elif "--mkcfg" in opts or "-c" in opts:
     name = files[0]
@@ -325,8 +368,11 @@ if __name__ == "__main__":
       ifid = opts['--id']
     else:
       ifid = "ifIndex"
-    print "Connecting to: %s@%s" % (community, name)
-    ifs = get_info(name, community, ifid, log_prefix)
+    if name == log_prefix:
+      print("Connecting to: %s@%s" % (community, name))
+    else:
+      print("Connecting to: %s@%s [%s]" % (community, name, log_prefix))
+    ifs = SNMP(name, community).get_info(ifid, log_prefix)
     ret = json.dumps(
       dict(name = name, ip = socket.gethostbyname(name), ifs = ifs),
       indent=2, separators=(',', ': ')
@@ -339,24 +385,35 @@ if __name__ == "__main__":
       dir = os.path.dirname(out_filename)
     else:
       out_filename = ""
-      print ret
+      print(ret)
       dir = "."
-    if "--check" in opts and ifs is not None:
-      for key, value in ifs.items():
-        if not os.path.exists(os.path.join(dir, value['log'])):
-          print "Missing log file:", value['log']
-    if out_filename:
-      open(out_filename, "wt").write(ret)
-      print "Update command: %s %s@%s" \
-            % (sys.argv[0], community, out_filename)
+    if ifs:
+      if "--check" in opts:
+        for key, value in ifs.items():
+          if not os.path.exists(os.path.join(dir, value['log'])):
+            print("Missing log file: %s" % value['log'])
+      if out_filename:
+        if "--mkdir" in opts or "-d" in opts:
+          if not os.path.isdir(dir):
+            print("Creating missing directory: %s" % dir)
+            os.makedirs(dir)
+        open(out_filename, "wt").write(ret)
+        print("Update command: %s %s@%s"
+              % (sys.argv[0], community, out_filename))
   elif "--test" in opts or "-t" in opts:
-    print SNMP(files[0]).getall(files[1:])
+    print(SNMP(files[0]).getall(files[1:]))
   else:
+    filter = ""
+    if "--filter" in opts:
+      filter = opts["--filter"]
     for fn in files:
       if '@' in fn:
         community, fn = fn.split('@', 1)
       else:
         community = 'public'
-      cfg = json.load(open(fn))
-      tdir = os.path.dirname(os.path.realpath(fn))
-      update_io(cfg, tdir, community, '-z' in opts)
+      if not os.path.exists(fn):
+        print("Configuration file doesn't exist [%s]!" % fn)
+      else:
+        cfg = json.load(open(fn))
+        tdir = os.path.dirname(os.path.realpath(fn))
+        update_io(cfg, tdir, community, '-z' in opts, filter=filter)

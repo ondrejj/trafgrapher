@@ -288,8 +288,8 @@ Graph.prototype.add_callbacks = function() {
           null, 'iB'));
       var description = self.deltas[label]['name'],
           switchname = self.deltas[label]['ip'];
-      if (self.deltas[label]['port_id'])
-        switchname = switchname + " [" + self.deltas[label]['port_id'] + "]";
+      //if (self.deltas[label]['port_id'])
+      //  switchname = switchname + " [" + self.deltas[label]['port_id'] + "]";
       self.find("ifname").attr("value", description);
       self.find("switchname").attr("value", switchname);
       // display information from json file
