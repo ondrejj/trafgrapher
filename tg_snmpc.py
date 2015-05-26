@@ -158,7 +158,7 @@ class SNMP:
             )
           except (AttributeError, IndexError), err:
             ret[id] = dict(
-              ifInOctets = 0, ifOutOctets = 0,
+              ifInOctets = None, ifOutOctets = None,
               error = "No such instance: ip: %s:%d, id: %s"
                       % (self.addr, self.port, id)
             )
@@ -334,14 +334,15 @@ def update_io(cfg, tdir, community_name="public", force_compress=False,
         print(io['error'])
         if VERBOSE:
           print(json.dumps(cfg['ifs'][idx], indent=2, separators=(',', ': ')))
-      logfile(
-        os.path.join(tdir, cfg['ifs'][idx]['log']),
-        force_compress
-      ).filter(
-        filter
-      ).update(
-        io['ifInOctets'], io['ifOutOctets']
-      )
+      else:
+        logfile(
+          os.path.join(tdir, cfg['ifs'][idx]['log']),
+          force_compress
+        ).filter(
+          filter
+        ).update(
+          io['ifInOctets'], io['ifOutOctets']
+        )
 
 if __name__ == "__main__":
   opts, files = getopt.gnu_getopt(sys.argv[1:], 'hctzw:dv',
