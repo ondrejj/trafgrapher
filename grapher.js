@@ -328,6 +328,18 @@ Graph.prototype.add_callbacks = function() {
     }
   });
 }
+Graph.prototype.urllink = function() {
+  var self = this, url = "./?j="+this.json_files[0], ports = [],
+      inputs_checked = this.filter.find("input:checked");
+  inputs_checked.each(function() {
+    ports.push(self.deltas[this.name]["port_id"]);
+  });
+  if (ports.length>0)
+    url += ";" + ports.join(";");
+  url += "&i=" + this.interval.val() + "h";
+  url += "&u=" + this.unit_type.val();
+  window.location = url;
+}
 Graph.prototype.menu_selected = function() {
   var self = this,
       sel = this.find("menu", "option:selected").val(),
@@ -358,6 +370,8 @@ Graph.prototype.menu_selected = function() {
     this.zoom_out();
   } else if (sel=="reload") {
     this.refresh_graph();
+  } else if (sel=="urllink") {
+    this.urllink();
   }
   this.find("menu").val("");
 }
@@ -1023,7 +1037,9 @@ Graph.prototype.parse_query_string = function() {
 }
 
 $(function() {
-  $(".footer").text($(".footer").text().replace("#.#", trafgrapher_version));
+  $(".footer a").text(
+    $(".footer a").text().replace("#.#", trafgrapher_version)
+  );
   graphs = [];
   $("div[id^=graph]").each(function() {
     var graph = new Graph($(this).attr("id"));

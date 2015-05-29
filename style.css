@@ -93,3 +93,8 @@ div.trafgrapher table tr td {
   padding: 0px;
   margin: 0px;
 }
+
+div.trafgrapher a, a:link, a:hover, a:active, a:visited {
+  color: blue;
+  text-decoration: none;
+}
