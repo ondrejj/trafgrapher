@@ -128,6 +128,7 @@ var Graph = function(ID) {
     /^[ -]CPU[ -]Interface[ -]for[ -]Unit:[ -]/,
     /^Backbone$/,
   ];
+  this.preselect_graphs = [];
   this.loader = this.div.find("[id^=loader]");
   this.placeholder = this.div.find("[id^=placeholder]");
   this.filter = this.div.find("[id^=filter]");
@@ -329,8 +330,15 @@ Graph.prototype.add_callbacks = function() {
   });
 }
 Graph.prototype.urllink = function() {
-  var self = this, url = "./?j="+this.json_files[0], ports = [],
+  var self = this, ports = [],
       inputs_checked = this.filter.find("input:checked");
+  if (this.json_files.length>0) {
+    var url = "?j="+this.json_files[0].split(";")[0];
+  } else if (this.mrtg_files.length>0) {
+    var url = "?m="+this.mrtg_files[0].split(";")[0];
+  } else {
+    return;
+  }
   inputs_checked.each(function() {
     ports.push(self.deltas[this.name]["port_id"]);
   });
@@ -338,7 +346,7 @@ Graph.prototype.urllink = function() {
     url += ";" + ports.join(";");
   url += "&i=" + this.interval.val() + "h";
   url += "&u=" + this.unit_type.val();
-  window.location = url;
+  window.location = window.location.href.split("?")[0] + url;
 }
 Graph.prototype.menu_selected = function() {
   var self = this,
@@ -388,15 +396,21 @@ Graph.prototype.update_checkboxes = function() {
   for (var key in this.deltas) keys.push(key);
   keys.sort();
   for (var keyid in keys) {
-    var key = keys[keyid], idkey = this.ID+key;
+    var key = keys[keyid], idkey = this.ID+key,
+        checked = "checked='checked'";
+    if (this.preselect_graphs.length>0)
+      if ($.inArray(key, this.preselect_graphs)<0)
+        checked = "";
     this.filter.append("<li id='li" + idkey +
       "'><table><tr>" +
       "<td><div class='box'>&nbsp;</div></td>" +
       "<td><input type='checkbox' name='" + key +
-        "' checked='checked' id='cb" + idkey + "'></input></td><td>" +
+        "' " + checked + " id='cb" + idkey + "'></input></td><td>" +
       this.deltas[key]['name'] +
       "</td></tr></table></li>");
   }
+  self.preselect_graphs = []; // clear after apply
+  // Add actions.
   this.filter.find("input").click(function() {self.plot_graph()});
   this.graph_type.change(function() {self.plot_graph()});
   this.unit_type.change(function() {self.plot_graph()});
@@ -583,8 +597,7 @@ JSONLoader.prototype.load_log = function(filename, args) {
     dataType: "text",
     cache: false
   }).done(function(data) {
-    var ethid = args.ip.replace(/[^a-z0-9]/gi, '_')
-              + args.port_id.replace(".", "_");
+    var ethid = args.ethid;
     var lines = data.split('\n');
     name = $('<div/>').text(args.name).html(); // escape html in name
     deltas[ethid] = {'o': [], 'i': [], 'j': [], 'O': [], 'I': [], 'J': []};
@@ -617,9 +630,10 @@ JSONLoader.prototype.load_log = function(filename, args) {
 JSONLoader.prototype.load_index = function(url) {
   var self = this, graph = this.graph;
   // load index file
-  var interfaces = url.split(";");
-  url = interfaces.shift();
+  var preselect_graphs = url.split(";");
+  url = preselect_graphs.shift();
   var urldir = url.replace(/[^\/]*$/, "");
+  graph.preselect_graphs = [];
   $.ajax({
     url: url,
     dataType: "json",
@@ -633,15 +647,19 @@ JSONLoader.prototype.load_index = function(url) {
           break;
         }
       if (port_id==null) continue;
-      if (interfaces.length==0 || $.inArray(port_id, interfaces)>=0) {
-        files.push({
-          'filename': urldir + data.ifs[port_id].log,
-          'port_id': port_id,
-          'name': data.ifs[port_id].ifAlias || data.ifs[port_id].ifDescr,
-          'ip': data.ip,
-          'info': data.ifs[port_id]
-        });
-      }
+      var ethid = data.ip.replace(/[^a-z0-9]/gi, '_')
+                + port_id.replace(".", "_");
+      files.push({
+        'filename': urldir + data.ifs[port_id].log,
+        'port_id': port_id,
+        'ethid': ethid,
+        'name': data.ifs[port_id].ifAlias || data.ifs[port_id].ifDescr,
+        'ip': data.ip,
+        'info': data.ifs[port_id]
+      });
+      if (preselect_graphs.length>0)
+        if ($.inArray(port_id, preselect_graphs)>=0)
+          graph.preselect_graphs.push(ethid);
     }
     self.loaded_bytes += data.length | 0;
     self.files_to_load += files.length;
@@ -680,8 +698,9 @@ MRTGLoader.prototype.load_index = function(url) {
     return;
   }
   // load index file
-  var interfaces = url.split(";");
-  url = interfaces.shift().replace(/[^\/]*$/, ""); // remove filename
+  var preselect_graphs = url.split(";");
+  url = preselect_graphs.shift().replace(/[^\/]*$/, ""); // rm filename
+  graph.preselect_graphs = [];
   $.ajax({
     url: url,
     dataType: "text",
@@ -708,16 +727,19 @@ MRTGLoader.prototype.load_index = function(url) {
         var file_prefix = url+fname,
             basename = file_prefix.substr(file_prefix.lastIndexOf('/')+1),
             port_id = basename.substr(basename.indexOf('_')+1);
-        // skip interfaces
-        if (interfaces.length==0 || $.inArray(port_id, interfaces)>=0) {
-          files.push({
-            'filename': file_prefix+".log",
-            'port_id': port_id,
-            'name': name,
-            'ip': switch_ip,
-            'html': file_prefix+".html"
-          });
-        }
+        var ethid = switch_ip.replace(/[^a-z0-9]/gi, '_')
+                  + port_id.replace(".", "_");
+        files.push({
+          'filename': file_prefix+".log",
+          'port_id': port_id,
+          'ethid': ethid,
+          'name': name,
+          'ip': switch_ip,
+          'html': file_prefix+".html"
+        });
+        if (preselect_graphs.length>0)
+          if ($.inArray(port_id, preselect_graphs)>=0)
+            graph.preselect_graphs.push(ethid);
       }
     });
     self.loaded_bytes += data.length | 0;
