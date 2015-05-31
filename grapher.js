@@ -331,6 +331,7 @@ Graph.prototype.add_callbacks = function() {
 }
 Graph.prototype.urllink = function() {
   var self = this, ports = [],
+      inputs_all = this.filter.find("input"),
       inputs_checked = this.filter.find("input:checked");
   if (this.json_files.length>0) {
     var url = "?j="+this.json_files[0].split(";")[0];
@@ -339,11 +340,13 @@ Graph.prototype.urllink = function() {
   } else {
     return;
   }
-  inputs_checked.each(function() {
-    ports.push(self.deltas[this.name]["port_id"]);
-  });
-  if (ports.length>0)
-    url += ";" + ports.join(";");
+  if (inputs_checked.length<inputs_all.length) {
+    inputs_checked.each(function() {
+      ports.push(self.deltas[this.name]["port_id"]);
+    });
+    if (ports.length>0)
+      url += ";" + ports.join(";");
+  }
   url += "&i=" + this.interval.val() + "h";
   url += "&u=" + this.unit_type.val();
   window.location = window.location.href.split("?")[0] + url;
@@ -432,7 +435,7 @@ Graph.prototype.plot_graph = function() {
   }
   var inputs_all = this.filter.find("input"),
       inputs_checked = this.filter.find("input:checked");
-  if ($(inputs_all).length == $(inputs_checked).length) {
+  if (inputs_all.length == inputs_checked.length) {
     this.find("all_none").attr("value", "NONE");
   } else {
     this.find("all_none").attr("value", "ALL");
@@ -1022,7 +1025,7 @@ Graph.prototype.parse_query_string = function() {
       arr.push(prefix+sarg[i]);
   }
   // parse query string
-  var range_multiplier = {y: 8766, m: 744, w: 168, d: 24};
+  var range_multiplier = {y: 8766, m: 744, w: 168, d: 24, h:1};
   var query = window.location.search.substring(1);
   if (query) {
     var args = query.split("&");
