@@ -4,7 +4,7 @@
   Licensed under the MIT license.
 */
 
-var trafgrapher_version = 0.8,
+var trafgrapher_version = 0.9,
     one_hour = 3600000;
 
 // Join two arrays into one. For same keys sum values.
@@ -987,7 +987,7 @@ Graph.prototype.refresh_graph = function() {
   } else {
     this.error("No files to load.");
   }
-  loader.load_all();
+  if (loader) loader.load_all();
 }
 
 Graph.prototype.change_source = function() {
@@ -1024,6 +1024,7 @@ Graph.prototype.parse_query_string = function() {
     for (var i=1; i<sarg.length; i++)
       arr.push(prefix+sarg[i]);
   }
+  this.select_devices();
   // parse query string
   var range_multiplier = {y: 8766, m: 744, w: 168, d: 24, h:1};
   var query = window.location.search.substring(1);
@@ -1056,8 +1057,6 @@ Graph.prototype.parse_query_string = function() {
         split_arg(arg[1], this.mrtg_files);
       }
     }
-  } else {
-    this.select_devices();
   }
 }
 
