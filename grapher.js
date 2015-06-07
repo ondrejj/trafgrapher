@@ -337,12 +337,18 @@ Graph.prototype.urllink = function() {
     var url = "?j="+this.json_files[0].split(";")[0];
   } else if (this.mrtg_files.length>0) {
     var url = "?m="+this.mrtg_files[0].split(";")[0];
+  } else if (this.storage_files.length>0) {
+    var url = "?s="+this.storage_files[0].split(";")[0];
   } else {
     return;
   }
   if (inputs_checked.length<inputs_all.length) {
     inputs_checked.each(function() {
-      ports.push(self.deltas[this.name]["port_id"]);
+      if (self.storage_files.length>0) {
+        ports.push(this.name);
+      } else {
+        ports.push(self.deltas[this.name]["port_id"]);
+      }
     });
     if (ports.length>0)
       url += ";" + ports.join(";");
@@ -769,7 +775,7 @@ StorageLoader.prototype = Object.create(Loader.prototype);
 
 // Load storwize stats for one file.
 StorageLoader.prototype.load_storwize = function(filename) {
-  var self = this, counters = this.graph.counters, deltas = this.graph.deltas;
+  var self = this, counters = this.graph.counters;
   $.ajax({
     url: filename,
     dataType: "xml"
@@ -814,7 +820,7 @@ StorageLoader.prototype.load_storwize = function(filename) {
 
 // Load unisphere stats for one file.
 StorageLoader.prototype.load_unisphere = function(filename) {
-  var self = this, counters = this.graph.counters, deltas = this.graph.deltas;
+  var self = this, counters = this.graph.counters;
   $.ajax({
     url: filename
   }).done(function(data) {
@@ -915,11 +921,14 @@ StorageLoader.prototype.load_unisphere = function(filename) {
 }
 
 // Load file index and start loading of files.
-StorageLoader.prototype.load_index = function(storage_url) {
+StorageLoader.prototype.load_index = function(url) {
   var self = this;
   this.data_items = ["rb", "wb", "ro", "wo", "rl", "wl", "rt", "wt"];
+  var preselect_graphs = url.split(";");
+  url = preselect_graphs.shift()
+  self.graph.preselect_graphs = preselect_graphs;
   $.ajax({
-    url: storage_url,
+    url: url,
     cache: false
   }).done(function(data) {
     var files = [];
@@ -933,14 +942,14 @@ StorageLoader.prototype.load_index = function(storage_url) {
         var hrefa = href.split("_");
         var d = hrefa[3], t = hrefa[4];
         if (current_datetime-parsedatetime(d, t)<interval*one_hour)
-          files.push(storage_url+href);
+          files.push(url+href);
       }
       // Unisphere
       if (href.indexOf("Uni_")==0) {
         var hrefa = href.split("_");
         var d = hrefa[hrefa.length-2], t = hrefa[hrefa.length-1];
         if (current_datetime-parsedatetime(d, t)<interval*one_hour)
-          files.push(storage_url+href);
+          files.push(url+href);
       }
     }
     self.loaded_bytes += data.length | 0;
@@ -948,15 +957,15 @@ StorageLoader.prototype.load_index = function(storage_url) {
     if (self.files_to_load<=0)
       self.progress.text("No data to load");
     for (var fni=0; fni<self.files_to_load; fni++) {
-      if (files[fni].indexOf(storage_url+"N")==0) {
+      if (files[fni].indexOf(url+"N")==0) {
         self.load_storwize(files[fni]);
-      } else if (files[fni].indexOf(storage_url+"U")==0) {
+      } else if (files[fni].indexOf(url+"U")==0) {
         self.load_unisphere(files[fni]);
       }
     }
   }).fail(function(jqXHR, textStatus, error) {
     self.graph.error(
-      "Failed to load index file: " + storage_url + ": " + error
+      "Failed to load index file: " + url + ": " + error
     );
   });
 }
@@ -1003,6 +1012,11 @@ Graph.prototype.zoom_out = function() {
 
 Graph.prototype.select_devices = function() {
   var self = this;
+  // skip if files defined for query string
+  if (self.json_files.length>0 ||
+      self.mrtg_files.length>0 ||
+      self.storage_files.length>0)
+    return;
   this.div.find("[name^=json_file]").each(function() {
     self.json_files.push($(this).attr("value"));
   });
@@ -1024,7 +1038,6 @@ Graph.prototype.parse_query_string = function() {
     for (var i=1; i<sarg.length; i++)
       arr.push(prefix+sarg[i]);
   }
-  this.select_devices();
   // parse query string
   var range_multiplier = {y: 8766, m: 744, w: 168, d: 24, h:1};
   var query = window.location.search.substring(1);
@@ -1058,6 +1071,7 @@ Graph.prototype.parse_query_string = function() {
       }
     }
   }
+  this.select_devices();
 }
 
 $(function() {
