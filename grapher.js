@@ -543,7 +543,7 @@ Loader.prototype.file_loaded = function(remaining_files) {
     this.files_to_load -= 1;
   else
     this.files_to_load = remaining_files;
-  if (this.files_to_load<=0) {
+  if (this.files_to_load==0) {
     var counters = this.graph.counters, deltas = this.graph.deltas;
     // if counters is empty, this is skipped
     for (var name in counters) {
@@ -953,7 +953,7 @@ StorageLoader.prototype.load_index = function(url) {
       }
     }
     self.loaded_bytes += data.length | 0;
-    self.files_to_load = files.length;
+    self.files_to_load += files.length;
     if (self.files_to_load<=0)
       self.progress.text("No data to load");
     for (var fni=0; fni<self.files_to_load; fni++) {
