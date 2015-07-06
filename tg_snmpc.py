@@ -4,7 +4,8 @@
 TrafGrapher SNMP client
 
 Usage: tg_snmpc.py [--mkcfg|-c [community@]IP_or_hostname] \\
-		[--write|-w index.json] [--mkdir|-d] [--id ifName] \\
+		[--write|-w index.json] [--mkdir|-d] \\
+		[--id ifName] [--rename] \\
 		[--verbose|-v] [--check]
        tg_snmpc.py [--verbose|-v] [community@]config.json \\
 		[--filter=timestamp]
@@ -346,8 +347,8 @@ def update_io(cfg, tdir, community_name="public", force_compress=False,
 
 if __name__ == "__main__":
   opts, files = getopt.gnu_getopt(sys.argv[1:], 'hctzw:dv',
-    ['help', 'mkcfg', 'test', 'write=', 'mkdir', 'id=', 'verbose', 'check',
-     'filter='])
+    ['help', 'mkcfg', 'test', 'write=', 'mkdir', 'id=', 'rename',
+     'verbose', 'check', 'filter='])
   opts = dict(opts)
   if "--verbose" in opts or "-v" in opts:
     VERBOSE = True
@@ -388,12 +389,26 @@ if __name__ == "__main__":
       out_filename = ""
       print(ret)
       dir = "."
+    if "--rename" in opts:
+      if not out_filename:
+        print "ERROR: --write filename required for --rename option"
+        sys.exit(1)
+      rename_from = json.load(open(out_filename))
     if ifs:
       if "--check" in opts:
         for key, value in ifs.items():
           if not os.path.exists(os.path.join(dir, value['log'])):
             print("Missing log file: %s" % value['log'])
       if out_filename:
+        if "--rename" in opts:
+          rename_from = json.load(open(out_filename))
+          for id in ifs:
+            old_name = rename_from['ifs'][id]['log']
+            if os.path.exists(old_name) and not os.path.exists(ifs[id]['log']):
+              print "Rename: %s -> %s" % (old_name, ifs[id]['log'])
+              os.rename(old_name, ifs[id]['log'])
+        if os.path.exists(out_filename):
+          os.rename(out_filename, out_filename+".old")
         if "--mkdir" in opts or "-d" in opts:
           if not os.path.isdir(dir):
             print("Creating missing directory: %s" % dir)
