@@ -85,7 +85,7 @@ function gen_colors(neededColors) {
     // those colors. The factor alternates negative/positive
     // to produce lighter/darker colors.
 
-    // Reset the variation after every few cycles, or else  
+    // Reset the variation after every few cycles, or else
     // it will end up producing only white or black colors.
 
     if (i % colorPoolSize == 0 && i) {
@@ -121,11 +121,11 @@ var Graph = function(ID) {
   this.unit = this.unit_by_type['b'];
   this.excluded_interfaces = [
     // CISCO
-    /^unrouted[ -]VLAN/,
+    /^unrouted[\ \-]VLAN/,
     /^Control.Plane.Interface/,
     // DELL
-    /^[ -]Link[ -]Aggregate[ -]/,
-    /^[ -]CPU[ -]Interface[ -]for[ -]Unit:[ -]/,
+    /^[\ \-]Link[\ \-]Aggregate[\ \-]/,
+    /^[\ \-]CPU[\ \-]Interface[\ \-]for[\ \-]Unit:[\ \-]/,
     /^Backbone$/,
   ];
   this.preselect_graphs = [];
@@ -312,7 +312,7 @@ Graph.prototype.add_callbacks = function() {
           dataType: "html",
         }).done(function(data) {
           // don't load images from .html
-          var noimgdata = data.replace(/ src=/gi, " nosrc=");
+          var noimgdata = data.replace(/\ src=/gi, " nosrc=");
           var table = $(noimgdata).find("table");
           self.find("info_table").html(table[0]);
         });
@@ -717,7 +717,7 @@ MRTGLoader.prototype.load_index = function(url) {
   }).done(function(data) {
     var files = [];
     // don't load images from index.html
-    var noimgdata = data.replace(/ src=/gi, " nosrc=");
+    var noimgdata = data.replace(/\ src=/gi, " nosrc=");
     $(noimgdata).find("td").each(function(tagi, tag) {
       var tag = $(tag), diva = tag.find("div a");
       if (diva[0]) {
