@@ -100,6 +100,19 @@ function gen_colors(neededColors) {
   return colors;
 }
 
+// Format datetime
+function format_int(x) {
+  if (x<10) return "0"+x;
+  return x;
+}
+function format_datetime(ts) {
+  var d = new Date(ts);
+  return d.getFullYear() + "-"
+       + format_int(d.getMonth()) + "-" + format_int(d.getDay()) + " "
+       + format_int(d.getHours()) + ":" + format_int(d.getMinutes()) + ":"
+       + format_int(d.getSeconds());
+}
+
 /*
   Graph object
   =============
@@ -295,7 +308,9 @@ Graph.prototype.add_callbacks = function() {
       self.find("switchname").attr("value", switchname);
       // display information from json file
       if (self.json_files.length>0 && self.deltas[label]['info']) {
-        var table = ['<table>'], info = self.deltas[label]['info'];
+        var table = ['<table>'], info = self.deltas[label]['info'],
+            ftime = format_datetime(item.datapoint[0]);
+        table.push("<tr><td>Time</td><td>"+ftime+"</td></tr>");
         for (var key in info)
           if (key!="log")
             table.push(
