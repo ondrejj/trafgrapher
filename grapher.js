@@ -398,7 +398,6 @@ Graph.prototype.menu_selected = function(sel) {
 
 // Keyboard events
 Graph.prototype.keyevent = function(event) {
-  console.log(event.which);
   if (event.shiftKey) {
     switch(event.which) {
       case 73: // I
