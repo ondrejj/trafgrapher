@@ -413,7 +413,7 @@ Graph.prototype.keyevent = function(event) {
         this.menu_selected("virtual");
         break;
       case 82: // R
-        this.menu_selected("reaload");
+        this.menu_selected("reload");
         break;
       case 90: // Z
         this.menu_selected("zoomout");
