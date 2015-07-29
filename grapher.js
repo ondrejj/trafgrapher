@@ -398,84 +398,79 @@ Graph.prototype.menu_selected = function(sel) {
 
 // Keyboard events
 Graph.prototype.keyevent = function(event) {
-  if (event.shiftKey) {
-    switch(event.which) {
-      case 73: // I
-        this.menu_selected("inv");
-        break;
-      case 78: // N
-        this.menu_selected("none");
-        break;
-      case 65: // A
-        this.menu_selected("all");
-        break;
-      case 86: // V
-        this.menu_selected("virtual");
-        break;
-      case 82: // R
-        this.menu_selected("reload");
-        break;
-      case 90: // Z
-        this.menu_selected("zoomout");
-        break;
-    }
-  } else {
-    switch(event.which) {
-      case 73: // i
-        this.find("info_table").animate({height: "toggle"}, 300);
-        break;
-      case 49: // 1
-        this.interval.val(24);
-        this.refresh_range();
-        break;
-      case 51: // 3
-        this.interval.val(24*3);
-        this.refresh_range();
-        break;
-      case 52: // 4
-        this.interval.val(4);
-        this.refresh_range();
-        break;
-      case 55: // 7
-        this.interval.val(24*7);
-        this.refresh_range();
-        break;
-      case 56: // 8
-        this.interval.val(8);
-        this.refresh_range();
-        break;
-      case 57: // 9
-        this.interval.val(24*8766); // 1 year
-        this.refresh_range();
-        break;
-      case 48: // 0
-        this.interval.val(24*26298); // 3 years
-        this.refresh_range();
-        break;
-      case 39: // right
-        this.range_from += this.interval.val()*one_hour;
-        this.range_to += this.interval.val()*one_hour;
+  switch(event.which) {
+    case 'X'.charCodeAt(0):
+      this.menu_selected("inv");
+      break;
+    case 'N'.charCodeAt(0):
+      this.menu_selected("none");
+      break;
+    case 'A'.charCodeAt(0):
+      this.menu_selected("all");
+      break;
+    case 'V'.charCodeAt(0):
+      this.menu_selected("virtual");
+      break;
+    case 'R'.charCodeAt(0):
+      this.menu_selected("reload");
+      break;
+    case 'Z'.charCodeAt(0):
+      this.menu_selected("zoomout");
+      break;
+    case 'I'.charCodeAt(0):
+      this.find("info_table").animate({height: "toggle"}, 300);
+      break;
+    case '1'.charCodeAt(0):
+      this.interval.val(24);
+      this.refresh_range();
+      break;
+    case '3'.charCodeAt(0):
+      this.interval.val(24*3);
+      this.refresh_range();
+      break;
+    case '4'.charCodeAt(0):
+      this.interval.val(4);
+      this.refresh_range();
+      break;
+    case '7'.charCodeAt(0):
+      this.interval.val(24*7);
+      this.refresh_range();
+      break;
+    case '8'.charCodeAt(0):
+      this.interval.val(8);
+      this.refresh_range();
+      break;
+    case '9'.charCodeAt(0):
+      this.interval.val(24*8766); // 1 year
+      this.refresh_range();
+      break;
+    case '0'.charCodeAt(0):
+      this.interval.val(24*26298); // 3 years
+      this.refresh_range();
+      break;
+    case 39: // right
+      this.range_from += this.interval.val()*one_hour;
+      this.range_to += this.interval.val()*one_hour;
+      this.plot_graph();
+      break;
+    case 37: // left
+      this.range_from -= this.interval.val()*one_hour;
+      this.range_to -= this.interval.val()*one_hour;
+      this.plot_graph();
+      break;
+    case 38: // up
+      this.range_from -= this.interval.val()*one_hour;
+      this.range_to += this.interval.val()*one_hour;
+      this.plot_graph();
+      break;
+    case 40: // down
+      var amount = this.interval.val()*one_hour;
+      if (this.range_to-this.range_from>amount*2) {
+        this.range_from += amount;
+        this.range_to -= amount;
         this.plot_graph();
-        break;
-      case 37: // left
-        this.range_from -= this.interval.val()*one_hour;
-        this.range_to -= this.interval.val()*one_hour;
-        this.plot_graph();
-        break;
-      case 38: // up
-        this.range_from -= this.interval.val()*one_hour;
-        this.range_to += this.interval.val()*one_hour;
-        this.plot_graph();
-        break;
-      case 40: // down
-        var amount = this.interval.val()*one_hour;
-        if (this.range_to-this.range_from>amount*2) {
-          this.range_from += amount;
-          this.range_to -= amount;
-          this.plot_graph();
-        }
-        break;
-    }
+      }
+      break;
   }
   if (!event.ctrlKey) {
     if (65<=event.which<=90 || 97<=event.which<=122) {

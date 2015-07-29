@@ -12,8 +12,6 @@ Usage: tg_snmpc.py [--mkcfg|-c [community@]IP_or_hostname] \\
 '''
 
 import sys, os, socket, time, json, getopt
-from pysnmp.entity.rfc3413.oneliner import cmdgen
-#from pysnmp.proto.rfc1905 import NoSuchInstance
 
 VERBOSE = False
 
@@ -76,13 +74,16 @@ oids_io = dict(
   ifHCOutOctets=long,
 )
 
-cmdGen = cmdgen.CommandGenerator()
 mib_source = \
   os.path.join(os.path.dirname(os.path.realpath(__file__)), 'pysnmp_mibs')
 
 class SNMP:
   port = 161
   def __init__(self, addr, community_name="public"):
+      from pysnmp.entity.rfc3413.oneliner import cmdgen
+      #from pysnmp.proto.rfc1905 import NoSuchInstance
+      self.cmdgen = cmdgen
+      self.cmdGen = cmdgen.CommandGenerator()
       self.addr = addr
       self.community = cmdgen.CommunityData(community_name)
       self.transport = cmdgen.UdpTransportTarget((addr, self.port))
@@ -94,7 +95,7 @@ class SNMP:
         self.community,
         self.transport,
         *[
-          cmdgen.MibVariable('IF-MIB', x).addMibSource(mib_source)
+          self.cmdgen.MibVariable('IF-MIB', x).addMibSource(mib_source)
           for x in oids
          ]
       )
@@ -168,9 +169,9 @@ class SNMP:
       mibvars = []
       for id in ids:
         mibvars.extend([
-          cmdgen.MibVariable('IF-MIB', 'ifHCInOctets', int(id)
+          self.cmdgen.MibVariable('IF-MIB', 'ifHCInOctets', int(id)
             ).addMibSource(mib_source),
-          cmdgen.MibVariable('IF-MIB', 'ifHCOutOctets', int(id)
+          self.cmdgen.MibVariable('IF-MIB', 'ifHCOutOctets', int(id)
             ).addMibSource(mib_source)
         ])
       errorIndication, errorStatus, errorIndex, varBinds = cmdGen.getCmd(
@@ -345,10 +346,33 @@ def update_io(cfg, tdir, community_name="public", force_compress=False,
           io['ifInOctets'], io['ifOutOctets']
         )
 
+def read_file(filename, row_name, column):
+    for row in open(filename, "r").readlines():
+      row = row.strip().split()
+      if row[0]==row_name:
+        return int(row[column])
+    return 0
+
+def update_local(cfg, force_compress=False):
+    for key, value in cfg['ifs'].items():
+      logfile(
+        os.path.join(tdir, value['log']),
+        force_compress
+      ).update(
+        read_file(
+          value['rx_filename'],
+          value['rx_row_name'], value['rx_column']
+        ),
+        read_file(
+          value['tx_filename'],
+          value['tx_row_name'], value['tx_column']
+        )
+      )
+
 if __name__ == "__main__":
   opts, files = getopt.gnu_getopt(sys.argv[1:], 'hctzw:dv',
     ['help', 'mkcfg', 'test', 'write=', 'mkdir', 'id=', 'rename',
-     'verbose', 'check', 'filter='])
+     'verbose', 'check', 'filter=', 'local'])
   opts = dict(opts)
   if "--verbose" in opts or "-v" in opts:
     VERBOSE = True
@@ -429,6 +453,10 @@ if __name__ == "__main__":
         community = 'public'
       if not os.path.exists(fn):
         print("Configuration file doesn't exist [%s]!" % fn)
+      elif "--local" in opts:
+        cfg = json.load(open(fn))
+        tdir = os.path.dirname(os.path.realpath(fn))
+        update_local(cfg, tdir)
       else:
         cfg = json.load(open(fn))
         tdir = os.path.dirname(os.path.realpath(fn))
