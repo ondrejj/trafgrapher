@@ -395,6 +395,15 @@ class SNMP:
           if data['ifName']!='Nu0':
             ret[ifindex] = data
         return ret
+  def get_uptime(self):
+      errorIndication, errorStatus, errorIndex, varBindTable = \
+        self.cmdGen.nextCmd(
+          self.community, self.transport,
+          self.cmdgen.MibVariable(
+            'SNMPv2-MIB', 'sysUpTime'
+          ).addMibSource(mib_source)
+        )
+      return float(varBindTable[0][0][1])/100
   def getall(self, ids, n=16):
       ret = {}
       while ids:
@@ -510,8 +519,9 @@ class logfile:
         self.counter = ()
   def load(self):
       for row in self.f.readlines():
-        data = tuple(long(x, 10) for x in row.split(" ", 4))
-        self.deltas[data[0]] = data[1:]
+        if row.strip():
+          data = tuple(long(x, 10) for x in row.split(" ", 4))
+          self.deltas[data[0]] = data[1:]
   def save(self, delta):
       if self.deltas:
         # save data when converting to new format
@@ -531,25 +541,32 @@ class logfile:
         self.f.seek(0, 2) # EOF
         self.f.write("%d %d %d %d %d\n" % delta)
         self.f.close()
-  def update(self, data_in, data_out, gauge_in=False, gauge_out=False):
+  def update(self, data_in, data_out,
+             gauge_in=False, gauge_out=False,
+             uptime=None, counter_bits=None):
       '''
       Update with current values
       '''
       #t = long(time.mktime(time.gmtime())) # UTC time
       t = long(time.time()) # Local time
-      if self.counter and \
-         self.counter[1]<data_in and self.counter[2]<data_out:
+      delta_t = 1
+      delta_in = 0
+      delta_out = 0
+      if self.counter:
         delta_t = t - self.counter[0]
         if delta_t==0:
           # ignore, no delta time, avoid division by zero
           return
-        delta_in = data_in-self.counter[1]
-        delta_in_pt = delta_in/delta_t
-        delta_out = data_out-self.counter[2]
-        delta_out_pt = delta_out/delta_t
-      else:
-        delta_in_pt = 0
-        delta_out_pt = 0
+        if self.counter[1]<=data_in:
+          delta_in = data_in-self.counter[1]
+        elif counter_bits and uptime is not None and delta_t<uptime:
+          delta_in = 2**counter_bits - self.counter[1] + data_in
+        if self.counter[2]<=data_out:
+          delta_out = data_out-self.counter[2]
+        elif counter_bits and uptime is not None and delta_t<uptime:
+          delta_out = 2**counter_bits - self.counter[2] + data_out
+      delta_in_pt = delta_in/delta_t
+      delta_out_pt = delta_out/delta_t
       if gauge_in:
         delta_in_pt = data_in
       if gauge_out:
@@ -593,7 +610,9 @@ def update_io(cfg, tdir, community_name="public", force_compress=False,
               filter=None):
     ids = cfg['ifs'].keys()
     IP = cfg['ip']
-    for idx, io in SNMP(IP, community_name).getall(ids).items():
+    snmpc = SNMP(IP, community_name)
+    uptime = snmpc.get_uptime()
+    for idx, io in snmpc.getall(ids).items():
       if io['error']:
         print(io['error'])
         if VERBOSE:
@@ -605,7 +624,9 @@ def update_io(cfg, tdir, community_name="public", force_compress=False,
         ).filter(
           filter
         ).update(
-          io['ifInOctets'], io['ifOutOctets']
+          io['ifInOctets'], io['ifOutOctets'],
+          uptime = uptime,
+          counter_bits=cfg['ifs'][idx].get('counter_bits', 64)
         )
 
 def read_file(filename, row_name, column):
@@ -614,6 +635,12 @@ def read_file(filename, row_name, column):
       if row[0]==row_name:
         return int(row[column])
     return 0
+
+def read_uptime(filename=None):
+    if not filename:
+      return None
+    uptime = open(filename, "r").readline().strip().split(" ", 1)
+    return float(uptime[0])
 
 def update_local(cfg, force_compress=False):
     for key, value in cfg['ifs'].items():
@@ -630,7 +657,9 @@ def update_local(cfg, force_compress=False):
           value['tx_row_name'], value['tx_column']
         ),
         value.get('rx_gauge', False),
-        value.get('tx_gauge', False)
+        value.get('tx_gauge', False),
+        read_uptime(value.get('uptime_filename')),
+        value.get('counter_bits')
       )
 
 if __name__ == "__main__":
