@@ -538,7 +538,7 @@ class logfile:
       #t = long(time.mktime(time.gmtime())) # UTC time
       t = long(time.time()) # Local time
       if self.counter and \
-         self.counter[1]<data_in and self.counter[2]-data_out:
+         self.counter[1]<data_in and self.counter[2]<data_out:
         delta_t = t - self.counter[0]
         if delta_t==0:
           # ignore, no delta time, avoid division by zero
