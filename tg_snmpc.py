@@ -403,6 +403,9 @@ class SNMP:
             'SNMPv2-MIB', 'sysUpTime'
           ).addMibSource(mib_source)
         )
+      if not varBindTable:
+        print "%s: %s" % (self.addr, errorIndication)
+        return None
       return float(varBindTable[0][0][1])/100
   def getall(self, ids, n=16):
       ret = {}
@@ -612,6 +615,8 @@ def update_io(cfg, tdir, community_name="public", force_compress=False,
     IP = cfg['ip']
     snmpc = SNMP(IP, community_name)
     uptime = snmpc.get_uptime()
+    if uptime is None:
+      return
     for idx, io in snmpc.getall(ids).items():
       if io['error']:
         print(io['error'])
