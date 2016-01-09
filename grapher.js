@@ -246,8 +246,8 @@ Graph.prototype.filter_interval = function(data, unit, use_max) {
 Graph.prototype.reset_range = function() {
   // set current interval
   var current_datetime = new Date(),
-      range_end = this.div.find("[name^=range_end]").attr("value");
-  this.time_interval = parseInt(this.interval.attr("value"));
+      range_end = this.div.find("[name^=range_end]").val();
+  this.time_interval = parseInt(this.interval.val());
   if (range_end) current_datetime = range_end * 1000;
   this.range_from = Number(current_datetime - this.time_interval*one_hour);
   this.range_to = Number(current_datetime); // convert to number
@@ -280,19 +280,19 @@ Graph.prototype.add_callbacks = function() {
       var label = item.series.label.name;
       self.filter.find("li").css("border-color", "transparent");
       self.filter.find("li#li"+self.ID+label).css("border-color", "black");
-      self.find("throughput").attr("value",
+      self.find("throughput").val(
         self.unit_si(item.datapoint[1], 2, self.unit));
       // compute bytes
       var graph_type = item.series.label.gt;
-      self.find("bytes").attr("value",
+      self.find("bytes").val(
         self.unit_si(self.arraybytes(self.deltas[label][graph_type]),
           null, 'iB'));
       var description = self.deltas[label]['name'],
           switchname = self.deltas[label]['ip'];
       //if (self.deltas[label]['port_id'])
       //  switchname = switchname + " [" + self.deltas[label]['port_id'] + "]";
-      self.find("ifname").attr("value", description);
-      self.find("switchname").attr("value", switchname);
+      self.find("ifname").val(description);
+      self.find("switchname").val(switchname);
       // display information from json file
       if (self.json_files.length>0 && self.deltas[label]['info']) {
         var table = ['<table>'], info = self.deltas[label]['info'],
@@ -514,8 +514,8 @@ Graph.prototype.update_checkboxes = function() {
 // Plot current graph.
 Graph.prototype.plot_graph = function() {
   var flots = [];
-  var graph_type = this.graph_type.find("option:selected").attr("value");
-  var unit = this.unit_type.find("option:selected").attr("value");
+  var graph_type = this.graph_type.find("option:selected").val();
+  var unit = this.unit_type.find("option:selected").val();
   if (unit===undefined) {
     if (graph_type[1] in this.unit_by_type) {
       this.unit = this.unit_by_type[graph_type[1]];
@@ -528,9 +528,9 @@ Graph.prototype.plot_graph = function() {
   var inputs_all = this.filter.find("input"),
       inputs_checked = this.filter.find("input:checked");
   if (inputs_all.length == inputs_checked.length) {
-    this.find("all_none").attr("value", "NONE");
+    this.find("all_none").val("NONE");
   } else {
-    this.find("all_none").attr("value", "ALL");
+    this.find("all_none").val("ALL");
   }
   var checked_choices = this.filter.find("input:checked");
   var colors = gen_colors(checked_choices.length);
@@ -594,10 +594,10 @@ Graph.prototype.plot_graph = function() {
       "color", "white");
   }
   // clear last graph values
-  this.find("throughput").attr("value", "");
-  this.find("bytes").attr("value", "");
-  this.find("ifname").attr("value", "");
-  this.find("switchname").attr("value", "");
+  this.find("throughput").val("");
+  this.find("bytes").val("");
+  this.find("ifname").val("");
+  this.find("switchname").val("");
   this.find("info_table").empty();
 }
 
@@ -609,7 +609,7 @@ Graph.prototype.plot_graph = function() {
 Loader = function(graph, files) {
   this.graph = graph;
   this.files = files;
-  this.tagsrc = graph.graph_source.find("option:selected").attr("value");
+  this.tagsrc = graph.graph_source.find("option:selected").val();
   this.progress = graph.loader.find("[id^=progress]");
   this.progress.text("");
   this.files_to_load = 0;
@@ -1104,13 +1104,13 @@ Graph.prototype.select_devices = function() {
       self.storage_files.length>0)
     return;
   this.div.find("[name^=json_file]").each(function() {
-    self.json_files.push($(this).attr("value"));
+    self.json_files.push($(this).val());
   });
   this.div.find("[name^=mrtg_file]").each(function() {
-    self.mrtg_files.push($(this).attr("value"));
+    self.mrtg_files.push($(this).val());
   });
   this.div.find("[name^=storage_file]").each(function() {
-    self.storage_files.push($(this).attr("value"));
+    self.storage_files.push($(this).val());
   });
 }
 
