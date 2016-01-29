@@ -66,8 +66,9 @@ function arrayinverse(arr) {
 
 // Parse date and time in format "YYMMHH HHMMSS" into Date object.
 function parsedatetime(d, t) {
+  if (d.length<8) d = "20" + d;
   return Date.parse(
-    "20" + d[0]+d[1]+"-" + d[2]+d[3]+"-" + d[4]+d[5]+"T" +
+    d[0]+d[1]+d[2]+d[3]+"-" + d[4]+d[5]+"-" + d[6]+d[7]+"T" +
     t[0]+t[1]+":" + t[2]+t[3]+":" + t[4]+t[5]
   );
 }
@@ -156,16 +157,18 @@ Graph.prototype.error = function(msg) {
 }
 
 // Set/unset all input choices for filter.
+/*
 Graph.prototype.toggleall = function() {
   var inputs_all = this.filter.find("input"),
       inputs_checked = this.filter.find("input:checked");
   if ($(inputs_all).length == $(inputs_checked).length) {
-    $(inputs_all).attr("checked", false);
+    $(inputs_all).prop("checked", false);
   } else {
-    $(inputs_all).attr("checked", true);
+    $(inputs_all).prop("checked", true);
   }
   this.plot_graph();
 }
+*/
 
 // Convert unit to kilo, mega, giga or tera.
 Graph.prototype.unit_si = function(val, axis, unit) {
@@ -324,7 +327,7 @@ Graph.prototype.add_callbacks = function() {
   this.placeholder.bind("plotclick", function(event, pos, item) {
     if (item) {
       var label = item.series.label.name;
-      self.div.find("input#cb"+self.ID+label).attr("checked",
+      self.div.find("input#cb"+self.ID+label).prop("checked",
         !self.div.find("input#cb"+self.ID+label).prop("checked")
       );
       self.plot_graph();
@@ -367,15 +370,15 @@ Graph.prototype.menu_selected = function(sel) {
   if (sel=="") {
     return;
   } else if (sel=="all") {
-    $(inputs_all).attr("checked", true);
+    $(inputs_all).prop("checked", true);
     this.plot_graph();
   } else if (sel=="none") {
-    $(inputs_all).attr("checked", false);
+    $(inputs_all).prop("checked", false);
     this.plot_graph();
   } else if (sel=="inv") {
     $(inputs_all).each(function() {
       var sel = $(this);
-      sel.attr("checked", !sel.attr("checked"));
+      sel.prop("checked", !sel.prop("checked"));
     });
     this.plot_graph();
   } else if (sel=="virtual") {
@@ -383,7 +386,7 @@ Graph.prototype.menu_selected = function(sel) {
       var sel = $(this);
       if (self.deltas[this.name]['info']
           && self.deltas[this.name]['info']['ifType']=='propVirtual')
-        sel.attr("checked", !sel.attr("checked"));
+        sel.prop("checked", !sel.prop("checked"));
     });
     this.plot_graph();
   } else if (sel=="zoomout") {
@@ -536,7 +539,7 @@ Graph.prototype.plot_graph = function() {
   var colors = gen_colors(checked_choices.length);
   for (var n=0; n<checked_choices.length; n++) {
     var choice = checked_choices[n];
-    var name = $(choice).attr("name");
+    var name = $(choice).prop("name");
     if (this.mrtg_files.length>0 || this.json_files.length>0) {
       // mrtg graph
       for (var gt=0; gt<graph_type.length; gt++) {
@@ -635,6 +638,7 @@ Loader.prototype.file_loaded = function(remaining_files) {
     for (var name in counters) {
       if (!deltas[name]) {
         deltas[name] = {name: name};
+        //SAL
         for (var key in this.data_items)
           deltas[name][this.data_items[key]] = [];
       }
@@ -807,7 +811,7 @@ MRTGLoader.prototype.load_index = function(url) {
     $(noimgdata).find("td").each(function(tagi, tag) {
       var tag = $(tag), diva = tag.find("div a");
       if (diva[0]) {
-        var href = diva.attr("href"),
+        var href = diva.prop("href"),
             fname = href.substr(0, href.lastIndexOf(".")),
             name = tag.find("div b").text(),
             name_idx = name.indexOf(": "),
@@ -1006,12 +1010,69 @@ StorageLoader.prototype.load_unisphere = function(filename) {
   });
 }
 
+// Load compellent stats for one file.
+StorageLoader.prototype.load_compellent = function(filename) {
+  var self = this, counters = this.graph.counters;
+  $.ajax({
+    url: filename,
+    dataType: "xml"
+  }).done(function(data) {
+    var l2 = data.getElementsByTagName("return")[0].innerHTML;
+    var rows = $($('<div/>').html(l2).text()).find("Data").text().split(":");
+    var sizeunit=1024;
+    for (var row_id=0; row_id<rows.length; row_id++) {
+      if (rows[row_id]=="") continue;
+      // Columns: Cpu,InstanceId,InstanceName,IoPending,Memory,
+      //   ObjectIndex,ObjectType,PlatformTime,
+      //   ReadIos-8,ReadKBs-9,ReadLatency-10,
+      //   ScName,ScObjectType,ScSerialNumber,
+      //   WriteIos-14,WriteKBs-15,WriteLatency-16
+      var cols = rows[row_id].split(",");
+      var name = cols[2].replace("Disk ", "");
+      var timestamp = cols[7]+"000";
+      var ctrl = cols[13]; // controller or SC_serial?
+      if (name=="Unknown") continue;
+      if (!counters[name]) {
+        counters[name] = {};
+        for (var key in self.data_items)
+          counters[name][self.data_items[key]] = [];
+      }
+      // read IO
+      if (!counters[name].ro[ctrl]) counters[name].ro[ctrl] = [];
+      counters[name].ro[ctrl].push(
+        [timestamp, parseInt(cols[8])]);
+      // read kB
+      if (!counters[name].rb[ctrl]) counters[name].rb[ctrl] = [];
+      counters[name].rb[ctrl].push(
+        [timestamp, parseInt(cols[9])*sizeunit]);
+      // read latency
+      if (!counters[name].rl[ctrl]) counters[name].rl[ctrl] = [];
+      counters[name].rl[ctrl].push(
+        [timestamp, parseInt(cols[10])]);
+      // write IO
+      if (!counters[name].wo[ctrl]) counters[name].wo[ctrl] = [];
+      counters[name].wo[ctrl].push(
+        [timestamp, parseInt(cols[14])]);
+      // write kB
+      if (!counters[name].wb[ctrl]) counters[name].wb[ctrl] = [];
+      counters[name].wb[ctrl].push(
+        [timestamp, parseInt(cols[15])*sizeunit]);
+      // write latency
+      if (!counters[name].wl[ctrl]) counters[name].wl[ctrl] = [];
+      counters[name].wl[ctrl].push(
+        [timestamp, parseInt(cols[16])*sizeunit]);
+    }
+    self.loaded_bytes += data.length | 0;
+    self.file_loaded();
+  });
+}
+
 // Load file index and start loading of files.
 StorageLoader.prototype.load_index = function(url) {
   var self = this;
   this.data_items = ["rb", "wb", "ro", "wo", "rl", "wl", "rt", "wt"];
   var preselect_graphs = url.split(";");
-  url = preselect_graphs.shift()
+  url = preselect_graphs.shift();
   self.graph.preselect_graphs = preselect_graphs;
   $.ajax({
     url: url,
@@ -1037,6 +1098,16 @@ StorageLoader.prototype.load_index = function(url) {
         if (current_datetime-parsedatetime(d, t)<interval*one_hour)
           files.push(url+href);
       }
+      // Compellent
+      if (href.indexOf("Cmpl")==0) {
+        if (self.tagsrc=="vdsk" && href[4]!="V") continue;
+        if (self.tagsrc=="mdsk" && href[4]!="P") continue;
+        if (self.tagsrc=="disk" && href[4]!="D") continue;
+        var hrefa = href.split("_");
+        var d = hrefa[hrefa.length-2], t = hrefa[hrefa.length-1];
+        if (current_datetime-parsedatetime(d, t)<interval*one_hour)
+          files.push(url+href);
+      }
     }
     self.loaded_bytes += data.length | 0;
     self.files_to_load += files.length;
@@ -1047,6 +1118,8 @@ StorageLoader.prototype.load_index = function(url) {
         self.load_storwize(files[fni]);
       } else if (files[fni].indexOf(url+"U")==0) {
         self.load_unisphere(files[fni]);
+      } else if (files[fni].indexOf(url+"C")==0) {
+        self.load_compellent(files[fni]);
       }
     }
   }).fail(function(jqXHR, textStatus, error) {
@@ -1166,7 +1239,7 @@ $(function() {
   );
   graphs = [];
   $("div[id^=graph]").each(function() {
-    var graph = new Graph($(this).attr("id"));
+    var graph = new Graph($(this).prop("id"));
     graph.parse_query_string();
     graph.refresh_graph();
     $(document).keydown(function(event) {

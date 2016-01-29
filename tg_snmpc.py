@@ -3,6 +3,8 @@
 '''
 TrafGrapher SNMP client
 
+Licensed under the MIT license.
+
 Usage: tg_snmpc.py [--mkcfg|-c [community@]IP_or_hostname] \\
 		[--write|-w index.json] [--mkdir|-d] \\
 		[--id ifName] [--rename] \\
