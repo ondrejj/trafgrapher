@@ -1060,7 +1060,7 @@ StorageLoader.prototype.load_compellent = function(filename) {
       // write latency
       if (!counters[name].wl[ctrl]) counters[name].wl[ctrl] = [];
       counters[name].wl[ctrl].push(
-        [timestamp, parseInt(cols[16])*sizeunit]);
+        [timestamp, parseInt(cols[16])]);
     }
     self.loaded_bytes += data.length | 0;
     self.file_loaded();
