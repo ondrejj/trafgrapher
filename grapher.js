@@ -1,10 +1,10 @@
 /*
   TrafGrapher
-  (c) 2015 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
+  (c) 2015-2016 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
   Licensed under the MIT license.
 */
 
-var trafgrapher_version = '1.0',
+var trafgrapher_version = '1.1',
     one_hour = 3600000;
 
 // Join two arrays into one. For same keys sum values.

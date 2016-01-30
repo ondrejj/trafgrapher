@@ -12,54 +12,6 @@ ObjTypes: Volume, Disk, ServerHba, Controller, ControllerPort
 
 import sys, urllib2, ssl, os
 
-login_template = '''\
-<xml>                                                                           
-<version>                                                                       
-<messagever>mcXMLv1.0</messagever>                                              
-</version>                                                                      
-<sessionhandle>999</sessionhandle>                                              
-<dontresettimer>1</dontresettimer>                                              
-<syncmode>1</syncmode>                                                          
-<cmd>                                                                           
-<cmdtype>TYPE_PING</cmdtype>                                                    
-<object>                                                                        
-</object>                                                                       
-</cmd>                                                                          
-</xml>                                                                          
-'''
-
-get_io_template = '''\
-<xml>
-<version>
-<messagever>mcXMLv1.0</messagever>
-</version>
-<sessionhandle>%s</sessionhandle><dontresettimer>1</dontresettimer>
-<syncmode>1</syncmode>
-<cmd>
-<cmdname>NAME_GETBULKCSV</cmdname>
-<cmdtype>TYPE_LOGICALUNITS</cmdtype>
-<object>
-<LU></LU>
-<CurrentTime></CurrentTime>
-<RawReadIOs></RawReadIOs>
-<RawReadKBs></RawReadKBs>
-<RawWriteIOs></RawWriteIOs>
-<RawWriteKBs></RawWriteKBs>
-<RawReadLatency></RawReadLatency>
-<RawWriteLatency></RawWriteLatency>
-<ActiveController></ActiveController>
-<DeviceID></DeviceID>
-<OperatingDefinition></OperatingDefinition>
-<MaintID></MaintID>
-</object>
-<filter>
-<snapshottype>5<Comparison>ne</Comparison></snapshottype>
-<ModifyLock>RSPitcRestore<Comparison>RegexNotMatch</Comparison></ModifyLock>
-</filter>
-</cmd>
-</xml>
-'''
-
 soap_ping_template = '''\
 <?xml version="1.0" ?>
 <S:Envelope xmlns:S="http://schemas.xmlsoap.org/soap/envelope/">
@@ -137,10 +89,17 @@ if __name__ == "__main__":
   if len(sys.argv)<5:
     print(__doc__)
   else:
-    url, login, password, serial, objtype = sys.argv[1:]
+    url, login, password, serial = sys.argv[1:5]
     url = url.rstrip("/")+":3033/api/CompellentAPIServices"
     if os.path.isfile(password):
       password = open(password).read().strip()
 
     compellent = compellent_class(url, login, password)
-    print(compellent.get(volume_template, serial, objtype))
+    for objtype in sys.argv[5:]:
+      if ":" in objtype:
+        objtype, filename = objtype.split(":", 1)
+        open(filename, "wt").write(
+          compellent.get(volume_template, serial, objtype)
+        )
+      else:
+        print(compellent.get(volume_template, serial, objtype))
