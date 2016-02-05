@@ -4,7 +4,7 @@
   Licensed under the MIT license.
 */
 
-var trafgrapher_version = '1.1',
+var trafgrapher_version = '1.2',
     one_hour = 3600000;
 
 // Join two arrays into one. For same keys sum values.
@@ -110,7 +110,8 @@ var Graph = function(ID) {
   this.ID = ID;
   this.div = $("div#"+ID);
   this.deltas = {}; this.counters = {};
-  this.json_files = []; this.mrtg_files = []; this.storage_files = [];
+  this.json_files = []; this.mrtg_files = [];
+  this.storage_files = []; this.nagios_files = [];
   this.plot = null;
   this.range_from = null; this.range_to = null;
   this.unit_by_type = {
@@ -155,20 +156,6 @@ Graph.prototype.error = function(msg) {
   this.find("error").show();
   this.find("download").show();
 }
-
-// Set/unset all input choices for filter.
-/*
-Graph.prototype.toggleall = function() {
-  var inputs_all = this.filter.find("input"),
-      inputs_checked = this.filter.find("input:checked");
-  if ($(inputs_all).length == $(inputs_checked).length) {
-    $(inputs_all).prop("checked", false);
-  } else {
-    $(inputs_all).prop("checked", true);
-  }
-  this.plot_graph();
-}
-*/
 
 // Convert unit to kilo, mega, giga or tera.
 Graph.prototype.unit_si = function(val, axis, unit) {
@@ -262,6 +249,10 @@ Graph.prototype.add_callbacks = function() {
   // buttons and selectors
   this.interval.change(function() {self.refresh_range()});
   this.graph_source.change(function() {self.change_source()});
+  $("select#service").change(function() {
+    self.filter.empty(); // checkbox names are different
+    self.refresh_graph();
+  });
   this.find("menu").change(function() {self.menu_selected()}).val("");
   this.find("toggle_info").click(function() {
     self.find("info_table").animate({height: "toggle"}, 300);
@@ -344,12 +335,14 @@ Graph.prototype.urllink = function() {
     var url = "?m="+this.mrtg_files[0].split(";")[0];
   } else if (this.storage_files.length>0) {
     var url = "?s="+this.storage_files[0].split(";")[0];
+  } else if (this.nagios_files.length>0) {
+    var url = "?n="+this.nagios_files[0].split(";")[0];
   } else {
     return;
   }
   if (inputs_checked.length<inputs_all.length) {
     inputs_checked.each(function() {
-      if (self.storage_files.length>0) {
+      if (self.storage_files.length>0 || self.nagios_files.length>0) {
         ports.push(this.name);
       } else {
         ports.push(self.deltas[this.name]["port_id"]);
@@ -517,7 +510,7 @@ Graph.prototype.update_checkboxes = function() {
 // Plot current graph.
 Graph.prototype.plot_graph = function() {
   var flots = [];
-  var graph_type = this.graph_type.find("option:selected").val();
+  var graph_type = this.graph_type.find("option:selected").val() || "jo";
   var unit = this.unit_type.find("option:selected").val();
   if (unit===undefined) {
     if (graph_type[1] in this.unit_by_type) {
@@ -540,9 +533,11 @@ Graph.prototype.plot_graph = function() {
   for (var n=0; n<checked_choices.length; n++) {
     var choice = checked_choices[n];
     var name = $(choice).prop("name");
-    if (this.mrtg_files.length>0 || this.json_files.length>0) {
+    if (this.mrtg_files.length>0 || this.json_files.length>0 || this.nagios_files.length>0) {
       // mrtg graph
       for (var gt=0; gt<graph_type.length; gt++) {
+        if (this.deltas[name][graph_type[gt]]===undefined)
+          console.log("Undefined data:", name, graph_type[gt]);
         flots.push({
           //label: graph_type[gt]+"_"+name,
           label: {name: name, gt: graph_type[gt]},
@@ -638,7 +633,6 @@ Loader.prototype.file_loaded = function(remaining_files) {
     for (var name in counters) {
       if (!deltas[name]) {
         deltas[name] = {name: name};
-        //SAL
         for (var key in this.data_items)
           deltas[name][this.data_items[key]] = [];
       }
@@ -679,7 +673,7 @@ if (!Object.create) {
 
 /*
   JSON functions
-  ============
+  ===============
 */
 
 JSONLoader = function(graph, files) {
@@ -1130,12 +1124,174 @@ StorageLoader.prototype.load_index = function(url) {
 }
 
 /*
+  Nagios perfdata functions
+  ==========================
+*/
+
+NagiosLoader = function(graph, files) {
+  Loader.call(this, graph, files);
+}
+
+NagiosLoader.prototype = Object.create(Loader.prototype);
+
+// Load perfdata stats for one service label.
+NagiosLoader.prototype.load_data = function(filename) {
+  var self = this, counters = this.graph.counters, deltas = this.graph.deltas;
+  $.ajax({
+    url: filename
+  }).done(function(data) {
+    var rows = data.split("\n"), hdr = rows[0].split("\t"), rw, name, desc;
+    if (hdr[2].search(/^[rt]x_/)>=0) {
+      desc = hdr[0]+" "+hdr[1]+" "+hdr[2].substring(3);
+      name = (hdr[0]+"_"+hdr[1]+"_"+hdr[2].substring(3)).replace(/[.:\/]/g, "_");
+    } else {
+      desc = hdr[0]+" "+hdr[1]+" "+hdr[2];
+      name = (hdr[0]+"_"+hdr[1]+"_"+hdr[2]).replace(/[.:\/]/g, "_");
+    }
+    if (hdr.length<4) {
+      console.log("Missing header:", filename);
+      return;
+    }
+    if (!deltas[name])
+      deltas[name] = {name: desc};
+    if (hdr[3]=="c") { // counters
+      if (hdr[2][0]=="r" || hdr[2]=="ioread") { // read or receive
+        rw = "i";
+        deltas[name]["j"] = [];
+      } else { // write or transmit
+        rw = "o";
+        if (deltas[name]["j"]===undefined)
+          deltas[name]["j"] = [];
+      }
+      deltas[name][rw] = [];
+      var value, last_value = null;
+      for (var rowi=1; rowi<rows.length; rowi++) {
+        var cols = rows[rowi].split(" ");
+        value = parseFloat(cols[1]);
+        if (last_value!==null) {
+          if (value>=last_value) {
+            deltas[name][rw].push(
+              [parseInt(cols[0])*1000, value-last_value]
+            );
+            if (rw=="i")
+              deltas[name]["j"].push(
+                [parseInt(cols[0])*1000, last_value-value]
+              );
+            else if (rw=="I")
+              deltas[name]["J"].push(
+                [parseInt(cols[0])*1000, last_value-value]
+              );
+          } else {
+            last_value = null;
+          }
+        }
+        last_value = value;
+      }
+    } else {
+      var percent = hdr[1].search(/^nrpe_disk_/i)==0, max;
+      if (percent) max = parseFloat(hdr[7]);
+      deltas[name]['i'] = [];
+      deltas[name]['j'] = [];
+      deltas[name]['o'] = [];
+      for (var rowi=1; rowi<rows.length; rowi++) {
+        var cols = rows[rowi].split(" ");
+        var col1 = parseFloat(cols[1]);
+        if (percent) {
+          deltas[name]['o'].push(
+            [parseInt(cols[0])*1000, col1*100/max]
+          );
+        } else {
+          deltas[name]['o'].push(
+            [parseInt(cols[0])*1000, col1]
+          );
+        }
+      }
+    }
+    self.loaded_bytes += data.length | 0;
+    self.file_loaded();
+  });
+}
+
+// Load file index and start loading of files.
+NagiosLoader.prototype.load_index = function(url) {
+  var self = this;
+  $.ajax({
+    url: url+"/",
+    cache: false
+  }).done(function(data) {
+    var files = {};
+    var rows = data.split("\n"), row, urlrow;
+    var current_datetime = new Date(), interval = self.graph.time_interval;
+    var service = $("select#service option:selected").val();
+    files.push = function(service, value) {
+      if (!this[service]) this[service] = [];
+      this[service].push(value);
+    }
+    for (var rowi=0; rowi<rows.length; rowi++) {
+      row = rows[rowi].substr(1);
+      if (!row) continue; // skip empty lines
+      urlrow = url+escape(row);
+      if (row.search(/nrpe_load\/load/i)>=0)
+        files.push('load', urlrow);
+      else if (row.search(/nrpe_mem\/Swap/i)>=0)
+        files.push('swap', urlrow);
+      else if (row.search(/nrpe_mem\/Total/i)>=0)
+        files.push('mem_total', urlrow); // ignored
+      else if (row.search(/nrpe_mem\/./i)>=0)
+        files.push('mem', urlrow);
+      else if (row.search(/nrpe_eth.+\/[rt]x_bytes/i)>=0)
+        files.push('eth', urlrow);
+      else if (row.search(/nrpe_eth.+\/./i)>=0)
+        files.push('eth_stat', urlrow);
+      else if (row.search(/nrpe_diskio_.\/(read|write)/i)>=0)
+        files.push('disk_bytes', urlrow);
+      else if (row.search(/nrpe_diskio_.\/(ioread|iowrite)/i)>=0)
+        files.push('disk_io', urlrow);
+      else if (row.search(/nrpe_diskio_.\/./i)>=0)
+        files.push('diskio_stat', urlrow);
+      else if (row.search(/nrpe_disk_/i)>=0)
+        files.push('disk', urlrow)
+      else if (row.search(/PING\/rta/)>=0)
+        files.push('ping_rta', urlrow)
+      else if (row.search(/PING\/pl/)>=0)
+        files.push('ping_pl', urlrow)
+      else if (row.search(/.*\/time$/)>=0)
+        files.push('latency', urlrow)
+      else if (row.search(/.*\/size$/)>=0)
+        files.push('size', urlrow)
+      else if (row.search(/mysql\/./)>=0)
+        files.push('sql', urlrow)
+      else if (row.search(/(UPS.*|APCUPSD)\/./i)>=0)
+        files.push('ups', urlrow)
+      else
+        files.push('other', urlrow);
+    }
+    self.loaded_bytes += data.length | 0;
+    self.files_to_load += files[service].length;
+    if (self.files_to_load<=0)
+      self.progress.text("No data to load");
+    for (var fni=0; fni<self.files_to_load; fni++) {
+      self.load_data(files[service][fni]);
+    }
+    // preset unit_type
+    if (service=="eth")
+      self.graph.unit_type.val("b");
+    else
+      self.graph.unit_type.val("B");
+  }).fail(function(jqXHR, textStatus, error) {
+    self.graph.error(
+      "Failed to load index file: " + url + ": " + error
+    );
+  });
+}
+
+/*
   Common functions
   =================
 */
 
 Graph.prototype.refresh_range = function() {
-  if (this.storage_files.length>0) {
+  if (this.storage_files.length>0 || this.nagios_files.length>0) {
     this.refresh_graph();
   } else {
     this.reset_range();
@@ -1152,6 +1308,8 @@ Graph.prototype.refresh_graph = function() {
     var loader = new MRTGLoader(this, this.mrtg_files);
   } else if (this.storage_files.length>0) {
     var loader = new StorageLoader(this, this.storage_files);
+  } else if (this.nagios_files.length>0) {
+    var loader = new NagiosLoader(this, this.nagios_files);
   } else {
     this.error("No files to load.");
   }
@@ -1174,7 +1332,8 @@ Graph.prototype.select_devices = function() {
   // skip if files defined for query string
   if (self.json_files.length>0 ||
       self.mrtg_files.length>0 ||
-      self.storage_files.length>0)
+      self.storage_files.length>0 ||
+      self.nagios_files.length>0)
     return;
   this.div.find("[name^=json_file]").each(function() {
     self.json_files.push($(this).val());
@@ -1183,6 +1342,9 @@ Graph.prototype.select_devices = function() {
     self.mrtg_files.push($(this).val());
   });
   this.div.find("[name^=storage_file]").each(function() {
+    self.storage_files.push($(this).val());
+  });
+  this.div.find("[name^=nagios_file]").each(function() {
     self.storage_files.push($(this).val());
   });
 }
@@ -1221,6 +1383,8 @@ Graph.prototype.parse_query_string = function() {
             '<option value="'+arg1+'">'+arg1+' hours</option>'
           );
         this.interval.val(arg1);
+      } else if (arg[0]=="n") {
+        split_arg(arg[1], this.nagios_files);
       } else if (arg[0]=="s") {
         split_arg(arg[1], this.storage_files);
       } else if (arg[0]=="j") {
