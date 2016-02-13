@@ -115,8 +115,8 @@ var Graph = function(ID) {
   this.ID = ID;
   this.div = $("div#"+ID);
   this.deltas = {}; this.counters = {};
-  this.json_files = []; this.mrtg_files = [];
-  this.storage_files = []; this.nagios_files = [];
+  this.index_mode = "json";
+  this.index_files = [];
   this.plot = null;
   this.range_from = null; this.range_to = null;
   this.unit_by_type = {
@@ -272,7 +272,7 @@ Graph.prototype.add_plot_callbacks = function() {
       self.find("description").val(description);
       self.find("switchname").val(switchname);
       // display information from json file
-      if (self.json_files.length>0 && self.deltas[label]['info']) {
+      if (self.index_mode=="json" && self.deltas[label]['info']) {
         var table = ['<table>'], info = self.deltas[label]['info'],
             ftime = new Date(item.datapoint[0]).toLocaleString();
         table.push("<tr><td>Time</td><td>"+ftime+"</td></tr>");
@@ -286,7 +286,7 @@ Graph.prototype.add_plot_callbacks = function() {
         self.find("info_table").html($(table.join('\n')));
       }
       // load table information from MRTG html file
-      if (self.mrtg_files.length>0 && self.deltas[label]['html']) {
+      if (self.index_mode=="mrtg" && self.deltas[label]['html']) {
         $.ajax({
           url: self.deltas[label]['html'],
           dataType: "html",
@@ -349,20 +349,20 @@ Graph.prototype.urllink = function() {
   var self = this, ports = [],
       inputs_all = this.filter.find("input"),
       inputs_checked = this.filter.find("input:checked");
-  if (this.json_files.length>0) {
-    var url = "?j="+this.json_files[0].split(";")[0];
-  } else if (this.mrtg_files.length>0) {
-    var url = "?m="+this.mrtg_files[0].split(";")[0];
-  } else if (this.storage_files.length>0) {
-    var url = "?s="+this.storage_files[0].split(";")[0];
-  } else if (this.nagios_files.length>0) {
-    var url = "?n="+this.nagios_files[0].split(";")[0];
+  if (this.index_mode=="json") {
+    var url = "?j="+this.index_files[0].split(";")[0];
+  } else if (this.index_mode=="mrtg") {
+    var url = "?m="+this.index_files[0].split(";")[0];
+  } else if (this.index_mode=="storage") {
+    var url = "?s="+this.index_files[0].split(";")[0];
+  } else if (this.index_mode=="nagios") {
+    var url = "?n="+this.index_files[0].split(";")[0];
   } else {
     return;
   }
   if (inputs_checked.length<inputs_all.length) {
     inputs_checked.each(function() {
-      if (self.storage_files.length>0 || self.nagios_files.length>0) {
+      if (self.index_mode=="storage" || self.index_mode=="nagios") {
         ports.push(this.name);
       } else {
         ports.push(self.deltas[this.name]["port_id"]);
@@ -554,7 +554,29 @@ Graph.prototype.plot_graph = function(checked_choices, unit) {
   var colors = gen_colors(checked_choices.length);
   for (var n=0; n<checked_choices.length; n++) {
     var name = checked_choices[n];
-    if (this.mrtg_files.length>0 || this.json_files.length>0 || this.nagios_files.length>0) {
+    if (this.index_mode=="storage") {
+      if (graph_type[0]=="x") {
+        // storage read and write graph
+        flots.push({
+          label: {name: name, gt: 'r'+graph_type[1]},
+          color: colors[n],
+          data: this.filter_interval(this.deltas[name]['r'+graph_type[1]])
+        })
+        flots.push({
+          label: {name: name, gt: 'w'+graph_type[1]},
+          color: colors[n],
+          data: this.filter_interval(arrayinverse(
+                  this.deltas[name]['w'+graph_type[1]]))
+        })
+      } else {
+        // storage one way graph (read or write only)
+        flots.push({
+          label: {name: name, gt: graph_type[0]},
+          color: colors[n],
+          data: this.filter_interval(this.deltas[name][graph_type])
+        })
+      }
+    } else {
       // mrtg graph
       for (var gt=0; gt<graph_type.length; gt++) {
         if (this.deltas[name][graph_type[gt]]===undefined)
@@ -568,26 +590,6 @@ Graph.prototype.plot_graph = function(checked_choices, unit) {
                 )
         })
       }
-    } else if (graph_type[0]=="x") {
-      // storage read and write graph
-      flots.push({
-        label: {name: name, gt: 'r'+graph_type[1]},
-        color: colors[n],
-        data: this.filter_interval(this.deltas[name]['r'+graph_type[1]])
-      })
-      flots.push({
-        label: {name: name, gt: 'w'+graph_type[1]},
-        color: colors[n],
-        data: this.filter_interval(arrayinverse(
-                this.deltas[name]['w'+graph_type[1]]))
-      })
-    } else {
-      // storage one way graph (read or write only)
-      flots.push({
-        label: {name: name, gt: graph_type[0]},
-        color: colors[n],
-        data: this.filter_interval(this.deltas[name][graph_type])
-      })
     }
   }
   this.plot = $.plot(this.placeholder, flots, {
@@ -629,9 +631,8 @@ Graph.prototype.plot_graph = function(checked_choices, unit) {
   =============
 */
 
-Loader = function(graph, files) {
+Loader = function(graph) {
   this.graph = graph;
-  this.files = files;
   this.tagsrc = graph.graph_source.find("option:selected").val();
   this.progress = graph.loader.find("[id^=progress]");
   this.progress.text("");
@@ -702,11 +703,6 @@ Loader.prototype.file_loaded = function(remaining_files) {
       return false;
     });
   }
-}
-
-Loader.prototype.load_all = function() {
-  for (var idx=0; idx<this.files.length; idx++)
-    this.load_index(this.files[idx]);
 }
 
 // Old browser support
@@ -1468,7 +1464,7 @@ NagiosLoader.prototype.load_index = function(url) {
 */
 
 Graph.prototype.refresh_range = function() {
-  if (this.storage_files.length>0) {
+  if (this.index_mode=="storage") {
     this.refresh_graph();
   } else {
     this.reset_range();
@@ -1479,18 +1475,21 @@ Graph.prototype.refresh_range = function() {
 Graph.prototype.refresh_graph = function() {
   this.range_from = null;
   this.range_to = null;
-  if (this.json_files.length>0) {
-    var loader = new JSONLoader(this, this.json_files);
-  } else if (this.mrtg_files.length>0) {
-    var loader = new MRTGLoader(this, this.mrtg_files);
-  } else if (this.storage_files.length>0) {
-    var loader = new StorageLoader(this, this.storage_files);
-  } else if (this.nagios_files.length>0) {
-    var loader = new NagiosLoader(this, this.nagios_files);
+  if (this.index_mode=="json") {
+    var loader = new JSONLoader(this, this.index_files);
+  } else if (this.index_mode=="mrtg") {
+    var loader = new MRTGLoader(this, this.index_files);
+  } else if (this.index_mode=="storage") {
+    var loader = new StorageLoader(this, this.index_files);
+  } else if (this.index_mode=="nagios") {
+    var loader = new NagiosLoader(this, this.index_files);
   } else {
     this.error("No files to load.");
   }
-  if (loader) loader.load_all();
+  if (loader) {
+    for (var idx=0; idx<this.index_files.length; idx++)
+      loader.load_index(this.index_files[idx]);
+  }
 }
 
 Graph.prototype.change_source = function() {
@@ -1507,22 +1506,22 @@ Graph.prototype.zoom_out = function() {
 Graph.prototype.select_devices = function() {
   var self = this;
   // skip if files defined for query string
-  if (self.json_files.length>0 ||
-      self.mrtg_files.length>0 ||
-      self.storage_files.length>0 ||
-      self.nagios_files.length>0)
-    return;
+  if (self.index_files.length>0) return;
   this.div.find("[name^=json_file]").each(function() {
-    self.json_files.push($(this).val());
+    self.index_mode = "json";
+    self.index_files.push($(this).val());
   });
   this.div.find("[name^=mrtg_file]").each(function() {
-    self.mrtg_files.push($(this).val());
+    self.index_mode = "mrtg";
+    self.index_files.push($(this).val());
   });
   this.div.find("[name^=storage_file]").each(function() {
-    self.storage_files.push($(this).val());
+    self.index_mode = "storage";
+    self.index_files.push($(this).val());
   });
   this.div.find("[name^=nagios_file]").each(function() {
-    self.storage_files.push($(this).val());
+    self.index_mode = "nagios";
+    self.index_files.push($(this).val());
   });
 }
 
@@ -1561,13 +1560,17 @@ Graph.prototype.parse_query_string = function() {
           );
         this.interval.val(arg1);
       } else if (arg[0]=="n") {
-        split_arg(arg[1], this.nagios_files);
+        this.index_mode = "nagios";
+        split_arg(arg[1], this.index_files);
       } else if (arg[0]=="s") {
-        split_arg(arg[1], this.storage_files);
+        this.index_mode = "storage";
+        split_arg(arg[1], this.index_files);
       } else if (arg[0]=="j") {
-        split_arg(arg[1], this.json_files);
+        this.index_mode = "json";
+        split_arg(arg[1], this.index_files);
       } else {
-        split_arg(arg[1], this.mrtg_files);
+        this.index_mode = "mrtg";
+        split_arg(arg[1], this.index_files);
       }
     }
   }
