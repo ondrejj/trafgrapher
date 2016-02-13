@@ -101,6 +101,11 @@ function gen_colors(neededColors) {
   return colors;
 }
 
+// Escape selector ID
+String.prototype.escapeSelector = function() {
+  return this.replace(/([ #;?%&,.+*~\':"!^$[\]()=>|\/@])/g,'\\$1');
+}
+
 /*
   Graph object
   =============
@@ -154,7 +159,6 @@ Graph.prototype.find = function(id, selectors) {
 Graph.prototype.error = function(msg) {
   this.find("error").text(msg);
   this.find("error").show();
-  this.find("download").show();
 }
 
 // Convert unit to kilo, mega, giga or tera.
@@ -251,7 +255,9 @@ Graph.prototype.add_plot_callbacks = function() {
     if (item) {
       var label = item.series.label.name;
       self.filter.find("li").css("border-color", "transparent");
-      self.filter.find("li#li"+self.ID+label).css("border-color", "black");
+      self.filter.find(
+        "li#li"+self.ID+label.escapeSelector()
+      ).css("border-color", "black");
       self.find("throughput").val(
         self.unit_si(item.datapoint[1], 2, self.unit));
       // compute bytes
@@ -296,8 +302,11 @@ Graph.prototype.add_plot_callbacks = function() {
   this.placeholder.bind("plotclick", function(event, pos, item) {
     if (item) {
       var label = item.series.label.name;
-      self.div.find("input#cb"+self.ID+label).prop("checked",
-        !self.div.find("input#cb"+self.ID+label).prop("checked")
+      self.div.find(
+        "input#cb"+self.ID+label.escapeSelector()
+      ).prop(
+        "checked", !self.div.find("input#cb"+self.ID+label.escapeSelector()
+                    ).prop("checked")
       );
       self.plot_graph();
     }
@@ -597,10 +606,15 @@ Graph.prototype.plot_graph = function(checked_choices, unit) {
   this.div.find("li div.box").css("background-color", "transparent"
     ).css("border-color", "transparent");
   for (var i=0; i<series.length; i++) {
-    this.div.find("li#li"+this.ID+series[i].label.name+" div").css(
-      "background-color", series[i].color.toString()).css(
-      "border-color", "black").css(
-      "color", "white");
+    this.div.find(
+      "li#li"+this.ID+series[i].label.name.escapeSelector()+" div"
+    ).css(
+      "background-color", series[i].color.toString()
+    ).css(
+      "border-color", "black"
+    ).css(
+      "color", "white"
+    );
   }
   // clear last graph values
   this.find("throughput").val("");
@@ -1170,12 +1184,12 @@ NagiosLoader.prototype = Object.create(Loader.prototype);
 NagiosLoader.prototype.service_groups = {
   load: {
     name: "Load",
-    search: /(nrpe_load\/load|CPU.*utilization\/util)/i,
+    search: /(load\/load|CPU.*utilization\/util)/i,
     unit: ""
   },
   swap: {
     name: "Swap",
-    search: /nrpe_mem\/swap/i,
+    search: /mem\/swap/i,
     unit: "B"
   },
   swap_check_mk: {
@@ -1186,12 +1200,12 @@ NagiosLoader.prototype.service_groups = {
   mem_total: {
     name: "Memory total",
     hide: true,
-    search: /nrpe_mem\/Total/i,
+    search: /mem\/Total/i,
     unit: "B"
   },
   mem: {
     name: "Memory",
-    search: /nrpe_mem\/./i,
+    search: /mem\/./i,
     unit: "B"
   },
   mem_check_mk: {
@@ -1201,38 +1215,48 @@ NagiosLoader.prototype.service_groups = {
   },
   eth: {
     name: "Ethernet [bits]",
-    search: /nrpe_eth.+\/[rt]x_bytes/i,
+    search: /eth.+\/[rt]x_bytes/i,
     unit: "b/s"
   },
   eth_stat: {
     name: "Ethernet packets",
-    search: /nrpe_eth.+\/./i,
+    search: /eth.+\/./i,
     unit: "/s"
   },
   disk_bytes: {
     name: "Disk bytes",
-    search: /(nrpe_diskio_.|Disk%20IO%20SUMMARY)\/(read|write)/i,
+    search: /(diskio_.|Disk%20IO%20SUMMARY)\/(read|write)/i,
     unit: "B/s"
   },
   disk_io: {
     name: "Disk IO",
-    search: /nrpe_diskio_.\/(ioread|iowrite)/i,
+    search: /diskio_.\/(ioread|iowrite)/i,
     unit: "IO/s"
   },
   diskio_queue: {
     name: "Disk queue",
     hide: true, // wrong data type, change to counter
-    search: /nrpe_diskio_.\/queue/i,
+    search: /diskio_.\/queue/i,
     unit: "/s"
   },
   disk: {
     name: "Disk other",
-    search: /(nrpe_disk_|fs_[A-Z]:)/i,
+    search: /(disk_|fs_[A-Z]:)/i,
     unit: "%"
+  },
+  users: {
+    name: "Users",
+    search: /users\/users/i,
+    unit: ""
   },
   process: {
     name: "Processes",
-    search: /nrpe_(total|zombie)_procs/i,
+    search: /(total|zombie)_procs/i,
+    unit: ""
+  },
+  mailq: {
+    name: "Mail queue",
+    search: /mailq\/unsent/i,
     unit: ""
   },
   sql: {
@@ -1245,9 +1269,14 @@ NagiosLoader.prototype.service_groups = {
     search: /(UPS.*|APCUPSD)\/./i,
     unit: ""
   },
+  temperature: {
+    name: "Temperature",
+    search: /Temperature\/temperature/i,
+    unit: "C"
+  },
   ping_rta: {
     name: "Ping RTA",
-    search: /PING\/rta/,
+    search: /PING\/(rta|rtmin|rtmax)/,
     unit: "ms"
   },
   ping_pl: {
@@ -1265,6 +1294,16 @@ NagiosLoader.prototype.service_groups = {
     search: /.*\/size$/,
     unit: "B"
   },
+  time_offset: {
+    name: "Time offset",
+    search: /System.*Time\/offset/i,
+    unit: "s"
+  },
+  uptime: {
+    name: "Uptime",
+    search: /Uptime\/uptime/i,
+    unit: "s"
+  },
   check_mk: {
     name: "Check MK",
     search: /Check_MK\/./,
@@ -1281,7 +1320,8 @@ NagiosLoader.prototype.service_groups = {
 NagiosLoader.prototype.load_data = function(filename, service) {
   var self = this, counters = this.graph.counters, deltas = this.graph.deltas;
   $.ajax({
-    url: filename
+    url: filename,
+    cache: false
   }).done(function(data) {
     var rows = data.split("\n"), hdr = rows[0].split("\t"), rw, name, desc;
     if (hdr.length<4) {
