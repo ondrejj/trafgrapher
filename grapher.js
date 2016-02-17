@@ -848,7 +848,7 @@ MRTGLoader.prototype.load_index = function(url) {
     $(noimgdata).find("td").each(function(tagi, tag) {
       var tag = $(tag), diva = tag.find("div a");
       if (diva[0]) {
-        var href = diva.prop("href"),
+        var href = diva.attr("href"),
             fname = href.substr(0, href.lastIndexOf(".")),
             name = tag.find("div b").text(),
             name_idx = name.indexOf(": "),
@@ -1185,7 +1185,7 @@ NagiosLoader.prototype.service_groups = {
   },
   swap: {
     name: "Swap",
-    search: /mem\/swap/i,
+    search: /(mem|swap)\/swap/i,
     unit: "B"
   },
   swap_check_mk: {
