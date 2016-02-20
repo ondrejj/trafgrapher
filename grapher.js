@@ -1116,10 +1116,16 @@ StorageLoader.prototype.load_index = function(url) {
     cache: false
   }).done(function(data) {
     var files = [];
-    var tags = $(data).find("a");
+    if (data[0]=="<")
+      var tags = $(data).find("a");
+    else
+      var tags = data.split("\n");
     var current_datetime = new Date(), interval = self.graph.time_interval;
     for (var tagi=0; tagi<tags.length; tagi++) {
-      var href = tags[tagi].getAttribute("href");
+      if (tags[tagi].getAttribute)
+        var href = tags[tagi].getAttribute("href");
+      else
+        var href = tags[tagi];
       if (href[href.length-1]=="/") continue;
       // Storwize
       if (href.indexOf("N"+self.tagsrc[0]+"_stats_")==0) {
@@ -1250,6 +1256,26 @@ NagiosLoader.prototype.service_groups = {
     search: /(total|zombie)_procs/i,
     unit: ""
   },
+  apache_traffic: {
+    name: "Apache traffic",
+    search: /apache\/traffic/,
+    unit: ""
+  },
+  apache_requests: {
+    name: "Apache requests",
+    search: /apache\/(accesses|requests)/,
+    unit: ""
+  },
+  apache_bytes: {
+    name: "Apache bytes",
+    search: /apache\/traffic/,
+    unit: ""
+  },
+  apache_states: {
+    name: "Apache states",
+    search: /apache\/(waiting|reading|sending|closing|dns_lookup)/,
+    unit: ""
+  },
   mailq: {
     name: "Mail queue",
     search: /mailq\/unsent/i,
@@ -1257,7 +1283,7 @@ NagiosLoader.prototype.service_groups = {
   },
   sql: {
     name: "SQL",
-    search: /mysql\/./,
+    search: /mysql\/./i,
     unit: "/s"
   },
   ups: {
@@ -1314,9 +1340,11 @@ NagiosLoader.prototype.service_groups = {
 
 // Load perfdata stats for one service label.
 NagiosLoader.prototype.load_data = function(filename, service) {
-  var self = this, counters = this.graph.counters, deltas = this.graph.deltas;
+  var self = this, counters = this.graph.counters, deltas = this.graph.deltas,
+             filename = filename, service = service;
   $.ajax({
     url: filename,
+    dataType: "text",
     cache: false
   }).done(function(data) {
     var rows = data.split("\n"), hdr = rows[0].split("\t"), rw, name, desc;
