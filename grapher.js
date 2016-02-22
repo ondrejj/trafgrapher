@@ -64,6 +64,11 @@ function arrayinverse(arr) {
   return ret;
 }
 
+// Convert to milisecond
+function to_ms(value) {
+  return parseInt(value)*1000;
+}
+
 // Parse date and time in format "YYMMHH HHMMSS" into Date object.
 function parsedatetime(d, t) {
   if (d.length<8) d = "20" + d;
@@ -1218,21 +1223,25 @@ NagiosLoader.prototype.service_groups = {
   eth: {
     name: "Ethernet [bits]",
     search: /eth.+\/[rt]x_bytes/i,
+    reversed: ["tx"],
     unit: "b/s"
   },
   eth_stat: {
     name: "Ethernet packets",
     search: /eth.+\/./i,
+    reversed: ["tx"],
     unit: "/s"
   },
   disk_bytes: {
     name: "Disk bytes",
     search: /(diskio_.|Disk%20IO%20SUMMARY)\/(read|write)/i,
+    reversed: ["read"],
     unit: "B/s"
   },
   disk_io: {
     name: "Disk IO",
     search: /diskio_.\/(ioread|iowrite)/i,
+    reversed: ["ioread"],
     unit: "IO/s"
   },
   diskio_queue: {
@@ -1366,28 +1375,34 @@ NagiosLoader.prototype.load_data = function(filename, service) {
     if (!deltas[name])
       deltas[name] = {name: desc, unit: hdr[3], i: [], j: [], o: []};
     if (hdr[3]=="c") { // counters
-      if (hdr[2][0]=="r" || hdr[2]=="ioread") { // read or receive
-        rw = "i";
-      } else { // write or transmit
-        rw = "o";
+      rw = "i";
+      if (service!==undefined && self.service_groups[service].reversed) {
+        for (rev_key in self.service_groups[service].reversed)
+          if (hdr[2].substring(rev_key.length)==rev_key)
+            rw = "o";
       }
-      var value, last_value = null;
+      //if (hdr[2]=="read" || hdr[2]=="ioread" | hdr[2][0]=="t") {
+      //  rw = "o"; // read or transmit
+      //} else {
+      //  rw = "i"; // write or receive
+      //}
+      var value, last_value = null, time, last_time, time_interval;
       for (var rowi=1; rowi<rows.length; rowi++) {
         var cols = rows[rowi].split(" ");
+        time = to_ms(cols[0]);
         value = parseFloat(cols[1]);
         if (last_value!==null) {
+          // divide by 1000 because time is in miliseconds
+          time_interval = (time - last_time)/1000;
           if (value>=last_value) {
-            deltas[name][rw].push(
-              [parseInt(cols[0])*1000, value-last_value]
-            );
+            deltas[name][rw].push([time, (value-last_value)/time_interval]);
             if (rw=="i")
-              deltas[name]["j"].push(
-                [parseInt(cols[0])*1000, last_value-value]
-              );
+              deltas[name]["j"].push([time, (last_value-value)/time_interval]);
           } else {
             last_value = null;
           }
         }
+        last_time = time;
         last_value = value;
       }
     } else {
@@ -1397,7 +1412,7 @@ NagiosLoader.prototype.load_data = function(filename, service) {
         var cols = rows[rowi].split(" ");
         var col1 = parseFloat(cols[1]);
         if (percent) col1 = col1*100/max;
-        deltas[name]['o'].push([parseInt(cols[0])*1000, col1]);
+        deltas[name]['o'].push([to_ms(cols[0]), col1]);
       }
     }
     self.loaded_bytes += data.length | 0;
