@@ -119,18 +119,11 @@ String.prototype.escapeSelector = function() {
 var Graph = function(ID) {
   this.ID = ID;
   this.div = $("div#"+ID);
-  this.deltas = {}; this.counters = {};
+  this.deltas = {}; this.counters = {}; this.info = {};
   this.index_mode = "json";
   this.index_files = [];
   this.plot = null;
   this.range_from = null; this.range_to = null;
-  this.unit_by_type = {
-    'b': "B/s",
-    'o': "io/s",
-    'l': "ms",
-    't': "tr/s",
-  };
-  this.unit = this.unit_by_type['b'];
   this.excluded_interfaces = [
     // CISCO
     /^unrouted[\ \-]VLAN/,
@@ -185,7 +178,7 @@ Graph.prototype.unit_si = function(val, axis, unit) {
     if (aval>=k)
       return (aval/k).toFixed(precision)+" k"+unit;
   }
-  if (unit[0]=="i")
+  if (unit && unit[0]=="i" && unit[1]!="o")
     return aval.toFixed(precision)+" "+unit.substr(1);
   return aval.toFixed(precision)+" "+unit;
 }
@@ -251,6 +244,18 @@ Graph.prototype.reset_range = function() {
   this.range_to = Number(current_datetime); // convert to number
 }
 
+// Get unit
+Graph.prototype.get_unit = function(label) {
+  var unit = this.info[label].unit;
+  if (typeof(unit)=="string")
+    return unit;
+  else if (this.unit_type && this.unit_type.length>0)
+    return unit[this.unit_type.find("option:selected").val()];
+  else if (this.graph_type && this.graph_type.length>0)
+    return unit[this.graph_type.find("option:selected").val()[1]];
+  return unit;
+}
+
 // Add callbacks for plot
 Graph.prototype.add_plot_callbacks = function() {
   var self = this;
@@ -265,13 +270,13 @@ Graph.prototype.add_plot_callbacks = function() {
       ).css("border-color", "black");
       // compute bytes
       var graph_type = item.series.label.gt,
-          unit = self.deltas[label].unit || self.unit,
-          value = self.unit_si(item.datapoint[1], 2, unit),
+          unit = self.get_unit(label);
+      var value = self.unit_si(item.datapoint[1], 2, unit),
           sum_value = self.unit_si(
             self.arraybytes(self.deltas[label][graph_type]), null, 'iB'
           ),
-          description = self.deltas[label]['name'],
-          switchname = self.deltas[label]['ip'];
+          description = self.info[label].name,
+          switchname = self.info[label].ip;
       self.find("throughput").val(value);
       self.find("bytes").val(sum_value);
       self.find("description").val(description);
@@ -380,7 +385,7 @@ Graph.prototype.urllink = function() {
       if (self.index_mode=="storage" || self.index_mode=="nagios") {
         ports.push(this.name);
       } else {
-        ports.push(self.deltas[this.name]["port_id"]);
+        ports.push(self.info[this.name]["port_id"]);
       }
     });
     if (ports.length>0)
@@ -532,14 +537,14 @@ Graph.prototype.update_checkboxes = function() {
       "<td><div class='box'>&nbsp;</div></td>" +
       "<td><input type='checkbox' name='" + key +
         "' " + checked + " id='cb" + idkey + "'></input></td><td>" +
-      this.deltas[key]['name'] +
+      this.info[key].name +
       "</td></tr></table></li>");
   }
   self.preselect_graphs = []; // clear after apply
   // Add actions.
-  this.filter.find("input").click(function() {self.plot_graph()});
-  this.graph_type.change(function() {self.plot_graph()});
-  this.unit_type.change(function() {self.plot_graph()});
+  this.filter.find("input").click(function() { self.plot_graph(); });
+  this.graph_type.change(function() { self.plot_graph(); });
+  this.unit_type.change(function() { self.plot_graph(); });
 }
 
 // Plot current graph.
@@ -571,20 +576,6 @@ Graph.prototype.plot_all_graphs = function() {
 Graph.prototype.plot_graph = function(checked_choices, unit) {
   var flots = [];
   var graph_type = this.graph_type.find("option:selected").val() || "jo";
-  if (unit===undefined) {
-    var unit = this.unit_type.find("option:selected").val();
-    if (unit===undefined) {
-      if (graph_type[1] in this.unit_by_type) {
-        this.unit = this.unit_by_type[graph_type[1]];
-      } else {
-        this.unit = "";
-      }
-    } else {
-      this.unit = 'i'+unit+"/s";
-    }
-  } else {
-    this.unit = unit;
-  }
   if (checked_choices===undefined) {
     var checked_choices = [];
     this.filter.find("input:checked").each(function() {
@@ -594,6 +585,7 @@ Graph.prototype.plot_graph = function(checked_choices, unit) {
   var colors = gen_colors(checked_choices.length);
   for (var n=0; n<checked_choices.length; n++) {
     var name = checked_choices[n];
+    var unit = this.get_unit(name);
     if (this.index_mode=="storage") {
       if (graph_type[0]=="x") {
         // storage read and write graph
@@ -625,7 +617,7 @@ Graph.prototype.plot_graph = function(checked_choices, unit) {
           label: {name: name, gt: graph_type[gt]},
           color: String(colors[n]),
           data: this.filter_interval(
-                  this.deltas[name][graph_type[gt]], unit,
+                  this.deltas[name][graph_type[gt]], this.info[name].unit,
                   graph_type[gt]==graph_type[gt].toUpperCase()
                 )
         })
@@ -636,7 +628,7 @@ Graph.prototype.plot_graph = function(checked_choices, unit) {
     xaxis: { mode: "time", timezone: "browser" },
     yaxis: {
       tickFormatter: this.unit_si,
-      si_unit: this.unit,
+      si_unit: unit,
       tickDecimals: 1
     },
     legend: { show: false },
@@ -682,6 +674,7 @@ Loader = function(graph) {
   this.loaded_bytes = 0;
   graph.deltas = {};
   graph.counters = {};
+  graph.info = {};
   // show loader
   graph.placeholder.empty();
   graph.placeholder.append(loading);
@@ -700,7 +693,7 @@ Loader.prototype.file_loaded = function(remaining_files) {
     // if counters is empty, this is skipped
     for (var name in counters) {
       if (!deltas[name]) {
-        deltas[name] = {name: name};
+        deltas[name] = {};
         for (var key in this.data_items)
           deltas[name][this.data_items[key]] = [];
       }
@@ -760,13 +753,14 @@ JSONLoader.prototype.load_log = function(filename, args) {
     var ethid = args.ethid;
     var lines = data.split('\n');
     name = $('<div/>').text(args.name).html(); // escape html in name
+    self.graph.info[ethid] = {name: ethid, unit: {b: 'ib/s', B: 'iB/s'}};
     deltas[ethid] = {'o': [], 'i': [], 'j': [], 'O': [], 'I': [], 'J': []};
     for (var key in args) deltas[ethid][key] = args[key]; // copy args
     lines.shift(); // remove couter line
     lines = lines.map(function(row) {
       return row.split(" ").map(function(col) { return parseInt(col) })
     });
-    lines.sort(function(a, b) { return a[0]-b[0]});
+    lines.sort(function(a, b) { return a[0]-b[0] });
     for (var line=0; line<lines.length; line++) {
       var cols = lines[line];
       var t = cols[0]*1000,
@@ -951,6 +945,9 @@ StorageLoader.prototype.load_storwize = function(filename) {
           counters[name] = {};
           for (var key in self.data_items)
             counters[name][self.data_items[key]] = [[], []];
+          self.graph.info[name] = {name: name, unit: {
+            o: "io/s", b: "B/s", l: "ms", t: "tr/s"
+          }};
         }
         for (var rw in counters[name]) {
           if (rw=="rt") srw = "ctr"
@@ -990,6 +987,9 @@ StorageLoader.prototype.load_unisphere = function(filename) {
               counters[name] = {};
               for (var key in self.data_items)
                 counters[name][self.data_items[key]] = [];
+              self.graph.info[name] = {name: name, unit: {
+                o: "io/s", b: "B/s", l: "ms", t: "tr/s"
+              }};
             }
           }
         } else {
@@ -1097,6 +1097,9 @@ StorageLoader.prototype.load_compellent = function(filename) {
         counters[name] = {};
         for (var key in self.data_items)
           counters[name][self.data_items[key]] = [];
+        self.graph.info[name] = {name: name, unit: {
+          o: "io/s", b: "B/s", l: "ms", t: "tr/s"
+        }};
       }
       // read IO
       if (!counters[name].ro[ctrl]) counters[name].ro[ctrl] = [];
@@ -1391,12 +1394,12 @@ NagiosLoader.prototype.load_data = function(filename, service) {
     if (service!==undefined && self.graph.groups)
       self.graph.groups[service].push(name);
     // create deltas
-    if (!deltas[name])
-      deltas[name] = {name: desc, i: [], j: [], o: []};
+    if (!deltas[name]) {
+      deltas[name] = {i: [], j: [], o: []};
+      self.graph.info[name] = {name: desc, unit: hdr[3]};
+    }
     if (self.service_groups[service])
-      deltas[name]["unit"] = self.service_groups[service].unit;
-    else
-      deltas[name]["unit"] = hdr[3];
+      self.graph.info[name]["unit"] = self.service_groups[service].unit;
     if (hdr[3]=="c") { // counters
       rw = "o";
       if (service!==undefined && self.service_groups[service] &&
@@ -1559,6 +1562,7 @@ Graph.prototype.change_source = function() {
 }
 
 Graph.prototype.zoom_out = function() {
+  // Reset zoom
   this.reset_range();
   this.plot_graph();
 }
