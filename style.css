@@ -101,3 +101,12 @@ div.trafgrapher table tr td {
   padding: 0px;
   margin: 0px;
 }
+
+div.tooltip {
+  position: absolute;
+  display: none;
+  border: 1px solid #999;
+  padding: 2px;
+  background-color: #eee;
+  opacity: 0.80;
+}

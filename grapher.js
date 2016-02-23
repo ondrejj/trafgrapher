@@ -141,7 +141,6 @@ var Graph = function(ID) {
     /^Backbone$/,
   ];
   this.preselect_graphs = [];
-  this.loader = this.div.find("[id^=loader]");
   this.placeholder = this.div.find("[id^=placeholder]");
   this.filter = this.div.find("[id^=filter]");
   this.interval = this.div.find("[id^=interval]");
@@ -259,23 +258,32 @@ Graph.prototype.add_plot_callbacks = function() {
   this.placeholder.bind("plothover", function(event, pos, item) {
     if (item) {
       var label = item.series.label.name;
+      if (!self.deltas[label]) return; // already not defined
       self.filter.find("li").css("border-color", "transparent");
       self.filter.find(
         "li#li"+self.ID+label.escapeSelector()
       ).css("border-color", "black");
-      self.find("throughput").val(
-        self.unit_si(item.datapoint[1], 2, self.unit));
       // compute bytes
-      var graph_type = item.series.label.gt;
-      self.find("bytes").val(
-        self.unit_si(self.arraybytes(self.deltas[label][graph_type]),
-          null, 'iB'));
-      var description = self.deltas[label]['name'],
+      var graph_type = item.series.label.gt,
+          unit = self.deltas[label].unit || self.unit,
+          value = self.unit_si(item.datapoint[1], 2, unit),
+          sum_value = self.unit_si(
+            self.arraybytes(self.deltas[label][graph_type]), null, 'iB'
+          ),
+          description = self.deltas[label]['name'],
           switchname = self.deltas[label]['ip'];
-      //if (self.deltas[label]['port_id'])
-      //  switchname = switchname + " [" + self.deltas[label]['port_id'] + "]";
+      self.find("throughput").val(value);
+      self.find("bytes").val(sum_value);
       self.find("description").val(description);
       self.find("switchname").val(switchname);
+      // show tooltip
+      var tooltip_position = {
+        top: item.pageY+5,
+        left: Math.min(item.pageX+5, window.innerWidth*0.8)
+      };
+      $("#tooltip").html(description + ": " + value)
+        .css(tooltip_position)
+        .fadeIn(200);
       // display information from json file
       if (self.index_mode=="json" && self.deltas[label]['info']) {
         var table = ['<table>'], info = self.deltas[label]['info'],
@@ -302,6 +310,8 @@ Graph.prototype.add_plot_callbacks = function() {
           self.find("info_table").html(table[0]);
         });
       }
+    } else {
+      $("#tooltip").hide();
     }
   });
   this.placeholder.bind("plotclick", function(event, pos, item) {
@@ -533,6 +543,31 @@ Graph.prototype.update_checkboxes = function() {
 }
 
 // Plot current graph.
+Graph.prototype.plot_all_graphs = function() {
+  if (this.loader.service_groups && this.groups) {
+    $("div#multiple_graphs").empty(); // remove old graphs
+    for (var service in this.loader.service_groups) {
+      if (this.loader.service_groups[service].hide===true) continue; // skip
+      if (!this.groups[service]) continue;
+      var graph = $(
+        '<div id="graph_'+service+'" class="trafgrapher">' +
+          this.loader.service_groups[service].name +
+          '<br/>' +
+          '<div id="placeholder_'+service+'" class="graph200r"></div>' +
+        '</div>'
+      );
+      $("div#multiple_graphs").append(graph);
+      this.placeholder = graph.find("#placeholder_"+service);
+      this.plot_graph(
+        this.groups[service],
+        this.loader.service_groups[service].unit
+      );
+      this.add_plot_callbacks();
+    }
+  } else {
+    this.plot_graph();
+  }
+}
 Graph.prototype.plot_graph = function(checked_choices, unit) {
   var flots = [];
   var graph_type = this.graph_type.find("option:selected").val() || "jo";
@@ -638,8 +673,10 @@ Graph.prototype.plot_graph = function(checked_choices, unit) {
 
 Loader = function(graph) {
   this.graph = graph;
+  this.graph.loader = this;
   this.tagsrc = graph.graph_source.find("option:selected").val();
-  this.progress = graph.loader.find("[id^=progress]");
+  var loading = graph.div.find("[id^=loader]");
+  this.progress = loading.find("[id^=progress]");
   this.progress.text("");
   this.files_to_load = 0;
   this.loaded_bytes = 0;
@@ -647,7 +684,7 @@ Loader = function(graph) {
   graph.counters = {};
   // show loader
   graph.placeholder.empty();
-  graph.placeholder.append(graph.loader);
+  graph.placeholder.append(loading);
   // set current interval
   graph.reset_range();
 }
@@ -675,25 +712,7 @@ Loader.prototype.file_loaded = function(remaining_files) {
       }
     }
     if (this.service_groups && this.graph.groups) {
-      $("div#multiple_graphs").empty(); // remove old graphs
-      for (var service in this.service_groups) {
-        if (this.service_groups[service].hide===true) continue; // skip
-        if (!this.graph.groups[service]) continue;
-        var graph = $(
-          '<div id="graph_'+service+'" class="trafgrapher">' +
-            this.service_groups[service].name +
-            '<br/>' +
-            '<div id="placeholder_'+service+'" class="graph200r"></div>' +
-          '</div>'
-        );
-        $("div#multiple_graphs").append(graph);
-        this.graph.placeholder = graph.find("#placeholder_"+service);
-        this.graph.plot_graph(
-          this.graph.groups[service],
-          this.service_groups[service].unit
-        );
-        this.graph.add_plot_callbacks();
-      }
+      this.graph.plot_all_graphs();
     } else {
       this.graph.update_checkboxes();
       this.graph.plot_graph();
@@ -1223,25 +1242,25 @@ NagiosLoader.prototype.service_groups = {
   eth: {
     name: "Ethernet [bits]",
     search: /eth.+\/[rt]x_bytes/i,
-    reversed: ["tx"],
+    reversed: /^rx/,
     unit: "b/s"
   },
   eth_stat: {
     name: "Ethernet packets",
     search: /eth.+\/./i,
-    reversed: ["tx"],
+    reversed: /^rx/,
     unit: "/s"
   },
   disk_bytes: {
     name: "Disk bytes",
     search: /(diskio_.|Disk%20IO%20SUMMARY)\/(read|write)/i,
-    reversed: ["read"],
+    reversed: /^write/,
     unit: "B/s"
   },
   disk_io: {
     name: "Disk IO",
     search: /diskio_.\/(ioread|iowrite)/i,
-    reversed: ["ioread"],
+    reversed: /^iowrite/,
     unit: "IO/s"
   },
   diskio_queue: {
@@ -1373,19 +1392,17 @@ NagiosLoader.prototype.load_data = function(filename, service) {
       self.graph.groups[service].push(name);
     // create deltas
     if (!deltas[name])
-      deltas[name] = {name: desc, unit: hdr[3], i: [], j: [], o: []};
+      deltas[name] = {name: desc, i: [], j: [], o: []};
+    if (self.service_groups[service])
+      deltas[name]["unit"] = self.service_groups[service].unit;
+    else
+      deltas[name]["unit"] = hdr[3];
     if (hdr[3]=="c") { // counters
-      rw = "i";
-      if (service!==undefined && self.service_groups[service].reversed) {
-        for (rev_key in self.service_groups[service].reversed)
-          if (hdr[2].substring(rev_key.length)==rev_key)
-            rw = "o";
-      }
-      //if (hdr[2]=="read" || hdr[2]=="ioread" | hdr[2][0]=="t") {
-      //  rw = "o"; // read or transmit
-      //} else {
-      //  rw = "i"; // write or receive
-      //}
+      rw = "o";
+      if (service!==undefined && self.service_groups[service] &&
+          self.service_groups[service].reversed &&
+          hdr[2].search(self.service_groups[service].reversed)>=0)
+        rw = "i";
       var value, last_value = null, time, last_time, time_interval;
       for (var rowi=1; rowi<rows.length; rowi++) {
         var cols = rows[rowi].split(" ");
@@ -1479,7 +1496,7 @@ NagiosLoader.prototype.load_index = function(url) {
       if (self.files_to_load<=0)
         self.progress.text("No data to load");
       for (var fni=0; fni<self.files_to_load; fni++)
-        self.load_data(files["ALL"][service][fni], self.graph);
+        self.load_data(files["ALL"][service][fni], service);
     } else {
       host = hosts.find('option:selected').val();
       for (var service in files[host])
@@ -1511,7 +1528,7 @@ Graph.prototype.refresh_range = function() {
     this.refresh_graph();
   } else {
     this.reset_range();
-    this.plot_graph();
+    this.plot_all_graphs();
   }
 }
 
