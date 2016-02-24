@@ -36,7 +36,7 @@ function joinarrays(arr) {
 }
 
 // Create array with deltas of two arrays.
-function arraydelta(nodes, rw) {
+function arraydelta(nodes) {
   if (!nodes) return [];
   if (nodes.length==0) return [];
   var deltas = [];
@@ -328,7 +328,15 @@ Graph.prototype.add_plot_callbacks = function() {
         "checked", !self.div.find("input#cb"+self.ID+label.escapeSelector()
                     ).prop("checked")
       );
-      self.plot_graph();
+      if (self.groups) {
+        for (var srvi in self.groups)
+          for (var grpi in self.groups[srvi])
+            if (self.groups[srvi][grpi].name==label)
+              self.groups[srvi][grpi].enabled = false;
+        self.plot_all_graphs();
+      } else {
+        self.plot_graph();
+      }
     }
   });
 }
@@ -549,33 +557,37 @@ Graph.prototype.update_checkboxes = function() {
 
 // Plot current graph.
 Graph.prototype.plot_all_graphs = function() {
+  var graph, enabled_groups;
   if (this.loader.service_groups && this.groups) {
-    $("div#multiple_graphs").empty(); // remove old graphs
     for (var service in this.loader.service_groups) {
       if (this.loader.service_groups[service].hide===true) continue; // skip
       if (!this.groups[service]) continue;
-      var graph = $(
-        '<div id="graph_'+service+'" class="trafgrapher">' +
-          this.loader.service_groups[service].name +
-          '<br/>' +
-          '<div id="placeholder_'+service+'" class="graph200r"></div>' +
-        '</div>'
-      );
-      $("div#multiple_graphs").append(graph);
+      graph = $("#graph_"+service);
+      if (graph.length==0) {
+        graph = $(
+          '<div id="graph_'+service+'" class="trafgrapher">' +
+            this.loader.service_groups[service].name +
+            '<br/>' +
+            '<div id="placeholder_'+service+'" class="graph200r"></div>' +
+          '</div>'
+        );
+        $("div#multiple_graphs").append(graph);
+      }
       this.placeholder = graph.find("#placeholder_"+service);
-      this.plot_graph(
-        this.groups[service],
-        this.loader.service_groups[service].unit
-      );
+      enabled_groups = [];
+      for (var grpi in this.groups[service])
+        if (this.groups[service][grpi].enabled)
+          enabled_groups.push(this.groups[service][grpi].name);
+      this.plot_graph(enabled_groups);
       this.add_plot_callbacks();
     }
   } else {
     this.plot_graph();
   }
 }
-Graph.prototype.plot_graph = function(checked_choices, unit) {
-  var flots = [];
-  var graph_type = this.graph_type.find("option:selected").val() || "jo";
+Graph.prototype.plot_graph = function(checked_choices) {
+  var flots = [], name, unit,
+      graph_type = this.graph_type.find("option:selected").val() || "jo";
   if (checked_choices===undefined) {
     var checked_choices = [];
     this.filter.find("input:checked").each(function() {
@@ -584,8 +596,8 @@ Graph.prototype.plot_graph = function(checked_choices, unit) {
   }
   var colors = gen_colors(checked_choices.length);
   for (var n=0; n<checked_choices.length; n++) {
-    var name = checked_choices[n];
-    var unit = this.get_unit(name);
+    name = checked_choices[n];
+    unit = this.get_unit(name);
     if (this.index_mode=="storage") {
       if (graph_type[0]=="x") {
         // storage read and write graph
@@ -700,11 +712,12 @@ Loader.prototype.file_loaded = function(remaining_files) {
       for (var rw in counters[name]) {
         var arrs = [];
         for (var nodeid in counters[name][rw])
-          arrs.push(arraydelta(counters[name][rw][nodeid], rw));
+          arrs.push(arraydelta(counters[name][rw][nodeid]));
         deltas[name][rw] = joinarrays(arrs);
       }
     }
     if (this.service_groups && this.graph.groups) {
+      $("div#multiple_graphs").empty(); // remove old graphs
       this.graph.plot_all_graphs();
     } else {
       this.graph.update_checkboxes();
@@ -755,7 +768,8 @@ JSONLoader.prototype.load_log = function(filename, args) {
     name = $('<div/>').text(args.name).html(); // escape html in name
     self.graph.info[ethid] = {name: ethid, unit: {b: 'ib/s', B: 'iB/s'}};
     deltas[ethid] = {'o': [], 'i': [], 'j': [], 'O': [], 'I': [], 'J': []};
-    for (var key in args) deltas[ethid][key] = args[key]; // copy args
+    // copy args
+    for (var key in args) self.graph.info[ethid][key] = args[key];
     lines.shift(); // remove couter line
     lines = lines.map(function(row) {
       return row.split(" ").map(function(col) { return parseInt(col) })
@@ -1264,7 +1278,7 @@ NagiosLoader.prototype.service_groups = {
     name: "Disk IO",
     search: /diskio_.\/(ioread|iowrite)/i,
     reversed: /^iowrite/,
-    unit: "IO/s"
+    unit: "io/s"
   },
   diskio_queue: {
     name: "Disk queue",
@@ -1273,7 +1287,7 @@ NagiosLoader.prototype.service_groups = {
     unit: "/s"
   },
   disk: {
-    name: "Disk other",
+    name: "Disk usage",
     search: /(disk_|fs_[A-Z]:)/i,
     unit: "%"
   },
@@ -1287,20 +1301,15 @@ NagiosLoader.prototype.service_groups = {
     search: /(total|zombie)_procs/i,
     unit: ""
   },
-  apache_traffic: {
-    name: "Apache traffic",
+  apache_bytes: {
+    name: "Apache bytes",
     search: /apache\/traffic/,
-    unit: ""
+    unit: "B/s"
   },
   apache_requests: {
     name: "Apache requests",
     search: /apache\/(accesses|requests)/,
-    unit: ""
-  },
-  apache_bytes: {
-    name: "Apache bytes",
-    search: /apache\/traffic/,
-    unit: ""
+    unit: "/s"
   },
   apache_states: {
     name: "Apache states",
@@ -1392,7 +1401,7 @@ NagiosLoader.prototype.load_data = function(filename, service) {
     }
     // add group
     if (service!==undefined && self.graph.groups)
-      self.graph.groups[service].push(name);
+      self.graph.groups[service].push({name: name, enabled: true});
     // create deltas
     if (!deltas[name]) {
       deltas[name] = {i: [], j: [], o: []};
@@ -1506,7 +1515,7 @@ NagiosLoader.prototype.load_index = function(url) {
         self.files_to_load += files[host][service].length;
       if (self.files_to_load<=0)
         self.progress.text("No data to load");
-      self.graph.groups = {}
+      self.graph.groups = {};
       for (var service in files[host]) {
         self.graph.groups[service] = [];
         for (var fni=0; fni<files[host][service].length; fni++) {
