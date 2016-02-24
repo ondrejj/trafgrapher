@@ -339,6 +339,14 @@ Graph.prototype.add_plot_callbacks = function() {
       }
     }
   });
+  // selection
+  this.placeholder.bind("plotselected", function (event, ranges) {
+    // zoom
+    self.range_from = ranges.xaxis.from;
+    self.range_to = ranges.xaxis.to;
+    self.plot.clearSelection();
+    self.plot_all_graphs();
+  });
 }
 
 // Add callbacks for graph
@@ -362,14 +370,6 @@ Graph.prototype.add_callbacks = function() {
   this.find("toggle_filter").click(function() {
     self.filter.toggle();
   });
-  // selection
-  this.placeholder.bind("plotselected", function (event, ranges) {
-    // zoom
-    self.range_from = ranges.xaxis.from;
-    self.range_to = ranges.xaxis.to;
-    self.plot.clearSelection();
-    self.plot_graph();
-  });
   this.add_plot_callbacks();
 }
 
@@ -384,7 +384,8 @@ Graph.prototype.urllink = function() {
   } else if (this.index_mode=="storage") {
     var url = "?s="+this.index_files[0].split(";")[0];
   } else if (this.index_mode=="nagios") {
-    var url = "?n="+this.index_files[0].split(";")[0];
+    var url = "?n="+this.index_files[0].split(";")[0]
+            + ";"+$("select#host option:selected").val();
   } else {
     return;
   }
@@ -400,7 +401,8 @@ Graph.prototype.urllink = function() {
       url += ";" + ports.join(";");
   }
   url += "&i=" + this.interval.val() + "h";
-  url += "&u=" + this.unit_type.val();
+  if (this.unit_type.val())
+    url += "&u=" + this.unit_type.val();
   window.location = window.location.href.split("?")[0] + url;
 }
 Graph.prototype.menu_selected = function(sel) {
@@ -495,24 +497,24 @@ Graph.prototype.keyevent = function(event) {
     case 39: // right
       this.range_from += this.interval.val()*one_hour;
       this.range_to += this.interval.val()*one_hour;
-      this.plot_graph();
+      this.plot_all_graphs();
       break;
     case 37: // left
       this.range_from -= this.interval.val()*one_hour;
       this.range_to -= this.interval.val()*one_hour;
-      this.plot_graph();
+      this.plot_all_graphs();
       break;
     case 38: // up
       this.range_from -= this.interval.val()*one_hour;
       this.range_to += this.interval.val()*one_hour;
-      this.plot_graph();
+      this.plot_all_graphs();
       break;
     case 40: // down
       var amount = this.interval.val()*one_hour;
       if (this.range_to-this.range_from>amount*2) {
         this.range_from += amount;
         this.range_to -= amount;
-        this.plot_graph();
+        this.plot_all_graphs();
       }
       break;
   }
@@ -1568,7 +1570,7 @@ Graph.prototype.change_source = function() {
 Graph.prototype.zoom_out = function() {
   // Reset zoom
   this.reset_range();
-  this.plot_graph();
+  this.plot_all_graphs();
 }
 
 Graph.prototype.select_devices = function() {
