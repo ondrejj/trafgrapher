@@ -696,12 +696,12 @@ Loader = function(graph) {
 
 // File loaded, update counter, show graph if all files processed.
 Loader.prototype.file_loaded = function(remaining_files) {
+  var counters = this.graph.counters, deltas = this.graph.deltas;
   if (remaining_files===undefined)
     this.files_to_load -= 1;
   else
     this.files_to_load = remaining_files;
   if (this.files_to_load==0) {
-    var counters = this.graph.counters, deltas = this.graph.deltas;
     // if counters is empty, this is skipped
     for (var name in counters) {
       if (!deltas[name]) {
@@ -1380,7 +1380,7 @@ NagiosLoader.prototype.service_groups = {
 
 // Load perfdata stats for one service label.
 NagiosLoader.prototype.load_data = function(filename, service) {
-  var self = this, counters = this.graph.counters, deltas = this.graph.deltas,
+  var self = this, deltas = this.graph.deltas,
              filename = filename, service = service;
   $.ajax({
     url: filename,
@@ -1402,11 +1402,9 @@ NagiosLoader.prototype.load_data = function(filename, service) {
     // add group
     if (service!==undefined && self.graph.groups)
       self.graph.groups[service].push({name: name, enabled: true});
-    // create deltas
-    if (!deltas[name]) {
-      deltas[name] = {i: [], j: [], o: []};
+    // create info
+    if (!self.graph.info[name])
       self.graph.info[name] = {name: desc, unit: hdr[3]};
-    }
     if (self.service_groups[service])
       self.graph.info[name]["unit"] = self.service_groups[service].unit;
     if (hdr[3]=="c") { // counters
@@ -1415,26 +1413,23 @@ NagiosLoader.prototype.load_data = function(filename, service) {
           self.service_groups[service].reversed &&
           hdr[2].search(self.service_groups[service].reversed)>=0)
         rw = "i";
-      var value, last_value = null, time, last_time, time_interval;
+      // create counters
+      var counters = []; // use local counters
+      if (!deltas[name])
+        deltas[name] = {i: [], j: [], o: []};
       for (var rowi=1; rowi<rows.length; rowi++) {
         var cols = rows[rowi].split(" ");
-        time = to_ms(cols[0]);
-        value = parseFloat(cols[1]);
-        if (last_value!==null) {
-          // divide by 1000 because time is in miliseconds
-          time_interval = (time - last_time)/1000;
-          if (value>=last_value) {
-            deltas[name][rw].push([time, (value-last_value)/time_interval]);
-            if (rw=="i")
-              deltas[name]["j"].push([time, (last_value-value)/time_interval]);
-          } else {
-            last_value = null;
-          }
-        }
-        last_time = time;
-        last_value = value;
+        var value = parseFloat(cols[1]);
+        counters.push([to_ms(cols[0]), value]);
       }
+      // compute deltas
+      deltas[name][rw] = arraydelta(counters);
+      if (rw=="i")
+        deltas[name].j = arrayinverse(arraydelta(counters));
     } else {
+      // create deltas
+      if (!deltas[name])
+        deltas[name] = {i: [], j: [], o: []};
       var percent = hdr[1].search(/^nrpe_disk_/i)==0, max;
       if (percent) max = parseFloat(hdr[7]);
       for (var rowi=1; rowi<rows.length; rowi++) {
