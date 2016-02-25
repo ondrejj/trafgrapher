@@ -259,7 +259,7 @@ Graph.prototype.get_unit = function(label) {
 // Add callbacks for plot
 Graph.prototype.add_plot_callbacks = function() {
   var self = this;
-  // hover and click
+  // hover
   this.placeholder.bind("plothover", function(event, pos, item) {
     if (item) {
       var label = item.series.label.name;
@@ -319,6 +319,7 @@ Graph.prototype.add_plot_callbacks = function() {
       $("#tooltip").hide();
     }
   });
+  // click
   this.placeholder.bind("plotclick", function(event, pos, item) {
     if (item) {
       var label = item.series.label.name;
@@ -373,6 +374,7 @@ Graph.prototype.add_callbacks = function() {
   this.add_plot_callbacks();
 }
 
+// Update URL link according to current choices
 Graph.prototype.urllink = function() {
   var self = this, ports = [],
       inputs_all = this.filter.find("input"),
@@ -405,6 +407,8 @@ Graph.prototype.urllink = function() {
     url += "&u=" + this.unit_type.val();
   window.location = window.location.href.split("?")[0] + url;
 }
+
+// Menu commands
 Graph.prototype.menu_selected = function(sel) {
   var self = this, inputs_all = this.filter.find("input");
   if (sel===undefined) {
@@ -1657,7 +1661,8 @@ $(function() {
     graph.parse_query_string();
     graph.refresh_graph();
     $(document).keydown(function(event) {
-      graph.keyevent(event);
+      if (event.target.tagName.toLowerCase()=="body")
+        graph.keyevent(event);
     });
     graphs.push(graph);
   });
