@@ -123,7 +123,7 @@ var Graph = function(ID) {
   this.index_mode = "json";
   this.index_files = [];
   this.plot = null;
-  this.range_from = null; this.range_to = null;
+  this.range_from = null; this.range_to = null, this.custom_range = false;
   this.excluded_interfaces = [
     // CISCO
     /^unrouted[\ \-]VLAN/,
@@ -141,6 +141,7 @@ var Graph = function(ID) {
   this.graph_type = this.div.find("[id^=graph_type]");
   this.unit_type = this.div.find("[id^=unit_type]");
   this.add_callbacks();
+  this.add_plot_callbacks(this.placeholder);
 }
 
 Graph.prototype.find = function(id, selectors) {
@@ -154,8 +155,13 @@ Graph.prototype.find = function(id, selectors) {
 
 // Show error message
 Graph.prototype.error = function(msg) {
-  this.find("error").text(msg);
-  this.find("error").show();
+  var error = this.find("error");
+  if (error.length>0) {
+    error.text(msg);
+    error.show();
+  } else {
+    console.log(msg);
+  }
 }
 
 // Convert unit to kilo, mega, giga or tera.
@@ -237,10 +243,11 @@ Graph.prototype.filter_interval = function(data, unit, use_max) {
 Graph.prototype.reset_range = function() {
   // set current interval
   var current_datetime = new Date(),
-      range_end = this.div.find("[name^=range_end]").val();
-  this.time_interval = parseInt(this.interval.val());
+      range_end = this.div.find("[name^=range_end]").val(),
+      time_interval = parseInt(this.interval.val());
   if (range_end) current_datetime = range_end * 1000;
-  this.range_from = Number(current_datetime - this.time_interval*one_hour);
+  this.custom_range = false;
+  this.range_from = Number(current_datetime - time_interval*one_hour);
   this.range_to = Number(current_datetime); // convert to number
 }
 
@@ -257,10 +264,10 @@ Graph.prototype.get_unit = function(label) {
 }
 
 // Add callbacks for plot
-Graph.prototype.add_plot_callbacks = function() {
+Graph.prototype.add_plot_callbacks = function(placeholder) {
   var self = this;
   // hover
-  this.placeholder.bind("plothover", function(event, pos, item) {
+  placeholder.bind("plothover", function(event, pos, item) {
     if (item) {
       var label = item.series.label.name;
       if (!self.deltas[label]) return; // already not defined
@@ -320,7 +327,7 @@ Graph.prototype.add_plot_callbacks = function() {
     }
   });
   // click
-  this.placeholder.bind("plotclick", function(event, pos, item) {
+  placeholder.bind("plotclick", function(event, pos, item) {
     if (item) {
       var label = item.series.label.name;
       self.div.find(
@@ -341,8 +348,9 @@ Graph.prototype.add_plot_callbacks = function() {
     }
   });
   // selection
-  this.placeholder.bind("plotselected", function (event, ranges) {
+  placeholder.bind("plotselected", function (event, ranges) {
     // zoom
+    self.custom_range = true;
     self.range_from = ranges.xaxis.from;
     self.range_to = ranges.xaxis.to;
     self.plot.clearSelection();
@@ -371,7 +379,6 @@ Graph.prototype.add_callbacks = function() {
   this.find("toggle_filter").click(function() {
     self.filter.toggle();
   });
-  this.add_plot_callbacks();
 }
 
 // Update URL link according to current choices
@@ -405,6 +412,9 @@ Graph.prototype.urllink = function() {
   url += "&i=" + this.interval.val() + "h";
   if (this.unit_type.val())
     url += "&u=" + this.unit_type.val();
+  if (this.custom_range) {
+    url += "&rf=" + this.range_from + "&rt=" + this.range_to;
+  }
   window.location = window.location.href.split("?")[0] + url;
 }
 
@@ -499,16 +509,19 @@ Graph.prototype.keyevent = function(event) {
       this.refresh_range();
       break;
     case 39: // right
+      this.custom_range = true;
       this.range_from += this.interval.val()*one_hour;
       this.range_to += this.interval.val()*one_hour;
       this.plot_all_graphs();
       break;
     case 37: // left
+      this.custom_range = true;
       this.range_from -= this.interval.val()*one_hour;
       this.range_to -= this.interval.val()*one_hour;
       this.plot_all_graphs();
       break;
     case 38: // up
+      this.custom_range = true;
       this.range_from -= this.interval.val()*one_hour;
       this.range_to += this.interval.val()*one_hour;
       this.plot_all_graphs();
@@ -516,6 +529,7 @@ Graph.prototype.keyevent = function(event) {
     case 40: // down
       var amount = this.interval.val()*one_hour;
       if (this.range_to-this.range_from>amount*2) {
+        this.custom_range = true;
         this.range_from += amount;
         this.range_to -= amount;
         this.plot_all_graphs();
@@ -577,7 +591,7 @@ Graph.prototype.plot_all_graphs = function() {
             '<div id="placeholder_'+service+'" class="graph200r"></div>' +
           '</div>'
         );
-        $("div#multiple_graphs").append(graph);
+        $("#multiple_graphs").append(graph);
       }
       this.placeholder = graph.find("#placeholder_"+service);
       enabled_groups = [];
@@ -585,7 +599,7 @@ Graph.prototype.plot_all_graphs = function() {
         if (this.groups[service][grpi].enabled)
           enabled_groups.push(this.groups[service][grpi].name);
       this.plot_graph(enabled_groups);
-      this.add_plot_callbacks();
+      this.add_plot_callbacks(graph.find("#placeholder_"+service));
     }
   } else {
     this.plot_graph();
@@ -697,7 +711,8 @@ Loader = function(graph) {
   graph.placeholder.empty();
   graph.placeholder.append(loading);
   // set current interval
-  graph.reset_range();
+  if (!graph.range_from || !graph.range_to)
+    graph.reset_range();
 }
 
 // File loaded, update counter, show graph if all files processed.
@@ -723,7 +738,7 @@ Loader.prototype.file_loaded = function(remaining_files) {
       }
     }
     if (this.service_groups && this.graph.groups) {
-      $("div#multiple_graphs").empty(); // remove old graphs
+      $("#multiple_graphs").empty(); // remove old graphs
       this.graph.plot_all_graphs();
     } else {
       this.graph.update_checkboxes();
@@ -1167,7 +1182,8 @@ StorageLoader.prototype.load_index = function(url) {
       var tags = $(data).find("a");
     else
       var tags = data.split("\n");
-    var current_datetime = new Date(), interval = self.graph.time_interval;
+    var current_datetime = new Date(),
+        interval = parseInt(self.graph.interval.val());
     for (var tagi=0; tagi<tags.length; tagi++) {
       if (tags[tagi].getAttribute)
         var href = tags[tagi].getAttribute("href");
@@ -1447,6 +1463,10 @@ NagiosLoader.prototype.load_data = function(filename, service) {
     }
     self.loaded_bytes += data.length | 0;
     self.file_loaded();
+  }).fail(function(jqXHR, textStatus, error) {
+    self.graph.error(
+      "Failed to load nagios data file: " + filename + ": " + error
+    );
   });
 }
 
@@ -1460,7 +1480,7 @@ NagiosLoader.prototype.load_index = function(url) {
     cache: false
   }).done(function(data) {
     var rows = data.split("\n"), row, urlrow;
-    var current_datetime = new Date(), interval = self.graph.time_interval;
+    var current_datetime = new Date();
     var service = $("select#service option:selected").val();
     var hosts = $("select#host"), host;
     var files = {}
@@ -1537,17 +1557,11 @@ NagiosLoader.prototype.load_index = function(url) {
 */
 
 Graph.prototype.refresh_range = function() {
-  if (this.index_mode=="storage") {
-    this.refresh_graph();
-  } else {
-    this.reset_range();
-    this.plot_all_graphs();
-  }
+  this.reset_range();
+  this.plot_all_graphs();
 }
 
 Graph.prototype.refresh_graph = function() {
-  this.range_from = null;
-  this.range_to = null;
   if (this.index_mode=="json") {
     var loader = new JSONLoader(this, this.index_files);
   } else if (this.index_mode=="mrtg") {
@@ -1633,6 +1647,12 @@ Graph.prototype.parse_query_string = function() {
             '<option value="'+arg1+'">'+arg1+' hours</option>'
           );
         this.interval.val(arg1);
+      } else if (arg[0]=="rf") {
+        this.custom_range = true;
+        this.range_from = Number(arg[1]);
+      } else if (arg[0]=="rt") {
+        this.custom_range = true;
+        this.range_to = Number(arg[1]);
       } else if (arg[0]=="n") {
         this.index_mode = "nagios";
         split_arg(arg[1], this.index_files);
@@ -1642,9 +1662,12 @@ Graph.prototype.parse_query_string = function() {
       } else if (arg[0]=="j") {
         this.index_mode = "json";
         split_arg(arg[1], this.index_files);
-      } else {
+      } else if (arg[0]=="m") {
         this.index_mode = "mrtg";
         split_arg(arg[1], this.index_files);
+      } else {
+        alert("Unknown argument: "+arg[0]+"="+arg[1]);
+        break;
       }
     }
   }

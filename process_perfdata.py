@@ -6,6 +6,7 @@ prefix = os.environ.get("NAGIOS_PERF_LOG_DIR", "/var/log/nagios/perf")
 
 class Logfiles:
   re_num_unit = re.compile("^(-?[0-9.]+)([a-zA-Z%]*)$")
+  re_plain = re.compile("^[A-Za-z0-9:.,=_-]*$")
   def __init__(self, hostname, service, label):
       self.hsl = "%s\t%s\t%s" % (hostname, service, label)
       self.dir = "%s/%s/%s" \
@@ -15,6 +16,10 @@ class Logfiles:
         os.makedirs(self.dir)
       self.header = os.path.exists(self.filename)
   def escape(self, fn):
+      if self.re_plain.search(fn):
+        return fn
+      return '~'+fn.encode("base64").strip()
+  def escape_old(self, fn):
       ret = ''
       for x in fn:
         if (x>='a' and x<='z') or (x>='A' and x<='Z') or (x>='0' and x<='9') \
