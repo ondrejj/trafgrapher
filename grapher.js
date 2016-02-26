@@ -4,7 +4,7 @@
   Licensed under the MIT license.
 */
 
-var trafgrapher_version = '1.2',
+var trafgrapher_version = '2.0beta',
     one_hour = 3600000;
 
 // Join two arrays into one. For same keys sum values.
@@ -67,6 +67,31 @@ function arrayinverse(arr) {
 // Convert to milisecond
 function to_ms(value) {
   return parseInt(value)*1000;
+}
+
+// Convert unit to kilo, mega, giga or tera.
+function unit_si(val, axis, unit) {
+  var k = 1024, precision = 2, aval = Math.abs(val);
+  if (axis && axis.tickDecimals) precision = axis.tickDecimals;
+  if (typeof(axis)=="number") precision = axis;
+  if (unit===undefined && axis) unit = axis.options.si_unit;
+  if (unit=="ms") {
+    if (aval>=k) return (aval/k).toFixed(precision)+" s";
+  } else {
+    if (aval>=(k*k*k*k*k))
+      return (aval/k/k/k/k/k).toFixed(precision)+" P"+unit;
+    if (aval>=(k*k*k*k))
+      return (aval/k/k/k/k).toFixed(precision)+" T"+unit;
+    if (aval>=(k*k*k))
+      return (aval/k/k/k).toFixed(precision)+" G"+unit;
+    if (aval>=(k*k))
+      return (aval/k/k).toFixed(precision)+" M"+unit;
+    if (aval>=k)
+      return (aval/k).toFixed(precision)+" k"+unit;
+  }
+  if (unit && unit[0]=="i" && unit[1]!="o")
+    return aval.toFixed(precision)+" "+unit.substr(1);
+  return aval.toFixed(precision)+" "+unit;
 }
 
 // Parse date and time in format "YYMMHH HHMMSS" into Date object.
@@ -141,7 +166,7 @@ var Graph = function(ID) {
   this.graph_source = this.div.find("[id^=graph_source]");
   this.graph_type = this.div.find("[id^=graph_type]");
   this.unit_type = this.div.find("[id^=unit_type]");
-  this.add_callbacks();
+  this.add_menu_callbacks();
 }
 
 Graph.prototype.find = function(id, selectors) {
@@ -162,31 +187,6 @@ Graph.prototype.error = function(msg) {
   } else {
     console.log(msg);
   }
-}
-
-// Convert unit to kilo, mega, giga or tera.
-Graph.prototype.unit_si = function(val, axis, unit) {
-  var k = 1024, precision = 2, aval = Math.abs(val);
-  if (axis && axis.tickDecimals) precision = axis.tickDecimals;
-  if (typeof(axis)=="number") precision = axis;
-  if (unit===undefined && axis) unit = axis.options.si_unit;
-  if (unit=="ms") {
-    if (aval>=k) return (aval/k).toFixed(precision)+" s";
-  } else {
-    if (aval>=(k*k*k*k*k))
-      return (aval/k/k/k/k/k).toFixed(precision)+" P"+unit;
-    if (aval>=(k*k*k*k))
-      return (aval/k/k/k/k).toFixed(precision)+" T"+unit;
-    if (aval>=(k*k*k))
-      return (aval/k/k/k).toFixed(precision)+" G"+unit;
-    if (aval>=(k*k))
-      return (aval/k/k).toFixed(precision)+" M"+unit;
-    if (aval>=k)
-      return (aval/k).toFixed(precision)+" k"+unit;
-  }
-  if (unit && unit[0]=="i" && unit[1]!="o")
-    return aval.toFixed(precision)+" "+unit.substr(1);
-  return aval.toFixed(precision)+" "+unit;
 }
 
 // Array bytes
@@ -278,8 +278,8 @@ Graph.prototype.add_plot_callbacks = function(placeholder) {
       // compute bytes
       var graph_type = item.series.label.gt,
           unit = self.get_unit(label);
-      var value = self.unit_si(item.datapoint[1], 2, unit),
-          sum_value = self.unit_si(
+      var value = unit_si(item.datapoint[1], 2, unit),
+          sum_value = unit_si(
             self.arraybytes(self.deltas[label][graph_type]), null, 'iB'
           ),
           description = self.info[label].name,
@@ -358,8 +358,8 @@ Graph.prototype.add_plot_callbacks = function(placeholder) {
   });
 }
 
-// Add callbacks for graph
-Graph.prototype.add_callbacks = function() {
+// Add menu callbacks for graph
+Graph.prototype.add_menu_callbacks = function() {
   var self = this;
   // buttons and selectors
   this.interval.change(function() {self.refresh_range()});
@@ -392,7 +392,10 @@ Graph.prototype.urllink = function() {
     var url = "?m="+this.index_files[0].split(";")[0];
   } else if (this.index_mode=="storage") {
     var url = "?s="+this.index_files[0].split(";")[0];
-  } else if (this.index_mode=="nagios") {
+  } else if (this.index_mode=="nagios_service") {
+    var url = "?n="+this.index_files[0].split(";")[0]
+            + ";"+$("select#service option:selected").val();
+  } else if (this.index_mode=="nagios_host") {
     var url = "?n="+this.index_files[0].split(";")[0]
             + ";"+$("select#host option:selected").val();
   } else {
@@ -400,7 +403,9 @@ Graph.prototype.urllink = function() {
   }
   if (inputs_checked.length<inputs_all.length) {
     inputs_checked.each(function() {
-      if (self.index_mode=="storage" || self.index_mode=="nagios") {
+      if (self.index_mode=="storage" ||
+          self.index_mode=="nagios_service" ||
+          self.index_mode=="nagios_host") {
         ports.push(this.name);
       } else {
         ports.push(self.info[this.name]["port_id"]);
@@ -662,7 +667,7 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
   this.plot = $.plot(placeholder, flots, {
     xaxis: { mode: "time", timezone: "browser" },
     yaxis: {
-      tickFormatter: this.unit_si,
+      tickFormatter: unit_si,
       si_unit: unit,
       tickDecimals: 1
     },
@@ -773,8 +778,8 @@ if (!Object.create) {
   ===============
 */
 
-JSONLoader = function(graph, files) {
-  Loader.call(this, graph, files);
+JSONLoader = function(graph) {
+  Loader.call(this, graph);
 }
 
 JSONLoader.prototype = Object.create(Loader.prototype);
@@ -820,12 +825,12 @@ JSONLoader.prototype.load_log = function(filename, args) {
 
 // Load json index and start loading of files.
 JSONLoader.prototype.load_index = function(url) {
-  var self = this, graph = this.graph;
+  var self = this;
   // load index file
   var preselect_graphs = url.split(";");
   url = preselect_graphs.shift();
   var urldir = url.replace(/[^\/]*$/, "");
-  graph.preselect_graphs = [];
+  this.graph.preselect_graphs = [];
   $.ajax({
     url: url,
     dataType: "json",
@@ -833,8 +838,8 @@ JSONLoader.prototype.load_index = function(url) {
   }).done(function(data) {
     var files = [];
     for (var port_id in data.ifs) {
-      for (var i in graph.excluded_interfaces)
-        if (data.ifs[port_id].ifDescr.search(graph.excluded_interfaces[i])>=0) {
+      for (var i in self.graph.excluded_interfaces)
+        if (data.ifs[port_id].ifDescr.search(self.graph.excluded_interfaces[i])>=0) {
           port_id = null;
           break;
         }
@@ -851,7 +856,7 @@ JSONLoader.prototype.load_index = function(url) {
       });
       if (preselect_graphs.length>0)
         if ($.inArray(port_id, preselect_graphs)>=0)
-          graph.preselect_graphs.push(ethid);
+          self.graph.preselect_graphs.push(ethid);
     }
     self.loaded_bytes += data.length | 0;
     self.files_to_load += files.length;
@@ -860,7 +865,7 @@ JSONLoader.prototype.load_index = function(url) {
     for (var fni=0; fni<files.length; fni++)
       self.load_log(files[fni]["filename"], files[fni]);
   }).fail(function(jqXHR, textStatus, error) {
-    graph.error("Failed to load index file: " + url + ": " + error);
+    self.graph.error("Failed to load index file: " + url + ": " + error);
   });
 }
 
@@ -869,15 +874,15 @@ JSONLoader.prototype.load_index = function(url) {
   ===============
 */
 
-MRTGLoader = function(graph, files) {
-  Loader.call(this, graph, files);
+MRTGLoader = function(graph) {
+  Loader.call(this, graph);
 }
 
 MRTGLoader.prototype = Object.create(JSONLoader.prototype);
 
 // Load file index and start loading of files.
 MRTGLoader.prototype.load_index = function(url) {
-  var self = this, graph = this.graph;
+  var self = this;
   // loading separate log file?
   if (url.search(/\.log$/)>0) {
     self.files_to_load += 1;
@@ -892,7 +897,7 @@ MRTGLoader.prototype.load_index = function(url) {
   // load index file
   var preselect_graphs = url.split(";");
   url = preselect_graphs.shift().replace(/[^\/]*$/, ""); // rm filename
-  graph.preselect_graphs = [];
+  this.graph.preselect_graphs = [];
   $.ajax({
     url: url,
     dataType: "text",
@@ -913,8 +918,8 @@ MRTGLoader.prototype.load_index = function(url) {
           switch_ip = name.substr(0, name_idx);
           name = name.substr(name_idx+2);
         }
-        for (var i in graph.excluded_interfaces)
-          if (name.search(graph.excluded_interfaces[i])>=0)
+        for (var i in self.graph.excluded_interfaces)
+          if (name.search(self.graph.excluded_interfaces[i])>=0)
             return;
         var file_prefix = url+fname,
             basename = file_prefix.substr(file_prefix.lastIndexOf('/')+1),
@@ -931,7 +936,7 @@ MRTGLoader.prototype.load_index = function(url) {
         });
         if (preselect_graphs.length>0)
           if ($.inArray(port_id, preselect_graphs)>=0)
-            graph.preselect_graphs.push(ethid);
+            self.graph.preselect_graphs.push(ethid);
       }
     });
     self.loaded_bytes += data.length | 0;
@@ -941,7 +946,7 @@ MRTGLoader.prototype.load_index = function(url) {
     for (var fni=0; fni<files.length; fni++)
       self.load_log(files[fni]["filename"], files[fni]);
   }).fail(function(jqXHR, textStatus, error) {
-    graph.error("Failed to load index file: " + url + ": " + error);
+    self.graph.error("Failed to load index file: " + url + ": " + error);
   });
 }
 
@@ -950,8 +955,8 @@ MRTGLoader.prototype.load_index = function(url) {
   ==================
 */
 
-StorageLoader = function(graph, files) {
-  Loader.call(this, graph, files);
+StorageLoader = function(graph) {
+  Loader.call(this, graph);
 }
 
 StorageLoader.prototype = Object.create(Loader.prototype);
@@ -1243,8 +1248,8 @@ StorageLoader.prototype.load_index = function(url) {
   ==========================
 */
 
-NagiosLoader = function(graph, files) {
-  Loader.call(this, graph, files);
+NagiosLoader = function(graph) {
+  Loader.call(this, graph);
 }
 
 NagiosLoader.prototype = Object.create(Loader.prototype);
@@ -1284,24 +1289,28 @@ NagiosLoader.prototype.service_groups = {
   eth: {
     name: "Ethernet [bits]",
     search: /eth.+\/[rt]x_bytes/i,
+    join_by: /^[rt]x_/,
     reversed: /^rx/,
     unit: "b/s"
   },
   eth_stat: {
     name: "Ethernet packets",
     search: /eth.+\/./i,
+    join_by: /^[rt]x_/,
     reversed: /^rx/,
     unit: "/s"
   },
   disk_bytes: {
     name: "Disk bytes",
     search: /(diskio_.|Disk%20IO%20SUMMARY)\/(read|write)/i,
+    join_by: /^(read|write)/,
     reversed: /^write/,
     unit: "B/s"
   },
   disk_io: {
     name: "Disk IO",
     search: /diskio_.\/(ioread|iowrite)/i,
+    join_by: /^(ioread|iowrite)/,
     reversed: /^iowrite/,
     unit: "io/s"
   },
@@ -1405,38 +1414,39 @@ NagiosLoader.prototype.service_groups = {
 
 // Load perfdata stats for one service label.
 NagiosLoader.prototype.load_data = function(filename, service) {
-  var self = this, deltas = this.graph.deltas,
-             filename = filename, service = service;
+  var self = this, deltas = this.graph.deltas;
   $.ajax({
     url: filename,
     dataType: "text",
     cache: false
   }).done(function(data) {
-    var rows = data.split("\n"), hdr = rows[0].split("\t"), rw, name, desc;
+    var rows = data.split("\n"), hdr = rows[0].split("\t"), rw, name, desc,
+        service_group;
+    if (self.service_groups && self.service_groups[service])
+      service_group = self.service_groups[service];
     if (hdr.length<4) {
       console.log("Wrong header:", filename, hdr);
       return;
     }
-    if (hdr[2].search(/^[rt]x_/)>=0) {
-      desc = hdr[0]+" "+hdr[1]+" "+hdr[2].substring(3);
-      name = (hdr[0]+"_"+hdr[1]+"_"+hdr[2].substring(3)).replace(/[.:\/]/g, "_");
+    desc = hdr[0] + " " + hdr[1] + " ";
+    if (service_group.join_by) {
+      desc = desc + hdr[2].replace(service_group.join_by, "");
     } else {
-      desc = hdr[0]+" "+hdr[1]+" "+hdr[2];
-      name = (hdr[0]+"_"+hdr[1]+"_"+hdr[2]).replace(/[.:\/]/g, "_");
+      desc = desc + hdr[2];
     }
+    name = desc.replace(/[ .:\/]/g, "_");
     // add group
     if (service!==undefined && self.graph.groups)
       self.graph.groups[service].push({name: name, enabled: true});
     // create info
     if (!self.graph.info[name])
       self.graph.info[name] = {name: desc, unit: hdr[3]};
-    if (self.service_groups[service])
-      self.graph.info[name]["unit"] = self.service_groups[service].unit;
+    if (service_group)
+      self.graph.info[name]["unit"] = service_group.unit;
     if (hdr[3]=="c") { // counters
       rw = "o";
-      if (service!==undefined && self.service_groups[service] &&
-          self.service_groups[service].reversed &&
-          hdr[2].search(self.service_groups[service].reversed)>=0)
+      if (service_group && service_group.reversed
+          && hdr[2].search(service_group.reversed)>=0)
         rw = "i";
       // create counters
       var counters = []; // use local counters
@@ -1569,13 +1579,14 @@ Graph.prototype.refresh_range = function() {
 
 Graph.prototype.refresh_graph = function() {
   if (this.index_mode=="json") {
-    var loader = new JSONLoader(this, this.index_files);
+    var loader = new JSONLoader(this);
   } else if (this.index_mode=="mrtg") {
-    var loader = new MRTGLoader(this, this.index_files);
+    var loader = new MRTGLoader(this);
   } else if (this.index_mode=="storage") {
-    var loader = new StorageLoader(this, this.index_files);
-  } else if (this.index_mode=="nagios") {
-    var loader = new NagiosLoader(this, this.index_files);
+    var loader = new StorageLoader(this);
+  } else if (this.index_mode=="nagios_service" ||
+             this.index_mode=="nagios_host") {
+    var loader = new NagiosLoader(this);
   } else {
     this.error("No files to load.");
   }
@@ -1614,7 +1625,10 @@ Graph.prototype.select_devices = function() {
     self.index_files.push($(this).val());
   });
   this.div.find("[name^=nagios_file]").each(function() {
-    self.index_mode = "nagios";
+    if ($("select#host").length>0)
+      self.index_mode = "nagios_host";
+    else
+      self.index_mode = "nagios_service";
     self.index_files.push($(this).val());
   });
 }
@@ -1660,7 +1674,10 @@ Graph.prototype.parse_query_string = function() {
         this.custom_range = true;
         this.range_to = Number(arg[1]);
       } else if (arg[0]=="n") {
-        this.index_mode = "nagios";
+        if ($("select#host").length>0)
+          this.index_mode = "nagios_host";
+        else
+          this.index_mode = "nagios_service";
         split_arg(arg[1], this.index_files);
       } else if (arg[0]=="s") {
         this.index_mode = "storage";
