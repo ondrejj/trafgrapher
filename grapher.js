@@ -134,6 +134,7 @@ var Graph = function(ID) {
     /^Backbone$/,
   ];
   this.preselect_graphs = [];
+  this.loading = this.div.find("[id^=loader]");
   this.placeholder = this.div.find("[id^=placeholder]");
   this.filter = this.div.find("[id^=filter]");
   this.interval = this.div.find("[id^=interval]");
@@ -141,7 +142,6 @@ var Graph = function(ID) {
   this.graph_type = this.div.find("[id^=graph_type]");
   this.unit_type = this.div.find("[id^=unit_type]");
   this.add_callbacks();
-  this.add_plot_callbacks(this.placeholder);
 }
 
 Graph.prototype.find = function(id, selectors) {
@@ -576,7 +576,7 @@ Graph.prototype.update_checkboxes = function() {
 }
 
 // Plot current graph.
-Graph.prototype.plot_all_graphs = function() {
+Graph.prototype.plot_all_graphs = function(add_callbacks) {
   var graph, enabled_groups;
   if (this.loader.service_groups && this.groups) {
     for (var service in this.loader.service_groups) {
@@ -591,21 +591,23 @@ Graph.prototype.plot_all_graphs = function() {
             '<div id="placeholder_'+service+'" class="graph200r"></div>' +
           '</div>'
         );
-        $("#multiple_graphs").append(graph);
+        this.placeholder.append(graph);
       }
-      this.placeholder = graph.find("#placeholder_"+service);
       enabled_groups = [];
       for (var grpi in this.groups[service])
         if (this.groups[service][grpi].enabled)
           enabled_groups.push(this.groups[service][grpi].name);
-      this.plot_graph(enabled_groups);
-      this.add_plot_callbacks(graph.find("#placeholder_"+service));
+      var placeholder = graph.find("#placeholder_"+service);
+      this.plot_graph(enabled_groups, placeholder);
+      this.add_plot_callbacks(placeholder);
     }
   } else {
     this.plot_graph();
+    if (add_callbacks)
+      this.add_plot_callbacks(this.placeholder);
   }
 }
-Graph.prototype.plot_graph = function(checked_choices) {
+Graph.prototype.plot_graph = function(checked_choices, placeholder) {
   var flots = [], name, unit,
       graph_type = this.graph_type.find("option:selected").val() || "jo";
   if (checked_choices===undefined) {
@@ -656,7 +658,8 @@ Graph.prototype.plot_graph = function(checked_choices) {
       }
     }
   }
-  this.plot = $.plot(this.placeholder, flots, {
+  if (placeholder===undefined) placeholder = this.placeholder;
+  this.plot = $.plot(placeholder, flots, {
     xaxis: { mode: "time", timezone: "browser" },
     yaxis: {
       tickFormatter: this.unit_si,
@@ -699,20 +702,19 @@ Loader = function(graph) {
   this.graph = graph;
   this.graph.loader = this;
   this.tagsrc = graph.graph_source.find("option:selected").val();
-  var loading = graph.div.find("[id^=loader]");
-  this.progress = loading.find("[id^=progress]");
+  this.progress = graph.loading.find("[id^=progress]");
   this.progress.text("");
   this.files_to_load = 0;
   this.loaded_bytes = 0;
   graph.deltas = {};
   graph.counters = {};
   graph.info = {};
-  // show loader
-  graph.placeholder.empty();
-  graph.placeholder.append(loading);
   // set current interval
   if (!graph.range_from || !graph.range_to)
     graph.reset_range();
+  // show loader
+  this.graph.placeholder.empty();
+  this.graph.placeholder.append(graph.loading);
 }
 
 // File loaded, update counter, show graph if all files processed.
@@ -738,11 +740,12 @@ Loader.prototype.file_loaded = function(remaining_files) {
       }
     }
     if (this.service_groups && this.graph.groups) {
-      $("#multiple_graphs").empty(); // remove old graphs
+      this.graph.placeholder.empty(); // remove old graphs
       this.graph.plot_all_graphs();
     } else {
       this.graph.update_checkboxes();
       this.graph.plot_graph();
+      this.graph.add_plot_callbacks(this.graph.placeholder);
     }
   } else {
     this.progress.html(this.files_to_load+
@@ -1519,10 +1522,13 @@ NagiosLoader.prototype.load_index = function(url) {
       }
     }
     // preset unit_type
-    if (service=="eth")
-      self.graph.unit_type.val("b");
-    else
-      self.graph.unit_type.val("B");
+    if (self.service_groups[service]) {
+      var unit = self.service_groups[service].unit;
+      if (unit=="b" || unit=="b/s")
+        self.graph.unit_type.val("b");
+      else
+        self.graph.unit_type.val("B");
+    }
     self.loaded_bytes += data.length | 0;
     if (service) {
       self.files_to_load += files["ALL"][service].length;
