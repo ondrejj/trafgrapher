@@ -178,17 +178,6 @@ Graph.prototype.find = function(id, selectors) {
   }
 }
 
-// Show error message
-Graph.prototype.error = function(msg) {
-  var error = this.find("error");
-  if (error.length>0) {
-    error.text(msg);
-    error.show();
-  } else {
-    console.log(msg);
-  }
-}
-
 // Array bytes
 Graph.prototype.arraybytes = function(arr) {
   var bytes = 0, last = null;
@@ -651,7 +640,7 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
       // mrtg graph
       for (var gt=0; gt<graph_type.length; gt++) {
         if (this.deltas[name][graph_type[gt]]===undefined)
-          this.error("Undefined data: "+name+" "+graph_type[gt]);
+          console.log("Undefined data: "+name+" "+graph_type[gt]);
         flots.push({
           label: {name: name, gt: graph_type[gt]},
           color: String(colors[n]),
@@ -699,6 +688,59 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
 }
 
 /*
+  Progress indicator
+  ===================
+*/
+
+Progress = function(graph) {
+  this.loader = graph.div.find("[id^=loader]");
+  this.progress = this.loader.find("[id^=progress]");
+  this.progress.text("");
+  this.files_to_load = 0;
+}
+
+Progress.prototype.add = function(files, bytes) {
+  this.files_to_load += files;
+  if (files<=0)
+    self.progress.text("No data to load!");
+}
+
+Progress.prototype.update = function(remaining_files) {
+  if (remaining_files===undefined)
+    this.files_to_load -= 1;
+  else
+    this.files_to_load = remaining_files;
+  if (this.files_to_load>0) {
+    this.progress.html(this.files_to_load+
+      " files to load (<a href=\"#\">skip</a>)"
+    );
+    var self = this;
+    this.progress.find("a").click(function() {
+      self.file_loaded(0);
+      return false;
+    });
+  }
+}
+
+Progress.prototype.error = function() {
+  var error = this.loader.find("error");
+  if (error.length>0) {
+    error.text(msg);
+    error.show();
+  } else {
+    console.log(msg);
+  }
+}
+
+Progress.prototype.text = function(msg) {
+  self.progress.text(msg);
+}
+
+Progress.prototype.nodata = function() {
+  self.progress.text("No data to load!");
+}
+
+/*
   Data loaders
   =============
 */
@@ -707,10 +749,7 @@ Loader = function(graph) {
   this.graph = graph;
   this.graph.loader = this;
   this.tagsrc = graph.graph_source.find("option:selected").val();
-  this.progress = graph.loading.find("[id^=progress]");
-  this.progress.text("");
-  this.files_to_load = 0;
-  this.loaded_bytes = 0;
+  this.progress = new Progress(graph);
   graph.deltas = {};
   graph.counters = {};
   graph.info = {};
@@ -725,11 +764,8 @@ Loader = function(graph) {
 // File loaded, update counter, show graph if all files processed.
 Loader.prototype.file_loaded = function(remaining_files) {
   var counters = this.graph.counters, deltas = this.graph.deltas;
-  if (remaining_files===undefined)
-    this.files_to_load -= 1;
-  else
-    this.files_to_load = remaining_files;
-  if (this.files_to_load==0) {
+  this.progress.update();
+  if (this.progress.files_to_load==0) {
     // if counters is empty, this is skipped
     for (var name in counters) {
       if (!deltas[name]) {
@@ -752,15 +788,6 @@ Loader.prototype.file_loaded = function(remaining_files) {
       this.graph.plot_graph();
       this.graph.add_plot_callbacks(this.graph.placeholder);
     }
-  } else {
-    this.progress.html(this.files_to_load+
-      " files to load (<a href=\"\">skip</a>)"
-    );
-    var loader = this;
-    this.progress.find("a").click(function() {
-      loader.file_loaded(0);
-      return false;
-    });
   }
 }
 
@@ -816,10 +843,9 @@ JSONLoader.prototype.load_log = function(filename, args) {
       deltas[ethid]['J'].push([t, -im]);
       deltas[ethid]['O'].push([t, om]);
     }
-    self.loaded_bytes += data.length | 0;
     self.file_loaded();
   }).fail(function(jqXHR, textStatus, error) {
-    self.graph.error("Failed to load log file: " + filename + ": " + error);
+    self.progress.error("Failed to load log file: " + filename + ": " + error);
   });
 }
 
@@ -858,14 +884,11 @@ JSONLoader.prototype.load_index = function(url) {
         if ($.inArray(port_id, preselect_graphs)>=0)
           self.graph.preselect_graphs.push(ethid);
     }
-    self.loaded_bytes += data.length | 0;
-    self.files_to_load += files.length;
-    if (files.length<=0)
-      self.progress.text("No data to load");
+    self.progress.add(files.length, data.length);
     for (var fni=0; fni<files.length; fni++)
       self.load_log(files[fni]["filename"], files[fni]);
   }).fail(function(jqXHR, textStatus, error) {
-    self.graph.error("Failed to load index file: " + url + ": " + error);
+    self.progress.error("Failed to load index file: " + url + ": " + error);
   });
 }
 
@@ -885,7 +908,7 @@ MRTGLoader.prototype.load_index = function(url) {
   var self = this;
   // loading separate log file?
   if (url.search(/\.log$/)>0) {
-    self.files_to_load += 1;
+    self.progress.add(1);
     self.load_log(url, {
       'filename': url,
       'port_id': '1',
@@ -939,14 +962,11 @@ MRTGLoader.prototype.load_index = function(url) {
             self.graph.preselect_graphs.push(ethid);
       }
     });
-    self.loaded_bytes += data.length | 0;
-    self.files_to_load += files.length;
-    if (files.length<=0)
-      self.progress.text("No data to load");
+    self.progress.add(files.length, data.length);
     for (var fni=0; fni<files.length; fni++)
       self.load_log(files[fni]["filename"], files[fni]);
   }).fail(function(jqXHR, textStatus, error) {
-    self.graph.error("Failed to load index file: " + url + ": " + error);
+    self.progress.error("Failed to load index file: " + url + ": " + error);
   });
 }
 
@@ -1004,7 +1024,6 @@ StorageLoader.prototype.load_storwize = function(filename) {
         }
       }
     }
-    self.loaded_bytes += data.length | 0;
     self.file_loaded();
   });
 }
@@ -1109,7 +1128,6 @@ StorageLoader.prototype.load_unisphere = function(filename) {
         }
       }
     }
-    self.loaded_bytes += data.length | 0;
     self.file_loaded();
   });
 }
@@ -1169,7 +1187,6 @@ StorageLoader.prototype.load_compellent = function(filename) {
       counters[name].wl[ctrl].push(
         [timestamp, parseInt(cols[16])]);
     }
-    self.loaded_bytes += data.length | 0;
     self.file_loaded();
   });
 }
@@ -1223,11 +1240,8 @@ StorageLoader.prototype.load_index = function(url) {
           files.push(url+href);
       }
     }
-    self.loaded_bytes += data.length | 0;
-    self.files_to_load += files.length;
-    if (self.files_to_load<=0)
-      self.progress.text("No data to load");
-    for (var fni=0; fni<self.files_to_load; fni++) {
+    self.progress.add(files.length, data.length);
+    for (var fni=0; fni<self.files.length; fni++) {
       if (files[fni].indexOf(url+"N")==0) {
         self.load_storwize(files[fni]);
       } else if (files[fni].indexOf(url+"U")==0) {
@@ -1237,7 +1251,7 @@ StorageLoader.prototype.load_index = function(url) {
       }
     }
   }).fail(function(jqXHR, textStatus, error) {
-    self.graph.error(
+    self.progress.error(
       "Failed to load index file: " + url + ": " + error
     );
   });
@@ -1474,10 +1488,9 @@ NagiosLoader.prototype.load_data = function(filename, service) {
         deltas[name]['o'].push([to_ms(cols[0]), col1]);
       }
     }
-    self.loaded_bytes += data.length | 0;
     self.file_loaded();
   }).fail(function(jqXHR, textStatus, error) {
-    self.graph.error(
+    self.progress.error(
       "Failed to load nagios data file: " + filename + ": " + error
     );
   });
@@ -1539,19 +1552,14 @@ NagiosLoader.prototype.load_index = function(url) {
       else
         self.graph.unit_type.val("B");
     }
-    self.loaded_bytes += data.length | 0;
     if (service) {
-      self.files_to_load += files["ALL"][service].length;
-      if (self.files_to_load<=0)
-        self.progress.text("No data to load");
-      for (var fni=0; fni<self.files_to_load; fni++)
+      self.progress.add(files["ALL"][service].length);
+      for (var fni=0; fni<files["ALL"][service].length; fni++)
         self.load_data(files["ALL"][service][fni], service);
     } else {
       host = hosts.find('option:selected').val();
       for (var service in files[host])
-        self.files_to_load += files[host][service].length;
-      if (self.files_to_load<=0)
-        self.progress.text("No data to load");
+        self.progress.add(files[host][service].length);
       self.graph.groups = {};
       for (var service in files[host]) {
         self.graph.groups[service] = [];
@@ -1561,7 +1569,7 @@ NagiosLoader.prototype.load_index = function(url) {
       }
     }
   }).fail(function(jqXHR, textStatus, error) {
-    self.graph.error(
+    self.progress.error(
       "Failed to load index file: " + url + ": " + error
     );
   });
