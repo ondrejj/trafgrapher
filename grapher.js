@@ -7,6 +7,17 @@
 var trafgrapher_version = '2.0beta',
     one_hour = 3600000;
 
+// Predefined settings
+var excluded_interfaces = [
+      // CISCO
+      /^unrouted[\ \-]VLAN/,
+      /^Control.Plane.Interface/,
+      // DELL
+      /^[\ \-]Link[\ \-]Aggregate[\ \-]/,
+      /^[\ \-]CPU[\ \-]Interface[\ \-]for[\ \-]Unit:[\ \-]/,
+      /^Backbone$/,
+    ];
+
 // Join two arrays into one. For same keys sum values.
 function joinarrays(arr) {
   var d = {};
@@ -30,7 +41,7 @@ function joinarrays(arr) {
     a.push([key, d[key]]);
   }
   a.sort(function (a,b) {
-    return a[0]-b[0]
+    return a[0]-b[0];
   });
   return a;
 }
@@ -41,7 +52,7 @@ function arraydelta(nodes) {
   if (nodes.length==0) return [];
   var deltas = [];
   nodes.sort(function (a,b) {
-    return a[0]-b[0]
+    return a[0]-b[0];
   });
   var prev = nodes[0];
   for(var i=1; i<nodes.length; i++) {
@@ -134,7 +145,7 @@ function gen_colors(neededColors) {
 // Escape selector ID
 String.prototype.escapeSelector = function() {
   return this.replace(/([ #;?%&,.+*~\':"!^$[\]()=>|\/@])/g,'\\$1');
-}
+};
 
 /*
   Graph object
@@ -144,22 +155,12 @@ String.prototype.escapeSelector = function() {
 var Graph = function(ID) {
   this.ID = ID;
   this.div = $("div#"+ID);
-  this.deltas = {}; this.counters = {}; this.info = {};
+  this.deltas = {}; this.info = {};
   this.index_mode = "json";
   this.index_files = [];
   this.plot = null;
-  this.range_from = null; this.range_to = null, this.custom_range = false;
-  this.excluded_interfaces = [
-    // CISCO
-    /^unrouted[\ \-]VLAN/,
-    /^Control.Plane.Interface/,
-    // DELL
-    /^[\ \-]Link[\ \-]Aggregate[\ \-]/,
-    /^[\ \-]CPU[\ \-]Interface[\ \-]for[\ \-]Unit:[\ \-]/,
-    /^Backbone$/,
-  ];
+  this.range_from = null; this.range_to = null; this.custom_range = false;
   this.preselect_graphs = [];
-  this.loading = this.div.find("[id^=loader]");
   this.placeholder = this.div.find("[id^=placeholder]");
   this.filter = this.div.find("[id^=filter]");
   this.interval = this.div.find("[id^=interval]");
@@ -167,7 +168,7 @@ var Graph = function(ID) {
   this.graph_type = this.div.find("[id^=graph_type]");
   this.unit_type = this.div.find("[id^=unit_type]");
   this.add_menu_callbacks();
-}
+};
 
 Graph.prototype.find = function(id, selectors) {
   var sel = "[id^="+id+"]";
@@ -176,7 +177,7 @@ Graph.prototype.find = function(id, selectors) {
   } else {
     return this.div.find(sel+" "+selectors);
   }
-}
+};
 
 // Array bytes
 Graph.prototype.arraybytes = function(arr) {
@@ -185,13 +186,13 @@ Graph.prototype.arraybytes = function(arr) {
   for (var idx=arr.length-1; idx>=0; idx--) {
     var t = arr[idx][0];
     if (this.range_from<=t && t<this.range_to && arr[idx][1]!=undefined) {
-      if (last==null) last = t;
+      if (last===null) last = t;
       bytes += Math.abs(arr[idx][1])*(t-last)/1000;
       last = t;
     }
   }
   return bytes;
-}
+};
 
 // Get data for current time interval
 Graph.prototype.filter_interval = function(data, unit, use_max) {
@@ -226,7 +227,7 @@ Graph.prototype.filter_interval = function(data, unit, use_max) {
       }
   }
   return ret;
-}
+};
 
 // Reset range
 Graph.prototype.reset_range = function() {
@@ -238,7 +239,7 @@ Graph.prototype.reset_range = function() {
   this.custom_range = false;
   this.range_from = Number(current_datetime - time_interval*one_hour);
   this.range_to = Number(current_datetime); // convert to number
-}
+};
 
 // Get unit
 Graph.prototype.get_unit = function(label) {
@@ -250,7 +251,7 @@ Graph.prototype.get_unit = function(label) {
   else if (this.graph_type && this.graph_type.length>0)
     return unit[this.graph_type.find("option:selected").val()[1]];
   return unit;
-}
+};
 
 // Add callbacks for plot
 Graph.prototype.add_plot_callbacks = function(placeholder) {
@@ -345,14 +346,14 @@ Graph.prototype.add_plot_callbacks = function(placeholder) {
     self.plot.clearSelection();
     self.plot_all_graphs();
   });
-}
+};
 
 // Add menu callbacks for graph
 Graph.prototype.add_menu_callbacks = function() {
   var self = this;
   // buttons and selectors
-  this.interval.change(function() {self.refresh_range()});
-  this.graph_source.change(function() {self.change_source()});
+  this.interval.change(function() { self.refresh_range(); });
+  this.graph_source.change(function() { self.change_source(); });
   $("select#service").change(function() {
     self.filter.empty(); // checkbox names are different
     self.refresh_graph();
@@ -361,32 +362,32 @@ Graph.prototype.add_menu_callbacks = function() {
     self.filter.empty(); // checkbox names are different
     self.refresh_graph();
   });
-  this.find("menu").change(function() {self.menu_selected()}).val("");
+  this.find("menu").change(function() { self.menu_selected(); }).val("");
   this.find("toggle_info").click(function() {
     self.find("info_table").animate({height: "toggle"}, 300);
   });
   this.find("toggle_filter").click(function() {
     self.filter.toggle();
   });
-}
+};
 
 // Update URL link according to current choices
 Graph.prototype.urllink = function() {
-  var self = this, ports = [],
+  var self = this, ports = [], url,
       inputs_all = this.filter.find("input"),
       inputs_checked = this.filter.find("input:checked");
   if (this.index_mode=="json") {
-    var url = "?j="+this.index_files[0].split(";")[0];
+    url = "?j="+this.index_files[0].split(";")[0];
   } else if (this.index_mode=="mrtg") {
-    var url = "?m="+this.index_files[0].split(";")[0];
+    url = "?m="+this.index_files[0].split(";")[0];
   } else if (this.index_mode=="storage") {
-    var url = "?s="+this.index_files[0].split(";")[0];
+    url = "?s="+this.index_files[0].split(";")[0];
   } else if (this.index_mode=="nagios_service") {
-    var url = "?n="+this.index_files[0].split(";")[0]
-            + ";"+$("select#service option:selected").val();
+    url = "?n="+this.index_files[0].split(";")[0]
+        + ";"+$("select#service option:selected").val();
   } else if (this.index_mode=="nagios_host") {
-    var url = "?n="+this.index_files[0].split(";")[0]
-            + ";"+$("select#host option:selected").val();
+    url = "?n="+this.index_files[0].split(";")[0]
+        + ";"+$("select#host option:selected").val();
   } else {
     return;
   }
@@ -410,14 +411,13 @@ Graph.prototype.urllink = function() {
     url += "&rf=" + this.range_from + "&rt=" + this.range_to;
   }
   window.location = window.location.href.split("?")[0] + url;
-}
+};
 
 // Menu commands
 Graph.prototype.menu_selected = function(sel) {
   var self = this, inputs_all = this.filter.find("input");
-  if (sel===undefined) {
-    var sel = this.find("menu", "option:selected").val();
-  }
+  if (sel===undefined)
+    sel = this.find("menu", "option:selected").val();
   if (sel=="") {
     return;
   } else if (sel=="all") {
@@ -448,7 +448,7 @@ Graph.prototype.menu_selected = function(sel) {
     this.urllink();
   }
   this.find("menu").val("");
-}
+};
 
 // Keyboard events
 Graph.prototype.keyevent = function(event) {
@@ -535,7 +535,7 @@ Graph.prototype.keyevent = function(event) {
       event.preventDefault();
     }
   }
-}
+};
 
 // Update checkboxes according to number of graphs.
 Graph.prototype.update_checkboxes = function() {
@@ -567,20 +567,20 @@ Graph.prototype.update_checkboxes = function() {
   this.filter.find("input").click(function() { self.plot_graph(); });
   this.graph_type.change(function() { self.plot_graph(); });
   this.unit_type.change(function() { self.plot_graph(); });
-}
+};
 
 // Plot current graph.
 Graph.prototype.plot_all_graphs = function(add_callbacks) {
   var graph, enabled_groups;
-  if (this.loader.service_groups && this.groups) {
-    for (var service in this.loader.service_groups) {
-      if (this.loader.service_groups[service].hide===true) continue; // skip
+  if (this.groups) {
+    for (var service in service_groups) {
+      if (service_groups[service].hide===true) continue; // skip
       if (!this.groups[service]) continue;
       graph = $("#graph_"+service);
       if (graph.length==0) {
         graph = $(
           '<div id="graph_'+service+'" class="trafgrapher">' +
-            this.loader.service_groups[service].name +
+            service_groups[service].name +
             '<br/>' +
             '<div id="placeholder_'+service+'" class="graph200r"></div>' +
           '</div>'
@@ -600,12 +600,13 @@ Graph.prototype.plot_all_graphs = function(add_callbacks) {
     if (add_callbacks)
       this.add_plot_callbacks(this.placeholder);
   }
-}
+};
+
 Graph.prototype.plot_graph = function(checked_choices, placeholder) {
   var flots = [], name, unit,
       graph_type = this.graph_type.find("option:selected").val() || "jo";
   if (checked_choices===undefined) {
-    var checked_choices = [];
+    checked_choices = [];
     this.filter.find("input:checked").each(function() {
       checked_choices.push($(this).prop("name"));
     });
@@ -621,23 +622,23 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
           label: {name: name, gt: 'r'+graph_type[1]},
           color: colors[n],
           data: this.filter_interval(this.deltas[name]['r'+graph_type[1]])
-        })
+        });
         flots.push({
           label: {name: name, gt: 'w'+graph_type[1]},
           color: colors[n],
           data: this.filter_interval(arrayinverse(
                   this.deltas[name]['w'+graph_type[1]]))
-        })
+        });
       } else {
         // storage one way graph (read or write only)
         flots.push({
           label: {name: name, gt: graph_type[0]},
           color: colors[n],
           data: this.filter_interval(this.deltas[name][graph_type])
-        })
+        });
       }
     } else {
-      // mrtg graph
+      // json/mrtg/nagios graph
       for (var gt=0; gt<graph_type.length; gt++) {
         if (this.deltas[name][graph_type[gt]]===undefined)
           console.log("Undefined data: "+name+" "+graph_type[gt]);
@@ -648,7 +649,7 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
                   this.deltas[name][graph_type[gt]], this.info[name].unit,
                   graph_type[gt]==graph_type[gt].toUpperCase()
                 )
-        })
+        });
       }
     }
   }
@@ -685,7 +686,134 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
   this.find("description").val("");
   this.find("switchname").val("");
   this.find("info_table").empty();
-}
+};
+
+/*
+  Common functions
+  =================
+*/
+
+Graph.prototype.refresh_range = function() {
+  this.reset_range();
+  this.plot_all_graphs();
+};
+
+Graph.prototype.refresh_graph = function() {
+  if (this.index_mode=="json") {
+    var loader = new JSONLoader(this, this.index_files);
+  } else if (this.index_mode=="mrtg") {
+    var loader = new MRTGLoader(this, this.index_files);
+  } else if (this.index_mode=="storage") {
+    var loader = new StorageLoader(this, this.index_files);
+  } else if (this.index_mode=="nagios_service" ||
+             this.index_mode=="nagios_host") {
+    var loader = new NagiosLoader(this, this.index_files);
+  } else {
+    this.error("No files to load.");
+  }
+  if (loader) loader.reload();
+};
+
+Graph.prototype.change_source = function() {
+  // Remove checkboxes, because new source has different checkboxes.
+  this.filter.empty();
+  this.refresh_graph();
+};
+
+Graph.prototype.zoom_out = function() {
+  // Reset zoom
+  this.reset_range();
+  this.plot_all_graphs();
+};
+
+Graph.prototype.select_devices = function() {
+  var self = this;
+  // skip if files defined for query string
+  if (self.index_files.length>0) return;
+  this.div.find("[name^=json_file]").each(function() {
+    self.index_mode = "json";
+    self.index_files.push($(this).val());
+  });
+  this.div.find("[name^=mrtg_file]").each(function() {
+    self.index_mode = "mrtg";
+    self.index_files.push($(this).val());
+  });
+  this.div.find("[name^=storage_file]").each(function() {
+    self.index_mode = "storage";
+    self.index_files.push($(this).val());
+  });
+  this.div.find("[name^=nagios_file]").each(function() {
+    if ($("select#host").length>0)
+      self.index_mode = "nagios_host";
+    else
+      self.index_mode = "nagios_service";
+    self.index_files.push($(this).val());
+  });
+};
+
+Graph.prototype.parse_query_string = function() {
+  function split_arg(arg, arr) {
+    var sarg = arg.split(",");
+    var prefix = "";
+    if (sarg[0].search("/")>=0)
+      prefix = sarg[0].replace(/[^\/]*\/$/, '');
+    arr.push(sarg[0]);
+    for (var i=1; i<sarg.length; i++)
+      arr.push(prefix+sarg[i]);
+  }
+  // parse query string
+  var range_multiplier = {y: 8766, m: 744, w: 168, d: 24, h:1};
+  var query = window.location.search.substring(1);
+  if (query) {
+    var args = query.split("&");
+    for (var i in args) {
+      var arg = args[i].split("=");
+      if (arg[0]=="t") {
+        this.graph_type.val(arg[1]);
+      } else if (arg[0]=="u") {
+        this.unit_type.val(arg[1]);
+      } else if (arg[0]=="i") {
+        var arg1 = arg[1], arg1l = arg1[arg1.length-1];
+        if (arg1l in range_multiplier) {
+          arg1 = Math.floor(parseFloat(arg1)*range_multiplier[arg1l]);
+        } else {
+          arg1 = Math.floor(parseFloat(arg1));
+        }
+        var itag = this.interval.find("option[value='"+arg1+"']");
+        if (itag.length==0)
+          this.interval.append(
+            '<option value="'+arg1+'">'+arg1+' hours</option>'
+          );
+        this.interval.val(arg1);
+      } else if (arg[0]=="rf") {
+        this.custom_range = true;
+        this.range_from = Number(arg[1]);
+      } else if (arg[0]=="rt") {
+        this.custom_range = true;
+        this.range_to = Number(arg[1]);
+      } else if (arg[0]=="n") {
+        if ($("select#host").length>0)
+          this.index_mode = "nagios_host";
+        else
+          this.index_mode = "nagios_service";
+        split_arg(arg[1], this.index_files);
+      } else if (arg[0]=="s") {
+        this.index_mode = "storage";
+        split_arg(arg[1], this.index_files);
+      } else if (arg[0]=="j") {
+        this.index_mode = "json";
+        split_arg(arg[1], this.index_files);
+      } else if (arg[0]=="m") {
+        this.index_mode = "mrtg";
+        split_arg(arg[1], this.index_files);
+      } else {
+        alert("Unknown argument: "+arg[0]+"="+arg[1]);
+        break;
+      }
+    }
+  }
+  this.select_devices();
+};
 
 /*
   Progress indicator
@@ -693,17 +821,27 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
 */
 
 Progress = function(graph) {
-  this.loader = graph.div.find("[id^=loader]");
-  this.progress = this.loader.find("[id^=progress]");
-  this.progress.text("");
+  this.loader = graph.find("loader");
+  this.tag = this.loader.find("[id^=progress]");
+  this.tag.text("");
   this.files_to_load = 0;
+};
+
+Progress.prototype.echo = function() {
+  if (this.files_to_load>0) {
+    this.tag.html(this.files_to_load+
+      " files to load (<a href=\"#\">skip</a>)"
+    );
+    this.loader.show();
+  }
 }
 
 Progress.prototype.add = function(files, bytes) {
   this.files_to_load += files;
+  this.echo();
   if (files<=0)
-    self.progress.text("No data to load!");
-}
+    this.progress.text("No data to load!");
+};
 
 Progress.prototype.update = function(remaining_files) {
   if (remaining_files===undefined)
@@ -711,61 +849,61 @@ Progress.prototype.update = function(remaining_files) {
   else
     this.files_to_load = remaining_files;
   if (this.files_to_load>0) {
-    this.progress.html(this.files_to_load+
-      " files to load (<a href=\"#\">skip</a>)"
-    );
+    this.echo();
     var self = this;
-    this.progress.find("a").click(function() {
+    this.tag.find("a").click(function() {
       self.file_loaded(0);
       return false;
     });
+  } else {
+    this.loader.hide();
   }
-}
+  return this.files_to_load;
+};
 
-Progress.prototype.error = function() {
+Progress.prototype.error = function(msg) {
   var error = this.loader.find("error");
   if (error.length>0) {
-    error.text(msg);
-    error.show();
+    error.text(msg).show();
   } else {
     console.log(msg);
   }
-}
+};
 
-Progress.prototype.text = function(msg) {
-  self.progress.text(msg);
-}
-
-Progress.prototype.nodata = function() {
-  self.progress.text("No data to load!");
-}
+Progress.prototype.loading_error = function(filename, msg) {
+  this.error("Error loading file " + filename + ": " + msg);
+};
 
 /*
   Data loaders
   =============
 */
 
-Loader = function(graph) {
+Loader = function(graph, index_files) {
   this.graph = graph;
-  this.graph.loader = this;
-  this.tagsrc = graph.graph_source.find("option:selected").val();
+  //this.graph.loader = this;
+  this.index_files = index_files;
   this.progress = new Progress(graph);
+  this.counters = {};
   graph.deltas = {};
-  graph.counters = {};
   graph.info = {};
   // set current interval
   if (!graph.range_from || !graph.range_to)
     graph.reset_range();
   // show loader
   this.graph.placeholder.empty();
-  this.graph.placeholder.append(graph.loading);
-}
+  //this.graph.placeholder.append(graph.loading);
+};
+
+Loader.prototype.reload = function() {
+  for (var idx=0; idx<this.index_files.length; idx++)
+    this.load_index(this.index_files[idx]);
+};
 
 // File loaded, update counter, show graph if all files processed.
 Loader.prototype.file_loaded = function(remaining_files) {
-  var counters = this.graph.counters, deltas = this.graph.deltas;
-  this.progress.update();
-  if (this.progress.files_to_load==0) {
+  var counters = this.counters, deltas = this.graph.deltas;
+  if (this.progress.update()==0) { // last file loaded
     // if counters is empty, this is skipped
     for (var name in counters) {
       if (!deltas[name]) {
@@ -780,7 +918,7 @@ Loader.prototype.file_loaded = function(remaining_files) {
         deltas[name][rw] = joinarrays(arrs);
       }
     }
-    if (this.service_groups && this.graph.groups) {
+    if (this.graph.groups) {
       this.graph.placeholder.empty(); // remove old graphs
       this.graph.plot_all_graphs();
     } else {
@@ -789,7 +927,7 @@ Loader.prototype.file_loaded = function(remaining_files) {
       this.graph.add_plot_callbacks(this.graph.placeholder);
     }
   }
-}
+};
 
 // Old browser support
 if (!Object.create) {
@@ -797,7 +935,7 @@ if (!Object.create) {
     function f() {}
     f.prototype = proto;
     return new f();
-  }
+  };
 }
 
 /*
@@ -805,49 +943,49 @@ if (!Object.create) {
   ===============
 */
 
-JSONLoader = function(graph) {
-  Loader.call(this, graph);
-}
+JSONLoader = function(graph, index_files) {
+  Loader.call(this, graph, index_files);
+};
 
 JSONLoader.prototype = Object.create(Loader.prototype);
 
 // Load log file.
 JSONLoader.prototype.load_log = function(filename, args) {
-  var self = this, deltas = this.graph.deltas;
+  var self = this;
   $.ajax({
     url: filename,
     dataType: "text",
     cache: false
   }).done(function(data) {
-    var ethid = args.ethid;
-    var lines = data.split('\n');
+    var ethid = args.ethid, lines = data.split('\n');
     name = $('<div/>').text(args.name).html(); // escape html in name
-    self.graph.info[ethid] = {name: ethid, unit: {b: 'ib/s', B: 'iB/s'}};
-    deltas[ethid] = {'o': [], 'i': [], 'j': [], 'O': [], 'I': [], 'J': []};
-    // copy args
-    for (var key in args) self.graph.info[ethid][key] = args[key];
+    var deltas = {'o': [], 'i': [], 'j': [], 'O': [], 'I': [], 'J': []};
     lines.shift(); // remove couter line
     lines = lines.map(function(row) {
-      return row.split(" ").map(function(col) { return parseInt(col) })
+      return row.split(" ").map(function(col) { return parseInt(col); });
     });
-    lines.sort(function(a, b) { return a[0]-b[0] });
+    lines.sort(function(a, b) { return a[0]-b[0]; });
     for (var line=0; line<lines.length; line++) {
       var cols = lines[line];
       var t = cols[0]*1000,
           ib = cols[1], ob = cols[2],
           im = cols[3], om = cols[4];
-      deltas[ethid]['i'].push([t, ib]);
-      deltas[ethid]['j'].push([t, -ib]);
-      deltas[ethid]['o'].push([t, ob]);
-      deltas[ethid]['I'].push([t, im]);
-      deltas[ethid]['J'].push([t, -im]);
-      deltas[ethid]['O'].push([t, om]);
+      deltas.i.push([t, ib]);
+      deltas.j.push([t, -ib]);
+      deltas.o.push([t, ob]);
+      deltas.I.push([t, im]);
+      deltas.J.push([t, -im]);
+      deltas.O.push([t, om]);
     }
+    self.graph.deltas[ethid] = deltas;
+    // create info and copy args
+    self.graph.info[ethid] = {name: ethid, unit: {b: 'ib/s', B: 'iB/s'}};
+    for (var key in args) self.graph.info[ethid][key] = args[key];
     self.file_loaded();
   }).fail(function(jqXHR, textStatus, error) {
-    self.progress.error("Failed to load log file: " + filename + ": " + error);
+    self.progress.loading_error(filename, error);
   });
-}
+};
 
 // Load json index and start loading of files.
 JSONLoader.prototype.load_index = function(url) {
@@ -864,12 +1002,12 @@ JSONLoader.prototype.load_index = function(url) {
   }).done(function(data) {
     var files = [];
     for (var port_id in data.ifs) {
-      for (var i in self.graph.excluded_interfaces)
-        if (data.ifs[port_id].ifDescr.search(self.graph.excluded_interfaces[i])>=0) {
+      for (var i in excluded_interfaces)
+        if (data.ifs[port_id].ifDescr.search(excluded_interfaces[i])>=0) {
           port_id = null;
           break;
         }
-      if (port_id==null) continue;
+      if (port_id===null) continue;
       var ethid = data.ip.replace(/[^a-z0-9]/gi, '_')
                 + port_id.replace(".", "_");
       files.push({
@@ -888,18 +1026,18 @@ JSONLoader.prototype.load_index = function(url) {
     for (var fni=0; fni<files.length; fni++)
       self.load_log(files[fni]["filename"], files[fni]);
   }).fail(function(jqXHR, textStatus, error) {
-    self.progress.error("Failed to load index file: " + url + ": " + error);
+    self.progress.loading_error(url, error);
   });
-}
+};
 
 /*
   MRTG functions
   ===============
 */
 
-MRTGLoader = function(graph) {
-  Loader.call(this, graph);
-}
+MRTGLoader = function(graph, index_files) {
+  Loader.call(this, graph, index_files);
+};
 
 MRTGLoader.prototype = Object.create(JSONLoader.prototype);
 
@@ -930,7 +1068,7 @@ MRTGLoader.prototype.load_index = function(url) {
     // don't load images from index.html
     var noimgdata = data.replace(/\ src=/gi, " nosrc=");
     $(noimgdata).find("td").each(function(tagi, tag) {
-      var tag = $(tag), diva = tag.find("div a");
+      tag = $(tag), diva = tag.find("div a");
       if (diva[0]) {
         var href = diva.attr("href"),
             fname = href.substr(0, href.lastIndexOf(".")),
@@ -941,8 +1079,8 @@ MRTGLoader.prototype.load_index = function(url) {
           switch_ip = name.substr(0, name_idx);
           name = name.substr(name_idx+2);
         }
-        for (var i in self.graph.excluded_interfaces)
-          if (name.search(self.graph.excluded_interfaces[i])>=0)
+        for (var i in excluded_interfaces)
+          if (name.search(excluded_interfaces[i])>=0)
             return;
         var file_prefix = url+fname,
             basename = file_prefix.substr(file_prefix.lastIndexOf('/')+1),
@@ -966,24 +1104,25 @@ MRTGLoader.prototype.load_index = function(url) {
     for (var fni=0; fni<files.length; fni++)
       self.load_log(files[fni]["filename"], files[fni]);
   }).fail(function(jqXHR, textStatus, error) {
-    self.progress.error("Failed to load index file: " + url + ": " + error);
+    self.progress.loading_error(url, error);
   });
-}
+};
 
 /*
   Storage functions
   ==================
 */
 
-StorageLoader = function(graph) {
-  Loader.call(this, graph);
-}
+StorageLoader = function(graph, index_files) {
+  Loader.call(this, graph, index_files);
+  this.tagsrc = graph.graph_source.find("option:selected").val();
+};
 
 StorageLoader.prototype = Object.create(Loader.prototype);
 
 // Load storwize stats for one file.
 StorageLoader.prototype.load_storwize = function(filename) {
-  var self = this, counters = this.graph.counters;
+  var self = this, counters = this.counters;
   $.ajax({
     url: filename,
     dataType: "xml"
@@ -1013,8 +1152,8 @@ StorageLoader.prototype.load_storwize = function(filename) {
           }};
         }
         for (var rw in counters[name]) {
-          if (rw=="rt") srw = "ctr"
-          else if (rw=="wt") srw = "ctw"
+          if (rw=="rt") srw = "ctr";
+          else if (rw=="wt") srw = "ctw";
           else srw = rw;
           if (dsk.attributes[srw]) {
             value = parseInt(dsk.attributes[srw].value);
@@ -1026,11 +1165,11 @@ StorageLoader.prototype.load_storwize = function(filename) {
     }
     self.file_loaded();
   });
-}
+};
 
 // Load unisphere stats for one file.
 StorageLoader.prototype.load_unisphere = function(filename) {
-  var self = this, counters = this.graph.counters;
+  var self = this, counters = this.counters;
   $.ajax({
     url: filename
   }).done(function(data) {
@@ -1070,7 +1209,7 @@ StorageLoader.prototype.load_unisphere = function(filename) {
         var t = rargs[0], d = rargs[1];
         timestamp = Date.parse(
           "20"+d[6]+d[7]+"-"+d[0]+d[1]+"-"+d[3]+d[4]+"T"+t
-        )
+        );
       }
       if (name!="") {
         if (self.tagsrc=="vdsk") {
@@ -1130,11 +1269,11 @@ StorageLoader.prototype.load_unisphere = function(filename) {
     }
     self.file_loaded();
   });
-}
+};
 
 // Load compellent stats for one file.
 StorageLoader.prototype.load_compellent = function(filename) {
-  var self = this, counters = this.graph.counters;
+  var self = this, counters = this.counters;
   $.ajax({
     url: filename,
     dataType: "xml"
@@ -1189,7 +1328,7 @@ StorageLoader.prototype.load_compellent = function(filename) {
     }
     self.file_loaded();
   });
-}
+};
 
 // Load file index and start loading of files.
 StorageLoader.prototype.load_index = function(url) {
@@ -1241,7 +1380,7 @@ StorageLoader.prototype.load_index = function(url) {
       }
     }
     self.progress.add(files.length, data.length);
-    for (var fni=0; fni<self.files.length; fni++) {
+    for (var fni=0; fni<files.length; fni++) {
       if (files[fni].indexOf(url+"N")==0) {
         self.load_storwize(files[fni]);
       } else if (files[fni].indexOf(url+"U")==0) {
@@ -1251,24 +1390,22 @@ StorageLoader.prototype.load_index = function(url) {
       }
     }
   }).fail(function(jqXHR, textStatus, error) {
-    self.progress.error(
-      "Failed to load index file: " + url + ": " + error
-    );
+    self.progress.loading_error(url, error);
   });
-}
+};
 
 /*
   Nagios perfdata functions
   ==========================
 */
 
-NagiosLoader = function(graph) {
-  Loader.call(this, graph);
-}
+NagiosLoader = function(graph, index_files) {
+  Loader.call(this, graph, index_files);
+};
 
 NagiosLoader.prototype = Object.create(Loader.prototype);
 
-NagiosLoader.prototype.service_groups = {
+service_groups = {
   load: {
     name: "Load",
     search: /(load\/load|CPU.*utilization\/util)/i,
@@ -1424,11 +1561,11 @@ NagiosLoader.prototype.service_groups = {
     search: /./,
     unit: ""
   }
-}
+};
 
 // Load perfdata stats for one service label.
 NagiosLoader.prototype.load_data = function(filename, service) {
-  var self = this, deltas = this.graph.deltas;
+  var self = this;
   $.ajax({
     url: filename,
     dataType: "text",
@@ -1436,8 +1573,8 @@ NagiosLoader.prototype.load_data = function(filename, service) {
   }).done(function(data) {
     var rows = data.split("\n"), hdr = rows[0].split("\t"), rw, name, desc,
         service_group;
-    if (self.service_groups && self.service_groups[service])
-      service_group = self.service_groups[service];
+    if (service_groups[service])
+      service_group = service_groups[service];
     if (hdr.length<4) {
       console.log("Wrong header:", filename, hdr);
       return;
@@ -1464,37 +1601,35 @@ NagiosLoader.prototype.load_data = function(filename, service) {
         rw = "i";
       // create counters
       var counters = []; // use local counters
-      if (!deltas[name])
-        deltas[name] = {i: [], j: [], o: []};
       for (var rowi=1; rowi<rows.length; rowi++) {
         var cols = rows[rowi].split(" ");
         var value = parseFloat(cols[1]);
         counters.push([to_ms(cols[0]), value]);
       }
       // compute deltas
-      deltas[name][rw] = arraydelta(counters);
+      if (!self.graph.deltas[name])
+        self.graph.deltas[name] = {i: [], j: [], o: []};
+      self.graph.deltas[name][rw] = arraydelta(counters);
       if (rw=="i")
-        deltas[name].j = arrayinverse(arraydelta(counters));
+        self.graph.deltas[name].j = arrayinverse(arraydelta(counters));
     } else {
       // create deltas
-      if (!deltas[name])
-        deltas[name] = {i: [], j: [], o: []};
       var percent = hdr[1].search(/^nrpe_disk_/i)==0, max;
       if (percent) max = parseFloat(hdr[7]);
+      if (!self.graph.deltas[name])
+        self.graph.deltas[name] = {i: [], j: [], o: []};
       for (var rowi=1; rowi<rows.length; rowi++) {
         var cols = rows[rowi].split(" ");
         var col1 = parseFloat(cols[1]);
         if (percent) col1 = col1*100/max;
-        deltas[name]['o'].push([to_ms(cols[0]), col1]);
+        self.graph.deltas[name]['o'].push([to_ms(cols[0]), col1]);
       }
     }
     self.file_loaded();
   }).fail(function(jqXHR, textStatus, error) {
-    self.progress.error(
-      "Failed to load nagios data file: " + filename + ": " + error
-    );
+    self.progress.loading_error(filename, error);
   });
-}
+};
 
 // Load file index and start loading of files.
 NagiosLoader.prototype.load_index = function(url) {
@@ -1509,10 +1644,10 @@ NagiosLoader.prototype.load_index = function(url) {
     var current_datetime = new Date();
     var service = $("select#service option:selected").val();
     var hosts = $("select#host"), host;
-    var files = {}
+    var files = {};
     function files_push(host, service, urlrow) {
       if (!files[host])
-        files[host] = {}
+        files[host] = {};
       if (!files[host][service])
         files[host][service] = [];
       files[host][service].push(urlrow);
@@ -1537,16 +1672,16 @@ NagiosLoader.prototype.load_index = function(url) {
         }
       }
       // push data
-      for (var srvi in self.service_groups) {
-        if (row.search(self.service_groups[srvi].search)>=0) {
+      for (var srvi in service_groups) {
+        if (row.search(service_groups[srvi].search)>=0) {
           files_push(host, srvi, urlrow);
           break;
         }
       }
     }
     // preset unit_type
-    if (self.service_groups[service]) {
-      var unit = self.service_groups[service].unit;
+    if (service_groups[service]) {
+      var unit = service_groups[service].unit;
       if (unit=="b" || unit=="b/s")
         self.graph.unit_type.val("b");
       else
@@ -1569,141 +1704,9 @@ NagiosLoader.prototype.load_index = function(url) {
       }
     }
   }).fail(function(jqXHR, textStatus, error) {
-    self.progress.error(
-      "Failed to load index file: " + url + ": " + error
-    );
+    self.progress.loading_error(url, error);
   });
-}
-
-/*
-  Common functions
-  =================
-*/
-
-Graph.prototype.refresh_range = function() {
-  this.reset_range();
-  this.plot_all_graphs();
-}
-
-Graph.prototype.refresh_graph = function() {
-  if (this.index_mode=="json") {
-    var loader = new JSONLoader(this);
-  } else if (this.index_mode=="mrtg") {
-    var loader = new MRTGLoader(this);
-  } else if (this.index_mode=="storage") {
-    var loader = new StorageLoader(this);
-  } else if (this.index_mode=="nagios_service" ||
-             this.index_mode=="nagios_host") {
-    var loader = new NagiosLoader(this);
-  } else {
-    this.error("No files to load.");
-  }
-  if (loader) {
-    for (var idx=0; idx<this.index_files.length; idx++)
-      loader.load_index(this.index_files[idx]);
-  }
-}
-
-Graph.prototype.change_source = function() {
-  // Remove checkboxes, because new source has different checkboxes.
-  this.filter.empty();
-  this.refresh_graph();
-}
-
-Graph.prototype.zoom_out = function() {
-  // Reset zoom
-  this.reset_range();
-  this.plot_all_graphs();
-}
-
-Graph.prototype.select_devices = function() {
-  var self = this;
-  // skip if files defined for query string
-  if (self.index_files.length>0) return;
-  this.div.find("[name^=json_file]").each(function() {
-    self.index_mode = "json";
-    self.index_files.push($(this).val());
-  });
-  this.div.find("[name^=mrtg_file]").each(function() {
-    self.index_mode = "mrtg";
-    self.index_files.push($(this).val());
-  });
-  this.div.find("[name^=storage_file]").each(function() {
-    self.index_mode = "storage";
-    self.index_files.push($(this).val());
-  });
-  this.div.find("[name^=nagios_file]").each(function() {
-    if ($("select#host").length>0)
-      self.index_mode = "nagios_host";
-    else
-      self.index_mode = "nagios_service";
-    self.index_files.push($(this).val());
-  });
-}
-
-Graph.prototype.parse_query_string = function() {
-  function split_arg(arg, arr) {
-    var sarg = arg.split(",");
-    var prefix = "";
-    if (sarg[0].search("/")>=0)
-      prefix = sarg[0].replace(/[^\/]*\/$/, '');
-    arr.push(sarg[0]);
-    for (var i=1; i<sarg.length; i++)
-      arr.push(prefix+sarg[i]);
-  }
-  // parse query string
-  var range_multiplier = {y: 8766, m: 744, w: 168, d: 24, h:1};
-  var query = window.location.search.substring(1);
-  if (query) {
-    var args = query.split("&");
-    for (var i in args) {
-      var arg = args[i].split("=");
-      if (arg[0]=="t") {
-        this.graph_type.val(arg[1]);
-      } else if (arg[0]=="u") {
-        this.unit_type.val(arg[1]);
-      } else if (arg[0]=="i") {
-        var arg1 = arg[1], arg1l = arg1[arg1.length-1];
-        if (arg1l in range_multiplier) {
-          arg1 = Math.floor(parseFloat(arg1)*range_multiplier[arg1l]);
-        } else {
-          arg1 = Math.floor(parseFloat(arg1));
-        }
-        var itag = this.interval.find("option[value='"+arg1+"']");
-        if (itag.length==0)
-          this.interval.append(
-            '<option value="'+arg1+'">'+arg1+' hours</option>'
-          );
-        this.interval.val(arg1);
-      } else if (arg[0]=="rf") {
-        this.custom_range = true;
-        this.range_from = Number(arg[1]);
-      } else if (arg[0]=="rt") {
-        this.custom_range = true;
-        this.range_to = Number(arg[1]);
-      } else if (arg[0]=="n") {
-        if ($("select#host").length>0)
-          this.index_mode = "nagios_host";
-        else
-          this.index_mode = "nagios_service";
-        split_arg(arg[1], this.index_files);
-      } else if (arg[0]=="s") {
-        this.index_mode = "storage";
-        split_arg(arg[1], this.index_files);
-      } else if (arg[0]=="j") {
-        this.index_mode = "json";
-        split_arg(arg[1], this.index_files);
-      } else if (arg[0]=="m") {
-        this.index_mode = "mrtg";
-        split_arg(arg[1], this.index_files);
-      } else {
-        alert("Unknown argument: "+arg[0]+"="+arg[1]);
-        break;
-      }
-    }
-  }
-  this.select_devices();
-}
+};
 
 $(function() {
   $(".footer a").text(
