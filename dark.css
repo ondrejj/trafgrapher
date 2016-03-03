@@ -1,0 +1,13 @@
+body {
+  background-color: black;
+  color: white;
+}
+
+div.tooltip {
+  border: 1px solid #333;
+  background-color: #111;
+}
+
+.flot-text {
+  color: #eee !important;
+}

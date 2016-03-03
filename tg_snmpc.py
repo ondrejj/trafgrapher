@@ -3,11 +3,13 @@
 '''
 TrafGrapher SNMP client
 
+(c) 2015-2016 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
+
 Licensed under the MIT license.
 
 Usage: tg_snmpc.py [--mkcfg|-c [community@]IP_or_hostname] \\
 		[--write|-w index.json] [--mkdir|-d] \\
-		[--id ifName] [--rename] \\
+		[--id ifName] [--rename] [--compress|-z] \\
 		[--verbose|-v] [--check]
        tg_snmpc.py [--verbose|-v] [community@]config.json \\
 		[--filter=timestamp]
@@ -471,25 +473,6 @@ class SNMP:
       return ret
 
 class grouper(dict):
-  def __getitem__(self, key):
-      if not key in self:
-        self[key] = []
-      return dict.__getitem__(self, key)
-  def items(self):
-      ret = []
-      for key, values in dict.items(self):
-        lv = len(values)
-        ret.append((key, [
-          sum([x[0] for x in values])/lv, # avg
-          sum([x[1] for x in values])/lv, # avg
-          max([x[2] for x in values]),
-          max([x[3] for x in values])
-        ]))
-      return ret
-
-class logfile:
-  counter_format = "%010d %020d %020d\n"
-  counter_length = len(counter_format % (0, 0, 0))
   one_day = 24*3600
   compress_intervals = {
     600: 1,
@@ -498,6 +481,37 @@ class logfile:
     62*one_day: 7200,
     int(4*365.25*one_day): one_day
   }
+  def __getitem__(self, key):
+      if not key in self:
+        self[key] = []
+      return dict.__getitem__(self, key)
+  def items(self, fx=['avg', 'avg', max, max]):
+      ret = []
+      for key, values in dict.items(self):
+        lv = len(values)
+        vals = []
+        for id, func in enumerate(fx):
+          if func=="avg":
+            vals.append(sum([x[id] for x in values])/lv) # avg
+          else:
+            vals.append(func([x[id] for x in values]))
+        ret.append((key, vals))
+      return ret
+  def load(self, start, deltas):
+      intervals = self.compress_intervals.items()
+      limit = None
+      for t in sorted(deltas, reverse=True):
+        if start-t>=limit:
+          if intervals:
+            limit, range = intervals.pop(0)
+          else:
+            break
+        st = int(t/range)*range
+        self[st].append(deltas[t])
+
+class logfile:
+  counter_format = "%010d %020d %020d\n"
+  counter_length = len(counter_format % (0, 0, 0))
   def __init__(self, filename, force_compress=False):
       self.filename = filename
       self.deltas = {}
@@ -507,7 +521,7 @@ class logfile:
         counter = self.f.readline()
         if counter:
           self.counter = tuple(long(x, 10) for x in counter.split(" ", 2))
-          if self.counter[0]/self.one_day!=time.time()/self.one_day:
+          if self.counter[0]/grouper.one_day!=time.time()/grouper.one_day:
             # next day, force compress
             force_compress = True
         else:
@@ -586,19 +600,9 @@ class logfile:
       '''
       Compress data
       '''
-      intervals = self.compress_intervals.items()
-      limit = None
-      start = self.counter[0]
-      ret = grouper()
-      for t in sorted(self.deltas, reverse=True):
-        if start-t>=limit:
-          if intervals:
-            limit, range = intervals.pop(0)
-          else:
-            break
-        st = int(t/range)*range
-        ret[st].append(self.deltas[t])
-      self.deltas = dict(ret.items())
+      grp = grouper()
+      grp.load(self.counter[0], self.deltas)
+      self.deltas = dict(grp.items())
   def filter(self, filter):
       if not filter:
         return self
@@ -760,4 +764,5 @@ if __name__ == "__main__":
       else:
         cfg = json.load(open(fn))
         tdir = os.path.dirname(os.path.realpath(fn))
-        update_io(cfg, tdir, community, '-z' in opts, filter=filter)
+        force_compress = ('-z' in opts) or ('--compress' in opts)
+        update_io(cfg, tdir, community, force_compress, filter=filter)

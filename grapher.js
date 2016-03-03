@@ -142,6 +142,12 @@ function gen_colors(neededColors) {
   return colors;
 }
 
+// Dark theme
+function dark_theme() {
+  $('head')
+    .append($('<link rel="stylesheet" type="text/css" href="dark.css" />'));
+}
+
 // Escape selector ID
 String.prototype.escapeSelector = function() {
   return this.replace(/([ #;?%&,.+*~\':"!^$[\]()=>|\/@])/g,'\\$1');
@@ -285,7 +291,7 @@ Graph.prototype.add_plot_callbacks = function(placeholder) {
       };
       $("#tooltip").html(description + ": " + value)
         .css(tooltip_position)
-        .fadeIn(200);
+        .show();
       // display information from json file
       if (self.index_mode=="json" && self.deltas[label]['info']) {
         var table = ['<table>'], info = self.deltas[label]['info'],
@@ -871,7 +877,8 @@ Progress.prototype.error = function(msg) {
 };
 
 Progress.prototype.loading_error = function(filename, msg) {
-  this.error("Error loading file " + filename + ": " + msg);
+  if (msg)
+    this.error("Error loading file " + filename + ": " + msg);
 };
 
 /*
@@ -890,9 +897,7 @@ Loader = function(graph, index_files) {
   // set current interval
   if (!graph.range_from || !graph.range_to)
     graph.reset_range();
-  // show loader
   this.graph.placeholder.empty();
-  //this.graph.placeholder.append(graph.loading);
 };
 
 Loader.prototype.reload = function() {
@@ -1406,6 +1411,27 @@ NagiosLoader = function(graph, index_files) {
 NagiosLoader.prototype = Object.create(Loader.prototype);
 
 service_groups = {
+  load1: {
+    name: "Load 1",
+    hide: true,
+    search: /load\/load1$/,
+    unit: "",
+    next: true
+  },
+  load5: {
+    name: "Load 5",
+    hide: true,
+    search: /load\/load5$/,
+    unit: "",
+    next: true
+  },
+  load15: {
+    name: "Load 15",
+    hide: true,
+    search: /load\/load15$/,
+    unit: "",
+    next: true
+  },
   load: {
     name: "Load",
     search: /(load\/load|CPU.*utilization\/util)/i,
@@ -1413,8 +1439,10 @@ service_groups = {
   },
   swap: {
     name: "Swap",
+    hide: true,
     search: /(mem|swap)\/swap/i,
-    unit: "B"
+    unit: "B",
+    next: true
   },
   swap_check_mk: {
     name: "Swap",
@@ -1437,7 +1465,7 @@ service_groups = {
     search: /memory.*\/memory/i,
     unit: "MB"
   },
-  eth: {
+  eth_io: {
     name: "Ethernet [bits]",
     search: /eth.+\/[rt]x_bytes/i,
     join_by: /^[rt]x_/,
@@ -1453,15 +1481,15 @@ service_groups = {
   },
   disk_bytes: {
     name: "Disk bytes",
-    search: /(diskio_.|Disk%20IO%20SUMMARY)\/(read|write)/i,
-    join_by: /^(read|write)/,
+    search: /(diskio_.|Disk.*IO.*SUMMARY)\/(read|write)/i,
+    join_by: /(read|write)/,
     reversed: /^write/,
     unit: "B/s"
   },
-  disk_io: {
+  disk_block: {
     name: "Disk IO",
     search: /diskio_.\/(ioread|iowrite)/i,
-    join_by: /^(ioread|iowrite)/,
+    join_by: /(read|write)/, // do not use ioread/iowrite
     reversed: /^iowrite/,
     unit: "io/s"
   },
@@ -1471,10 +1499,13 @@ service_groups = {
     search: /diskio_.\/queue/i,
     unit: "/s"
   },
-  disk: {
+  disk_usage: {
     name: "Disk usage",
     search: /(disk_|fs_[A-Z]:)/i,
-    unit: "%"
+    unit: "%",
+    convert: function(value, warn, crit, min, max) {
+      return value*100/max;
+    }
   },
   users: {
     name: "Users",
@@ -1559,7 +1590,6 @@ service_groups = {
   other: {
     name: "Other",
     search: /./,
-    unit: ""
   }
 };
 
@@ -1571,10 +1601,12 @@ NagiosLoader.prototype.load_data = function(filename, service) {
     dataType: "text",
     cache: false
   }).done(function(data) {
-    var rows = data.split("\n"), hdr = rows[0].split("\t"), rw, name, desc,
-        service_group;
+    var rows = data.split("\n"), hdr = rows[0].split("\t"),
+        rw, name, desc, service_group;
     if (service_groups[service])
       service_group = service_groups[service];
+    else
+      service_group = service_groups.other;
     if (hdr.length<4) {
       console.log("Wrong header:", filename, hdr);
       return;
@@ -1592,12 +1624,11 @@ NagiosLoader.prototype.load_data = function(filename, service) {
     // create info
     if (!self.graph.info[name])
       self.graph.info[name] = {name: desc, unit: hdr[3]};
-    if (service_group)
+    if (service_group.unit)
       self.graph.info[name]["unit"] = service_group.unit;
     if (hdr[3]=="c") { // counters
       rw = "o";
-      if (service_group && service_group.reversed
-          && hdr[2].search(service_group.reversed)>=0)
+      if (service_group.reversed && hdr[2].search(service_group.reversed)>=0)
         rw = "i";
       // create counters
       var counters = []; // use local counters
@@ -1614,14 +1645,20 @@ NagiosLoader.prototype.load_data = function(filename, service) {
         self.graph.deltas[name].j = arrayinverse(arraydelta(counters));
     } else {
       // create deltas
-      var percent = hdr[1].search(/^nrpe_disk_/i)==0, max;
-      if (percent) max = parseFloat(hdr[7]);
+      var warn=null, crit=null, min=null, max=null;
+      if (service_group.convert) {
+        warn = parseFloat(hdr[4]);
+        crit = parseFloat(hdr[5]);
+        min = parseFloat(hdr[6]);
+        max = parseFloat(hdr[7]);
+      }
       if (!self.graph.deltas[name])
         self.graph.deltas[name] = {i: [], j: [], o: []};
       for (var rowi=1; rowi<rows.length; rowi++) {
         var cols = rows[rowi].split(" ");
         var col1 = parseFloat(cols[1]);
-        if (percent) col1 = col1*100/max;
+        if (service_group.convert)
+          col1 = service_group.convert(col1, warn, crit, min, max);
         self.graph.deltas[name]['o'].push([to_ms(cols[0]), col1]);
       }
     }
@@ -1634,8 +1671,21 @@ NagiosLoader.prototype.load_data = function(filename, service) {
 // Load file index and start loading of files.
 NagiosLoader.prototype.load_index = function(url) {
   var self = this;
-  var preselect_host = url.split(";");
-  url = preselect_host.shift();
+  var preselect_graphs = url.split(";");
+  url = preselect_graphs.shift();
+  var preselect = preselect_graphs.shift(); // or undefined
+  self.graph.preselect_graphs = preselect_graphs;
+  // change service selection
+  if (this.graph.index_mode=="nagios_service" && preselect) {
+    if ($("select#service option[value="+preselect+"]").length>0) {
+      $("select#service").val(preselect);
+    } else if (service_groups[preselect]!==undefined) {
+      $("select#service").append(
+        '<option value="'+preselect+'" selected="selected">'
+        +preselect+'</option>'
+      );
+    }
+  }
   $.ajax({
     url: url+"/",
     cache: false
@@ -1662,7 +1712,7 @@ NagiosLoader.prototype.load_index = function(url) {
       } else {
         // add host
         if (hosts.find('option[value="'+host+'"]').length==0) {
-          if (host==preselect_host)
+          if (host==preselect)
             var selected = ' selected="selected"';
           else
             var selected = '';
@@ -1675,7 +1725,7 @@ NagiosLoader.prototype.load_index = function(url) {
       for (var srvi in service_groups) {
         if (row.search(service_groups[srvi].search)>=0) {
           files_push(host, srvi, urlrow);
-          break;
+          if (service_groups[srvi].next!==true) break;
         }
       }
     }
