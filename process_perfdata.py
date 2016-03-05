@@ -26,9 +26,9 @@ class grouper(dict):
   one_day = 24*3600
   compress_intervals = {
     one_day: 1,
-    3*one_day: 300,
-    14*one_day: 1800,
-    62*one_day: 7200,
+    7*one_day: 300, # 5m
+    30*one_day: 1800, # 30m
+    62*one_day: 7200, # 2h
     int(4*365.25*one_day): one_day
   }
   def __getitem__(self, key):
@@ -80,11 +80,13 @@ class Logfiles:
           ret += "%%%02x" % ord(x)
       return ret
   def update(self, utime, values):
+      if not values[0]:
+        return # do not process empty values
       mtime = os.stat(self.filename).st_mtime
-      self.f = open(self.filename, "at")
       value, unit = self.re_num_unit.search(
         values[0].replace(",", ".")
       ).groups()
+      self.f = open(self.filename, "at")
       if not self.header:
         self.f.write("\t".join([self.hsl, unit] + values[1:])+"\n")
       self.f.write("%d %s\n" % (utime, value))
@@ -114,7 +116,7 @@ class Logfiles:
         out_f.write("%d %s\n" % (key, val))
       out_f.close()
       # rename new file to old file
-      #os.rename(self.filename, self.filename+".tmp")
+      os.rename(self.filename+".tmp", self.filename)
 
 def mkindex():
     os.chdir(prefix)

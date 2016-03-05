@@ -1284,7 +1284,9 @@ StorageLoader.prototype.load_compellent = function(filename) {
     dataType: "xml"
   }).done(function(data) {
     var l2 = data.getElementsByTagName("return")[0].innerHTML;
-    var rows = $($('<div/>').html(l2).text()).find("Data").text().split(":");
+    // HTML processing is very slow in Chrome, replaced by regular expression
+    //var rows = $($('<div/>').html(l2).text()).find("Data").text().split(":");
+    var rows = l2.split(/&lt;\/?Data&gt;/)[1].split(":");
     var sizeunit = 1024;
     for (var row_id=0; row_id<rows.length; row_id++) {
       if (rows[row_id]=="") continue;
@@ -1544,7 +1546,7 @@ service_groups = {
   },
   ups: {
     name: "UPS",
-    search: /(UPS.*|APCUPSD)\/./i,
+    search: /\/(UPS.*|APCUPSD)\/./i,
     unit: ""
   },
   temperature: {
@@ -1677,9 +1679,8 @@ NagiosLoader.prototype.load_index = function(url) {
   self.graph.preselect_graphs = preselect_graphs;
   // change service selection
   if (this.graph.index_mode=="nagios_service" && preselect) {
-    if ($("select#service option[value="+preselect+"]").length>0) {
-      $("select#service").val(preselect);
-    } else if (service_groups[preselect]!==undefined) {
+    if ($("select#service option[value="+preselect+"]").length==0
+        && service_groups[preselect]!==undefined) {
       $("select#service").append(
         '<option value="'+preselect+'" selected="selected">'
         +preselect+'</option>'
