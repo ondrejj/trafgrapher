@@ -5,7 +5,8 @@
 */
 
 var trafgrapher_version = '2.0beta',
-    one_hour = 3600000;
+    one_hour = 3600000,
+    last_reload = null;
 
 // Predefined settings
 var excluded_interfaces = [
@@ -903,6 +904,7 @@ Loader = function(graph, index_files) {
 Loader.prototype.reload = function() {
   for (var idx=0; idx<this.index_files.length; idx++)
     this.load_index(this.index_files[idx]);
+  last_reload = new Date();
 };
 
 // File loaded, update counter, show graph if all files processed.
@@ -1604,7 +1606,7 @@ NagiosLoader.prototype.load_data = function(filename, service) {
     cache: false
   }).done(function(data) {
     var rows = data.split("\n"), hdr = rows[0].split("\t"),
-        rw, name, desc, service_group;
+        rw, name, desc, service_group, lunit = hdr[3], multiplier = 1;
     if (service_groups[service])
       service_group = service_groups[service];
     else
@@ -1625,9 +1627,16 @@ NagiosLoader.prototype.load_data = function(filename, service) {
       self.graph.groups[service].push({name: name, enabled: true});
     // create info
     if (!self.graph.info[name])
-      self.graph.info[name] = {name: desc, unit: hdr[3]};
-    if (service_group.unit)
-      self.graph.info[name]["unit"] = service_group.unit;
+      self.graph.info[name] = {name: desc, unit: lunit};
+    if (lunit=="MB") {
+      multiplier = 1048576;
+      self.graph.info[name].unit = "B";
+    } else if (lunit=="ms" || lunit=="mV") {
+      multiplier = 0.001;
+      self.graph.info[name].unit = lunit[1];
+    }
+    if (service_group.unit!==undefined)
+      self.graph.info[name].unit = service_group.unit;
     if (hdr[3]=="c") { // counters
       rw = "o";
       if (service_group.reversed && hdr[2].search(service_group.reversed)>=0)
@@ -1636,7 +1645,7 @@ NagiosLoader.prototype.load_data = function(filename, service) {
       var counters = []; // use local counters
       for (var rowi=1; rowi<rows.length; rowi++) {
         var cols = rows[rowi].split(" ");
-        var value = parseFloat(cols[1]);
+        var value = parseFloat(cols[1])*multiplier;
         counters.push([to_ms(cols[0]), value]);
       }
       // compute deltas
@@ -1649,19 +1658,19 @@ NagiosLoader.prototype.load_data = function(filename, service) {
       // create deltas
       var warn=null, crit=null, min=null, max=null;
       if (service_group.convert) {
-        warn = parseFloat(hdr[4]);
-        crit = parseFloat(hdr[5]);
-        min = parseFloat(hdr[6]);
-        max = parseFloat(hdr[7]);
+        warn = parseFloat(hdr[4])*multiplier;
+        crit = parseFloat(hdr[5])*multiplier;
+        min = parseFloat(hdr[6])*multiplier;
+        max = parseFloat(hdr[7])*multiplier;
       }
       if (!self.graph.deltas[name])
         self.graph.deltas[name] = {i: [], j: [], o: []};
       for (var rowi=1; rowi<rows.length; rowi++) {
         var cols = rows[rowi].split(" ");
-        var col1 = parseFloat(cols[1]);
+        var value = parseFloat(cols[1])*multiplier;
         if (service_group.convert)
-          col1 = service_group.convert(col1, warn, crit, min, max);
-        self.graph.deltas[name]['o'].push([to_ms(cols[0]), col1]);
+          value = service_group.convert(value, warn, crit, min, max);
+        self.graph.deltas[name]['o'].push([to_ms(cols[0]), value]);
       }
     }
     self.file_loaded();
@@ -1679,8 +1688,10 @@ NagiosLoader.prototype.load_index = function(url) {
   self.graph.preselect_graphs = preselect_graphs;
   // change service selection
   if (this.graph.index_mode=="nagios_service" && preselect) {
-    if ($("select#service option[value="+preselect+"]").length==0
-        && service_groups[preselect]!==undefined) {
+    if ($("select#service option[value="+preselect+"]").length>0) {
+      if (last_reload===null)
+        $("select#service").val(preselect);
+    } else if (service_groups[preselect]!==undefined) {
       $("select#service").append(
         '<option value="'+preselect+'" selected="selected">'
         +preselect+'</option>'
