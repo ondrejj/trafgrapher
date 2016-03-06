@@ -16,29 +16,29 @@ var excluded_interfaces = [
       // DELL
       /^[\ \-]Link[\ \-]Aggregate[\ \-]/,
       /^[\ \-]CPU[\ \-]Interface[\ \-]for[\ \-]Unit:[\ \-]/,
-      /^Backbone$/,
+      /^Backbone$/
     ];
 
 // Join two arrays into one. For same keys sum values.
 function joinarrays(arr) {
-  var d = {};
+  var d = {}, i, key;
   if (arr[0]) {
-    for (var i=0; i<arr[0].length; i++) {
-      var key = arr[0][i][0];
+    for (i=0; i<arr[0].length; i++) {
+      key = arr[0][i][0];
       d[key] = arr[0][i][1];
     }
   }
   for (var arr_id=1; arr_id<arr.length; arr_id++) {
     if (arr[arr_id]) {
-      for (var i=0; i<arr[arr_id].length; i++) {
-        var key = arr[arr_id][i][0];
+      for (i=0; i<arr[arr_id].length; i++) {
+        key = arr[arr_id][i][0];
         if (d[key]===undefined) d[key] = 0;
         d[key] += arr[arr_id][i][1];
       }
     }
   }
   var a = [];
-  for (var key in d) {
+  for (key in d) {
     a.push([key, d[key]]);
   }
   a.sort(function (a,b) {
@@ -206,9 +206,9 @@ Graph.prototype.filter_interval = function(data, unit, use_max) {
   var ret = [];
   var multiply = 1;
   if (unit=="b") multiply = 8; // bits
-  for (var i=0; i<data.length; i++)
-    if (data[i][0]>=this.range_from && data[i][0]<this.range_to)
-      ret.push([data[i][0], data[i][1]*multiply]);
+  for (var j=0; j<data.length; j++)
+    if (data[j][0]>=this.range_from && data[j][0]<this.range_to)
+      ret.push([data[j][0], data[j][1]*multiply]);
   if (ret.length>400) {
     // group data
     var min_t = ret[0][0], max_t = ret[ret.length-1][0];
@@ -264,6 +264,7 @@ Graph.prototype.get_unit = function(label) {
 Graph.prototype.add_plot_callbacks = function(placeholder) {
   var self = this;
   // hover
+  placeholder.unbind("plothover");
   placeholder.bind("plothover", function(event, pos, item) {
     if (item) {
       var label = item.series.label.name;
@@ -311,7 +312,7 @@ Graph.prototype.add_plot_callbacks = function(placeholder) {
       if (self.index_mode=="mrtg" && self.deltas[label]['html']) {
         $.ajax({
           url: self.deltas[label]['html'],
-          dataType: "html",
+          dataType: "html"
         }).done(function(data) {
           // don't load images from .html
           var noimgdata = data.replace(/\ src=/gi, " nosrc=");
@@ -324,15 +325,12 @@ Graph.prototype.add_plot_callbacks = function(placeholder) {
     }
   });
   // click
+  placeholder.unbind("plotclick");
   placeholder.bind("plotclick", function(event, pos, item) {
     if (item) {
-      var label = item.series.label.name;
-      self.div.find(
-        "input#cb"+self.ID+label.escapeSelector()
-      ).prop(
-        "checked", !self.div.find("input#cb"+self.ID+label.escapeSelector()
-                    ).prop("checked")
-      );
+      var label = item.series.label.name,
+          checkbox = self.div.find("input#cb"+self.ID+label.escapeSelector());
+      checkbox.prop("checked", !checkbox.prop("checked") );
       if (self.groups) {
         for (var srvi in self.groups)
           for (var grpi in self.groups[srvi])
@@ -345,6 +343,7 @@ Graph.prototype.add_plot_callbacks = function(placeholder) {
     }
   });
   // selection
+  placeholder.unbind("plotselected");
   placeholder.bind("plotselected", function (event, ranges) {
     // zoom
     self.custom_range = true;
@@ -552,12 +551,13 @@ Graph.prototype.update_checkboxes = function() {
   // update.
   if (this.filter.find("input:checked").length>0) return;
   this.filter.empty();
-  var keys = [];
-  for (var key in this.deltas) keys.push(key);
+  var keys = [], key, keyid, idkey, checked;
+  for (key in this.deltas) keys.push(key);
   keys.sort();
-  for (var keyid in keys) {
-    var key = keys[keyid], idkey = this.ID+key,
-        checked = "checked='checked'";
+  for (keyid in keys) {
+    key = keys[keyid];
+    idkey = this.ID+key;
+    checked = "checked='checked'";
     if (this.preselect_graphs.length>0)
       if ($.inArray(key, this.preselect_graphs)<0)
         checked = "";
@@ -706,15 +706,16 @@ Graph.prototype.refresh_range = function() {
 };
 
 Graph.prototype.refresh_graph = function() {
+  var loader;
   if (this.index_mode=="json") {
-    var loader = new JSONLoader(this, this.index_files);
+    loader = new JSONLoader(this, this.index_files);
   } else if (this.index_mode=="mrtg") {
-    var loader = new MRTGLoader(this, this.index_files);
+    loader = new MRTGLoader(this, this.index_files);
   } else if (this.index_mode=="storage") {
-    var loader = new StorageLoader(this, this.index_files);
+    loader = new StorageLoader(this, this.index_files);
   } else if (this.index_mode=="nagios_service" ||
              this.index_mode=="nagios_host") {
-    var loader = new NagiosLoader(this, this.index_files);
+    loader = new NagiosLoader(this, this.index_files);
   } else {
     this.error("No files to load.");
   }
@@ -841,7 +842,7 @@ Progress.prototype.echo = function() {
     );
     this.loader.show();
   }
-}
+};
 
 Progress.prototype.add = function(files, bytes) {
   this.files_to_load += files;
@@ -1074,8 +1075,8 @@ MRTGLoader.prototype.load_index = function(url) {
     var files = [];
     // don't load images from index.html
     var noimgdata = data.replace(/\ src=/gi, " nosrc=");
-    $(noimgdata).find("td").each(function(tagi, tag) {
-      tag = $(tag), diva = tag.find("div a");
+    $(noimgdata).find("td").each(function(tagi, taga) {
+      var tag = $(taga), diva = tag.find("div a");
       if (diva[0]) {
         var href = diva.attr("href"),
             fname = href.substr(0, href.lastIndexOf(".")),
@@ -1183,9 +1184,8 @@ StorageLoader.prototype.load_unisphere = function(filename) {
     var rows = data.split("\n");
     var name = "", lun="", rg="", timestamp, sizeunit=512;
     for (var row_id=0; row_id<rows.length; row_id++) {
-      var row = rows[row_id];
-      var args = row.split(" ");
-      var rargs = args.slice();
+      var row = rows[row_id], args = row.split(" "), rargs = args.slice(),
+          hid, idx, key;
       rargs.reverse();
       if (row.indexOf("Name   ")==0) {
         if (rargs[1]!="LUN") {
@@ -1193,7 +1193,7 @@ StorageLoader.prototype.load_unisphere = function(filename) {
           if (self.tagsrc=="vdsk") {
             if (!counters[name]) {
               counters[name] = {};
-              for (var key in self.data_items)
+              for (key in self.data_items)
                 counters[name][self.data_items[key]] = [];
               self.graph.info[name] = {name: name, unit: {
                 o: "io/s", b: "B/s", l: "ms", t: "tr/s"
@@ -1208,7 +1208,7 @@ StorageLoader.prototype.load_unisphere = function(filename) {
         if (self.tagsrc=="mdsk") {
           if (!counters[rg]) {
             counters[rg] = {};
-            for (var key in self.data_items)
+            for (key in self.data_items)
               counters[rg][self.data_items[key]] = [];
           }
         }
@@ -1221,21 +1221,21 @@ StorageLoader.prototype.load_unisphere = function(filename) {
       if (name!="") {
         if (self.tagsrc=="vdsk") {
           if (row.indexOf("Blocks Read")==0) {
-            var idx = args[2];
+            idx = args[2];
             if (!counters[name].rb[idx]) counters[name].rb[idx] = [];
             counters[name].rb[idx].push(
               [timestamp, parseInt(args[14])*sizeunit]);
           } else if (row.indexOf("Blocks Written")==0) {
-            var idx = args[2];
+            idx = args[2];
             if (!counters[name].wb[idx]) counters[name].wb[idx] = [];
             counters[name].wb[idx].push(
               [timestamp, parseInt(args[11])*sizeunit]);
           } else if (row.indexOf("Read Histogram[")==0) {
-            var hid = args[1][10];
+            hid = args[1][10];
             if (!counters[name].ro[hid]) counters[name].ro[hid] = [];
             counters[name].ro[hid].push([timestamp, parseInt(args[2])]);
           } else if (row.indexOf("Write Histogram[")==0) {
-            var hid = args[1][10];
+            hid = args[1][10];
             if (!counters[name].wo[hid]) counters[name].wo[hid] = [];
             counters[name].wo[hid].push([timestamp, parseInt(args[2])]);
           } else if (row.indexOf("Average Read Time:")==0) {
@@ -1247,21 +1247,21 @@ StorageLoader.prototype.load_unisphere = function(filename) {
           }
         } else if (self.tagsrc=="mdsk") {
           if (row.indexOf("Blocks Read")==0) {
-            var idx = name+args[2];
+            idx = name+args[2];
             if (!counters[rg].rb[idx]) counters[rg].rb[idx] = [];
             counters[rg].rb[idx].push(
               [timestamp, parseInt(args[14])*sizeunit]);
           } else if (row.indexOf("Blocks Written")==0) {
-            var idx = name+args[2];
+            idx = name+args[2];
             if (!counters[rg].wb[idx]) counters[rg].wb[idx] = [];
             counters[rg].wb[idx].push(
               [timestamp, parseInt(args[11])*sizeunit]);
           } else if (row.indexOf("Read Histogram[")==0) {
-            var hid = name+args[1][10];
+            hid = name+args[1][10];
             if (!counters[rg].ro[hid]) counters[rg].ro[hid] = [];
             counters[rg].ro[hid].push([timestamp, parseInt(args[2])]);
           } else if (row.indexOf("Write Histogram[")==0) {
-            var hid = name+args[1][10];
+            hid = name+args[1][10];
             if (!counters[rg].wo[hid]) counters[rg].wo[hid] = [];
             counters[rg].wo[hid].push([timestamp, parseInt(args[2])]);
           } else if (row.indexOf("Average Read Time:")==0) {
@@ -1350,30 +1350,32 @@ StorageLoader.prototype.load_index = function(url) {
     url: url,
     cache: false
   }).done(function(data) {
-    var files = [];
+    var files = [], tags, hrefa, href, d, t;
     if (data[0]=="<")
-      var tags = $(data).find("a");
+      tags = $(data).find("a");
     else
-      var tags = data.split("\n");
+      tags = data.split("\n");
     var current_datetime = new Date(),
         interval = parseInt(self.graph.interval.val());
     for (var tagi=0; tagi<tags.length; tagi++) {
       if (tags[tagi].getAttribute)
-        var href = tags[tagi].getAttribute("href");
+        href = tags[tagi].getAttribute("href");
       else
-        var href = tags[tagi];
+        href = tags[tagi];
       if (href[href.length-1]=="/") continue;
       // Storwize
       if (href.indexOf("N"+self.tagsrc[0]+"_stats_")==0) {
-        var hrefa = href.split("_");
-        var d = hrefa[3], t = hrefa[4];
+        hrefa = href.split("_");
+        d = hrefa[3];
+        t = hrefa[4];
         if (current_datetime-parsedatetime(d, t)<interval*one_hour)
           files.push(url+href);
       }
       // Unisphere
       if (href.indexOf("Uni_")==0) {
-        var hrefa = href.split("_");
-        var d = hrefa[hrefa.length-2], t = hrefa[hrefa.length-1];
+        hrefa = href.split("_");
+        d = hrefa[hrefa.length-2];
+        t = hrefa[hrefa.length-1];
         if (current_datetime-parsedatetime(d, t)<interval*one_hour)
           files.push(url+href);
       }
@@ -1382,8 +1384,9 @@ StorageLoader.prototype.load_index = function(url) {
         if (self.tagsrc=="vdsk" && href[4]!="V") continue;
         if (self.tagsrc=="mdsk" && href[4]!="P") continue;
         if (self.tagsrc=="disk" && href[4]!="D") continue;
-        var hrefa = href.split("_");
-        var d = hrefa[hrefa.length-2], t = hrefa[hrefa.length-1];
+        hrefa = href.split("_");
+        d = hrefa[hrefa.length-2];
+        t = hrefa[hrefa.length-1];
         if (current_datetime-parsedatetime(d, t)<interval*one_hour)
           files.push(url+href);
       }
@@ -1490,8 +1493,8 @@ service_groups = {
     reversed: /^write/,
     unit: "B/s"
   },
-  disk_block: {
-    name: "Disk IO",
+  disk_blocks: {
+    name: "Disk IO blocks",
     search: /diskio_.\/(ioread|iowrite)/i,
     join_by: /(read|write)/, // do not use ioread/iowrite
     reversed: /^iowrite/,
@@ -1593,7 +1596,7 @@ service_groups = {
   },
   other: {
     name: "Other",
-    search: /./,
+    search: /./
   }
 };
 
@@ -1605,8 +1608,8 @@ NagiosLoader.prototype.load_data = function(filename, service) {
     dataType: "text",
     cache: false
   }).done(function(data) {
-    var rows = data.split("\n"), hdr = rows[0].split("\t"),
-        rw, name, desc, service_group, lunit = hdr[3], multiplier = 1;
+    var value, cols, rows = data.split("\n"), hdr = rows[0].split("\t"),
+        rw, name, desc, service_group, lunit = hdr[3], multiplier = 1, rowi;
     if (service_groups[service])
       service_group = service_groups[service];
     else
@@ -1643,9 +1646,9 @@ NagiosLoader.prototype.load_data = function(filename, service) {
         rw = "i";
       // create counters
       var counters = []; // use local counters
-      for (var rowi=1; rowi<rows.length; rowi++) {
-        var cols = rows[rowi].split(" ");
-        var value = parseFloat(cols[1])*multiplier;
+      for (rowi=1; rowi<rows.length; rowi++) {
+        cols = rows[rowi].split(" ");
+        value = parseFloat(cols[1])*multiplier;
         counters.push([to_ms(cols[0]), value]);
       }
       // compute deltas
@@ -1665,9 +1668,9 @@ NagiosLoader.prototype.load_data = function(filename, service) {
       }
       if (!self.graph.deltas[name])
         self.graph.deltas[name] = {i: [], j: [], o: []};
-      for (var rowi=1; rowi<rows.length; rowi++) {
-        var cols = rows[rowi].split(" ");
-        var value = parseFloat(cols[1])*multiplier;
+      for (rowi=1; rowi<rows.length; rowi++) {
+        cols = rows[rowi].split(" ");
+        value = parseFloat(cols[1])*multiplier;
         if (service_group.convert)
           value = service_group.convert(value, warn, crit, min, max);
         self.graph.deltas[name]['o'].push([to_ms(cols[0]), value]);
@@ -1702,11 +1705,10 @@ NagiosLoader.prototype.load_index = function(url) {
     url: url+"/",
     cache: false
   }).done(function(data) {
-    var rows = data.split("\n"), row, urlrow;
-    var current_datetime = new Date();
-    var service = $("select#service option:selected").val();
-    var hosts = $("select#host"), host;
-    var files = {};
+    var rows = data.split("\n"), row, urlrow, selected, fni,
+        current_datetime = new Date(),
+        service = $("select#service option:selected").val(),
+        hosts = $("select#host"), host, files = {};
     function files_push(host, service, urlrow) {
       if (!files[host])
         files[host] = {};
@@ -1725,9 +1727,9 @@ NagiosLoader.prototype.load_index = function(url) {
         // add host
         if (hosts.find('option[value="'+host+'"]').length==0) {
           if (host==preselect)
-            var selected = ' selected="selected"';
+            selected = ' selected="selected"';
           else
-            var selected = '';
+            selected = '';
           hosts.append(
             '<option value="'+host+'"'+selected+'>'+host+'</option>'
           );
@@ -1751,16 +1753,16 @@ NagiosLoader.prototype.load_index = function(url) {
     }
     if (service) {
       self.progress.add(files["ALL"][service].length);
-      for (var fni=0; fni<files["ALL"][service].length; fni++)
+      for (fni=0; fni<files["ALL"][service].length; fni++)
         self.load_data(files["ALL"][service][fni], service);
     } else {
       host = hosts.find('option:selected').val();
-      for (var service in files[host])
+      for (service in files[host])
         self.progress.add(files[host][service].length);
       self.graph.groups = {};
-      for (var service in files[host]) {
+      for (service in files[host]) {
         self.graph.groups[service] = [];
-        for (var fni=0; fni<files[host][service].length; fni++) {
+        for (fni=0; fni<files[host][service].length; fni++) {
           self.load_data(files[host][service][fni], service);
         }
       }
@@ -1771,9 +1773,8 @@ NagiosLoader.prototype.load_index = function(url) {
 };
 
 $(function() {
-  $(".footer a").text(
-    $(".footer a").text().replace("#.#", trafgrapher_version)
-  );
+  $(".footer a")
+    .text($(".footer a").text().replace("#.#", trafgrapher_version));
   graphs = [];
   $("div[id^=graph]").each(function() {
     var graph = new Graph($(this).prop("id"));
