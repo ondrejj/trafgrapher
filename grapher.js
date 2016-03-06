@@ -577,7 +577,7 @@ Graph.prototype.update_checkboxes = function() {
 };
 
 // Plot current graph.
-Graph.prototype.plot_all_graphs = function(add_callbacks) {
+Graph.prototype.plot_all_graphs = function() {
   var graph, enabled_groups;
   if (this.groups) {
     for (var service in service_groups) {
@@ -593,6 +593,8 @@ Graph.prototype.plot_all_graphs = function(add_callbacks) {
           '</div>'
         );
         this.placeholder.append(graph);
+        var placeholder = graph.find("div#placeholder_"+service);
+        this.add_plot_callbacks(placeholder);
       }
       enabled_groups = [];
       for (var grpi in this.groups[service])
@@ -600,12 +602,9 @@ Graph.prototype.plot_all_graphs = function(add_callbacks) {
           enabled_groups.push(this.groups[service][grpi].name);
       var placeholder = graph.find("#placeholder_"+service);
       this.plot_graph(enabled_groups, placeholder);
-      this.add_plot_callbacks(placeholder);
     }
   } else {
     this.plot_graph();
-    if (add_callbacks)
-      this.add_plot_callbacks(this.placeholder);
   }
 };
 
@@ -932,7 +931,6 @@ Loader.prototype.file_loaded = function(remaining_files) {
     } else {
       this.graph.update_checkboxes();
       this.graph.plot_graph();
-      this.graph.add_plot_callbacks(this.graph.placeholder);
     }
   }
 };
@@ -1780,6 +1778,8 @@ $(function() {
     var graph = new Graph($(this).prop("id"));
     graph.parse_query_string();
     graph.refresh_graph();
+    var placeholder = graph.find("placeholder");
+    graph.add_plot_callbacks(placeholder);
     $(document).keydown(function(event) {
       if (event.target.tagName.toLowerCase()=="body")
         graph.keyevent(event);
