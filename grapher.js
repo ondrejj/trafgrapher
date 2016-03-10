@@ -392,7 +392,7 @@ Graph.prototype.urllink = function() {
     url = "?n="+this.index_files[0].split(";")[0]
         + ";"+$("select#service option:selected").val();
   } else if (this.index_mode=="nagios_host") {
-    url = "?n="+this.index_files[0].split(";")[0]
+    url = "?n="+this.index_files[0].replace("::", ";").split(";")[0]
         + ";"+$("select#host option:selected").val();
   } else {
     return;
@@ -701,7 +701,10 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
 
 Graph.prototype.refresh_range = function() {
   this.reset_range();
-  this.plot_all_graphs();
+  if (this.index_mode=="storage")
+    this.refresh_graph()
+  else
+    this.plot_all_graphs();
 };
 
 Graph.prototype.refresh_graph = function() {
@@ -1683,7 +1686,7 @@ NagiosLoader.prototype.load_data = function(filename, service) {
 // Load file index and start loading of files.
 NagiosLoader.prototype.load_index = function(url) {
   var self = this;
-  var preselect_graphs = url.split(";");
+  var preselect_graphs = url.replace("::", ";").split(";");
   url = preselect_graphs.shift();
   var preselect = preselect_graphs.shift(); // or undefined
   self.graph.preselect_graphs = preselect_graphs;
