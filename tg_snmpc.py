@@ -497,7 +497,9 @@ class grouper(dict):
             vals.append(func([x[id] for x in values]))
         ret.append((key, vals))
       return ret
-  def load(self, start, deltas):
+  def load(self, deltas, start=None):
+      if start is None:
+        start = max(deltas.keys())
       intervals = self.compress_intervals.items()
       limit = None
       for t in sorted(deltas, reverse=True):
@@ -601,7 +603,7 @@ class logfile:
       Compress data
       '''
       grp = grouper()
-      grp.load(self.counter[0], self.deltas)
+      grp.load(self.deltas, self.counter[0])
       self.deltas = dict(grp.items())
   def filter(self, filter):
       if not filter:

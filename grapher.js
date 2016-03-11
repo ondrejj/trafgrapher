@@ -652,7 +652,8 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
           label: {name: name, gt: graph_type[gt]},
           color: String(colors[n]),
           data: this.filter_interval(
-                  this.deltas[name][graph_type[gt]], this.info[name].unit,
+                  this.deltas[name][graph_type[gt]],
+                  this.unit_type.find("option:selected").val(),
                   graph_type[gt]==graph_type[gt].toUpperCase()
                 )
         });

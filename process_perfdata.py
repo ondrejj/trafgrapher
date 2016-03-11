@@ -42,7 +42,9 @@ class grouper(dict):
         val = sum([x for x in values])/lv # avg
         ret.append((key, val))
       return ret
-  def load(self, start, deltas):
+  def load(self, deltas, start=None):
+      if start is None:
+        start = max(deltas.keys())
       intervals = self.compress_intervals.items()
       limit = None
       for t in sorted(deltas, reverse=True):
@@ -104,7 +106,7 @@ class Logfiles:
       in_f.close()
       # compress data
       grp = grouper()
-      grp.load(max(data.keys()), data)
+      grp.load(data)
       ret = dict(grp.items(header.split("\t")[3]=="c"))
       # save new file
       out_f = open(self.filename+".tmp", "wt")
