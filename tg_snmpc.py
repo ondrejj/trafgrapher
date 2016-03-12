@@ -13,11 +13,13 @@ Usage: tg_snmpc.py [--mkcfg|-c [community@]IP_or_hostname] \\
 		[--verbose|-v] [--check]
        tg_snmpc.py [--verbose|-v] [community@]config.json \\
 		[--filter=timestamp]
+       tg_snmpc.py [--ipset|--iptables] download_cmd upload_cmd
 
 Examples:
   tg_snmpc -c public@10.0.0.1 -w index.json
   tg_snmpc index.json
   tg_snmpc index.json --filter=`date -d '2015-07-04 02:00:00' '+%s'`
+  tg_snmpc --ipset "ipset list acc_download" "ipset list acc_upload"
 '''
 
 import sys, os, socket, time, json, getopt
@@ -514,6 +516,7 @@ class grouper(dict):
 class logfile:
   counter_format = "%010d %020d %020d\n"
   counter_length = len(counter_format % (0, 0, 0))
+  one_day = grouper.one_day
   def __init__(self, filename, force_compress=False):
       self.filename = filename
       self.deltas = {}
@@ -523,7 +526,7 @@ class logfile:
         counter = self.f.readline()
         if counter:
           self.counter = tuple(long(x, 10) for x in counter.split(" ", 2))
-          if self.counter[0]/grouper.one_day!=time.time()/grouper.one_day:
+          if int(self.counter[0]/self.one_day)!=int(time.time()/self.one_day):
             # next day, force compress
             force_compress = True
         else:
@@ -675,10 +678,72 @@ def update_local(cfg, force_compress=False):
         value.get('counter_bits')
       )
 
+# ipset and iptables counters for firewall accounting
+
+class fwcounter_base():
+  def read(self):
+      self.bytes = {}
+      self.packets = {}
+      return os.popen(self.cmd).readlines()
+
+class ipset(fwcounter_base):
+  type = "ipset"
+  def __init__(self, cmd):
+      self.cmd = cmd
+  def items(self):
+      for row in self.read():
+        if row and row[0].isdigit():
+          cols = row.strip().split(" ")
+          self.bytes[cols[0]] = int(cols[4])
+          self.packets[cols[0]] = int(cols[2])
+          yield cols[0], int(cols[4]), int(cols[2])
+
+class iptables_src(fwcounter_base):
+  type = "iptables"
+  ip_column = 7
+  def __init__(self, cmd):
+      self.cmd = cmd
+  def items(self):
+      # skip first 2 rows of header
+      for row in self.read()[2:]:
+        cols = row.strip().split()
+        self.bytes[cols[self.ip_column]] = int(cols[1])
+        self.packets[cols[self.ip_column]] = int(cols[0])
+        yield cols[self.ip_column], int(cols[1]), int(cols[0])
+
+class iptables_dst(iptables_src):
+  ip_column = iptables_src.ip_column + 1
+
+def fwcounter_mkindex(name, ip, parser_src, parser_dst):
+    cfg = dict(
+      ip = ip,
+      name = name,
+      cmd_type = parser_src.type,
+      cmd_src = parser_src.cmd,
+      cmd_dst = parser_dst.cmd,
+      ifs = {}
+    )
+    ips = sorted(
+      set([x[0] for x in parser_src.items()])
+       &
+      set([x[0] for x in parser_dst.items()])
+    )
+    for ip in ips:
+      ipid = ip.replace("/", "_")
+      cfg["ifs"][ipid] = dict(
+        ifIndex = ipid,
+        ifName = ip,
+        ifAlias = ip,
+        ifDescr = ip,
+        log = ipid+'.log'
+      )
+    return cfg
+
 if __name__ == "__main__":
   opts, files = getopt.gnu_getopt(sys.argv[1:], 'hctzw:dv',
     ['help', 'mkcfg', 'test', 'write=', 'mkdir', 'id=', 'rename',
-     'verbose', 'check', 'filter=', 'local'])
+     'verbose', 'check', 'filter=', 'local',
+     'iptables', 'ipset'])
   opts = dict(opts)
   if "--verbose" in opts or "-v" in opts:
     VERBOSE = True
@@ -746,6 +811,18 @@ if __name__ == "__main__":
         open(out_filename, "wt").write(ret)
         print("Update command: %s %s@%s"
               % (sys.argv[0], community, out_filename))
+  elif "--ipset" in opts:
+    cfg = fwcounter_mkindex(
+      socket.gethostname(), socket.gethostbyname(socket.gethostname()),
+      ipset(files[0]), ipset(files[1])
+    )
+    print json.dumps(cfg, indent=2)
+  elif "--iptables" in opts:
+    cfg = fwcounter_mkindex(
+      socket.gethostname(), socket.gethostbyname(socket.gethostname()),
+      iptables_src(files[0]), iptables_dst(files[1])
+    )
+    print json.dumps(cfg, indent=2)
   elif "--test" in opts or "-t" in opts:
     print(SNMP(files[0]).getall(files[1:]))
   else:
@@ -759,10 +836,30 @@ if __name__ == "__main__":
         community = 'public'
       if not os.path.exists(fn):
         print("Configuration file doesn't exist [%s]!" % fn)
-      elif "--local" in opts:
-        cfg = json.load(open(fn))
+        continue
+      cfg = json.load(open(fn))
+      prefix = os.path.dirname(fn)
+      if "prefix" in cfg:
+        prefix = cfg["prefix"]
+      if "--local" in opts:
         tdir = os.path.dirname(os.path.realpath(fn))
         update_local(cfg, tdir)
+      elif "cmd_type" in cfg:
+        if cfg["cmd_type"] == "ipset":
+          ps = ipset(cfg["cmd_src"])
+          pd = ipset(cfg["cmd_dst"])
+        elif cfg["cmd_type"] == "iptables":
+          ps = iptables_src(cfg["cmd_src"])
+          pd = iptables_dst(cfg["cmd_dst"])
+        else:
+          print "Unknown command type:", cfg["cmd_type"]
+          continue
+        list(ps.items()), list(pd.items())
+        for ip in cfg["ifs"].values():
+          ipid = ip['ifName']
+          #print ip['ifName'], pd.bytes[ipid], ps.bytes[ipid]
+          lf = logfile(os.path.join(prefix, ip['log']))
+          lf.update(pd.bytes[ipid], ps.bytes[ipid])
       else:
         cfg = json.load(open(fn))
         tdir = os.path.dirname(os.path.realpath(fn))
