@@ -769,8 +769,12 @@ Graph.prototype.parse_query_string = function() {
     if (sarg[0].search("/")>=0)
       prefix = sarg[0].replace(/[^\/]*\/$/, '');
     arr.push(sarg[0]);
-    for (var i=1; i<sarg.length; i++)
-      arr.push(prefix+sarg[i]);
+    for (var i=1; i<sarg.length; i++) {
+      if (sarg[i].search("/")==0)
+        arr.push(sarg[i]);
+      else
+        arr.push(prefix+sarg[i]);
+    }
   }
   // parse query string
   var range_multiplier = {y: 8766, m: 744, w: 168, d: 24, h:1};
