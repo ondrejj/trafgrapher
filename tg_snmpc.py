@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python -S
 
 '''
 TrafGrapher SNMP client
@@ -342,6 +342,7 @@ mib_source = \
 class SNMP:
   port = 161
   def __init__(self, addr, community_name="public"):
+      import site
       from pysnmp.entity.rfc3413.oneliner import cmdgen
       #from pysnmp.proto.rfc1905 import NoSuchInstance
       self.cmdgen = cmdgen
@@ -516,7 +517,6 @@ class grouper(dict):
 class logfile:
   counter_format = "%010d %020d %020d\n"
   counter_length = len(counter_format % (0, 0, 0))
-  one_day = grouper.one_day
   def __init__(self, filename, force_compress=False):
       self.filename = filename
       self.deltas = {}
@@ -526,7 +526,7 @@ class logfile:
         counter = self.f.readline()
         if counter:
           self.counter = tuple(long(x, 10) for x in counter.split(" ", 2))
-          if int(self.counter[0]/self.one_day)!=int(time.time()/self.one_day):
+          if self.counter[0]//grouper.one_day != time.time()//grouper.one_day:
             # next day, force compress
             force_compress = True
         else:
@@ -859,7 +859,10 @@ if __name__ == "__main__":
           ipid = ip['ifName']
           #print ip['ifName'], pd.bytes[ipid], ps.bytes[ipid]
           lf = logfile(os.path.join(prefix, ip['log']))
-          lf.update(pd.bytes[ipid], ps.bytes[ipid])
+          if ipid in pd.bytes and ipid in ps.bytes:
+            lf.update(pd.bytes[ipid], ps.bytes[ipid])
+          else:
+            print "Missing key:", ipid
       else:
         cfg = json.load(open(fn))
         tdir = os.path.dirname(os.path.realpath(fn))
