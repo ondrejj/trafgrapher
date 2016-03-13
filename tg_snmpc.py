@@ -383,7 +383,7 @@ class SNMP:
           ifindex = data['ifIndex']
           io = self.getall([ifindex])
           if io[ifindex]['error']:
-            print("Unable to get IO for id %s, ignoring ..." % ifindex)
+            print("Unable to get 64bit IO for id %s, ignoring ..." % ifindex)
             if VERBOSE:
               print(data)
               print(io)
@@ -422,10 +422,6 @@ class SNMP:
           request.append(ids.pop(0))
         result = self.getsome(request)
         for id in request:
-          #if isinstance(ino, NoSuchInstance) \
-          #   or isinstance(outo, NoSuchInstance):
-          #  print("No such instance: ip: %s:%d, id: %s"
-          #        % (self.addr, self.port, id))
           try:
             ino = result.pop(0)
             outo = result.pop(0)
@@ -434,7 +430,7 @@ class SNMP:
               ifOutOctets = long(outo),
               error = None
             )
-          except (AttributeError, IndexError), err:
+          except (AttributeError, IndexError, ValueError), err:
             ret[id] = dict(
               ifInOctets = None, ifOutOctets = None,
               error = "No such instance: ip: %s:%d, id: %s"
