@@ -19,6 +19,11 @@ var excluded_interfaces = [
       /^Backbone$/
     ];
 
+// Sort by key0
+function col0diff(a, b) {
+  return a[0]-b[0];
+}
+
 // Join two arrays into one. For same keys sum values.
 function joinarrays(arr) {
   var d = {}, i, key;
@@ -41,9 +46,7 @@ function joinarrays(arr) {
   for (key in d) {
     a.push([key, d[key]]);
   }
-  a.sort(function (a,b) {
-    return a[0]-b[0];
-  });
+  a.sort(col0diff);
   return a;
 }
 
@@ -52,9 +55,7 @@ function arraydelta(nodes) {
   if (!nodes) return [];
   if (nodes.length==0) return [];
   var deltas = [];
-  nodes.sort(function (a,b) {
-    return a[0]-b[0];
-  });
+  nodes.sort(col0diff);
   var prev = nodes[0];
   for(var i=1; i<nodes.length; i++) {
     var item = nodes[i];
@@ -203,13 +204,13 @@ Graph.prototype.arraybytes = function(arr) {
 
 // Get data for current time interval
 Graph.prototype.filter_interval = function(data, unit, use_max) {
-  var ret = [];
   var multiply = 1;
   if (unit=="b") multiply = 8; // bits
+  var ret = [];
   for (var j=0; j<data.length; j++)
     if (data[j][0]>=this.range_from && data[j][0]<this.range_to)
       ret.push([data[j][0], data[j][1]*multiply]);
-  if (ret.length>400) {
+  if (ret.length>2000) {
     // group data
     var min_t = ret[0][0], max_t = ret[ret.length-1][0];
     var vsum = [], vcnt = [], vmax = [], gi = Math.abs(max_t-min_t)/400;
@@ -578,7 +579,7 @@ Graph.prototype.update_checkboxes = function() {
 
 // Plot current graph.
 Graph.prototype.plot_all_graphs = function() {
-  var graph, enabled_groups;
+  var graph, enabled_groups, placeholder;
   if (this.groups) {
     for (var service in service_groups) {
       if (service_groups[service].hide===true) continue; // skip
@@ -593,14 +594,14 @@ Graph.prototype.plot_all_graphs = function() {
           '</div>'
         );
         this.placeholder.append(graph);
-        var placeholder = graph.find("div#placeholder_"+service);
+        placeholder = graph.find("div#placeholder_"+service);
         this.add_plot_callbacks(placeholder);
       }
       enabled_groups = [];
       for (var grpi in this.groups[service])
         if (this.groups[service][grpi].enabled)
           enabled_groups.push(this.groups[service][grpi].name);
-      var placeholder = graph.find("#placeholder_"+service);
+      placeholder = graph.find("#placeholder_"+service);
       this.plot_graph(enabled_groups, placeholder);
     }
   } else {
@@ -648,6 +649,8 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
       for (var gt=0; gt<graph_type.length; gt++) {
         if (this.deltas[name][graph_type[gt]]===undefined)
           console.log("Undefined data: "+name+" "+graph_type[gt]);
+        if (this.deltas[name][graph_type[gt]].length==0)
+          continue; // skip empty graph
         flots.push({
           label: {name: name, gt: graph_type[gt]},
           color: String(colors[n]),
@@ -703,7 +706,7 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
 Graph.prototype.refresh_range = function() {
   this.reset_range();
   if (this.index_mode=="storage")
-    this.refresh_graph()
+    this.refresh_graph();
   else
     this.plot_all_graphs();
 };
@@ -980,7 +983,7 @@ JSONLoader.prototype.load_log = function(filename, args) {
     }).map(function(row) {
       return row.split(" ").map(function(col) { return parseInt(col); });
     });
-    lines.sort(function(a, b) { return a[0]-b[0]; });
+    lines.sort(col0diff);
     for (var line=0; line<lines.length; line++) {
       var cols = lines[line];
       var t = cols[0]*1000,
@@ -1616,8 +1619,8 @@ NagiosLoader.prototype.load_data = function(filename, service) {
     dataType: "text",
     cache: false
   }).done(function(data) {
-    var value, cols, rows = data.split("\n"), hdr = rows[0].split("\t"),
-        rw, name, desc, service_group, lunit = hdr[3], multiplier = 1, rowi;
+    var value, cols, rows = data.split("\n"), rowi, hdr = rows[0].split("\t"),
+        rw, name, desc, service_group, lunit = hdr[3], multiplier = 1;
     if (service_groups[service])
       service_group = service_groups[service];
     else
@@ -1677,12 +1680,14 @@ NagiosLoader.prototype.load_data = function(filename, service) {
       if (!self.graph.deltas[name])
         self.graph.deltas[name] = {i: [], j: [], o: []};
       for (rowi=1; rowi<rows.length; rowi++) {
+        if (!rows[rowi]) continue; // skip empty line
         cols = rows[rowi].split(" ");
         value = parseFloat(cols[1])*multiplier;
         if (service_group.convert)
           value = service_group.convert(value, warn, crit, min, max);
-        self.graph.deltas[name]['o'].push([to_ms(cols[0]), value]);
+        self.graph.deltas[name].o.push([to_ms(cols[0]), value]);
       }
+      self.graph.deltas[name].o.sort(col0diff);
     }
     self.file_loaded();
   }).fail(function(jqXHR, textStatus, error) {
