@@ -877,7 +877,7 @@ Progress.prototype.update = function(remaining_files) {
 };
 
 Progress.prototype.error = function(msg) {
-  var error = this.loader.find("error");
+  var error = this.loader.find("#error");
   if (error.length>0) {
     error.text(msg).show();
   } else {
@@ -975,7 +975,9 @@ JSONLoader.prototype.load_log = function(filename, args) {
     name = $('<div/>').text(args.name).html(); // escape html in name
     var deltas = {'o': [], 'i': [], 'j': [], 'O': [], 'I': [], 'J': []};
     lines.shift(); // remove couter line
-    lines = lines.map(function(row) {
+    lines = lines.filter(function(row) {
+      return row[0]; // filter out empty values
+    }).map(function(row) {
       return row.split(" ").map(function(col) { return parseInt(col); });
     });
     lines.sort(function(a, b) { return a[0]-b[0]; });
