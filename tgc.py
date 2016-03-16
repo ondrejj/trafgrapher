@@ -1,30 +1,31 @@
 #!/usr/bin/python -S
 
 '''
-TrafGrapher SNMP client
+TrafGrapher client
 
 (c) 2015-2016 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
 
 Licensed under the MIT license.
 
-Usage: tg_snmpc.py [--mkcfg|-c [community@]IP_or_hostname] \\
+Usage: tgc.py [--mkcfg|-c [community@]IP_or_hostname] \\
 		[--write|-w index.json] [--mkdir|-d] \\
 		[--id ifName] [--rename] [--compress|-z] \\
 		[--verbose|-v] [--check]
-       tg_snmpc.py [--verbose|-v] [community@]config.json \\
+       tgc.py [--verbose|-v] [community@]config.json \\
 		[--filter=timestamp]
-       tg_snmpc.py [--ipset|--iptables] download_cmd upload_cmd
+       tgc.py [--ipset|--iptables] [-q|--quiet] download_cmd upload_cmd
 
 Examples:
-  tg_snmpc -c public@10.0.0.1 -w index.json
-  tg_snmpc index.json
-  tg_snmpc index.json --filter=`date -d '2015-07-04 02:00:00' '+%s'`
-  tg_snmpc --ipset "ipset list acc_download" "ipset list acc_upload"
+  tgc -c public@10.0.0.1 -w index.json
+  tgc index.json
+  tgc index.json --filter=`date -d '2015-07-04 02:00:00' '+%s'`
+  tgc --ipset "ipset list acc_download" "ipset list acc_upload"
 '''
 
 import sys, os, socket, time, json, getopt
 
 VERBOSE = False
+QUIET = False
 
 def pp(x):
     return x.prettyPrint()
@@ -736,13 +737,15 @@ def fwcounter_mkindex(name, ip, parser_src, parser_dst):
     return cfg
 
 if __name__ == "__main__":
-  opts, files = getopt.gnu_getopt(sys.argv[1:], 'hctzw:dv',
+  opts, files = getopt.gnu_getopt(sys.argv[1:], 'hctzw:dvq',
     ['help', 'mkcfg', 'test', 'write=', 'mkdir', 'id=', 'rename',
-     'verbose', 'check', 'filter=', 'local',
+     'verbose', 'quiet', 'check', 'filter=', 'local',
      'iptables', 'ipset'])
   opts = dict(opts)
   if "--verbose" in opts or "-v" in opts:
     VERBOSE = True
+  elif "--quiet" in opts or "-q" in opts:
+    QUIET = True
   if not files:
     print(__doc__)
     sys.exit()
@@ -857,7 +860,7 @@ if __name__ == "__main__":
           lf = logfile(os.path.join(prefix, ip['log']))
           if ipid in pd.bytes and ipid in ps.bytes:
             lf.update(pd.bytes[ipid], ps.bytes[ipid])
-          else:
+          elif not QUIET:
             print "Missing key:", ipid
       else:
         cfg = json.load(open(fn))
