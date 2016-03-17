@@ -120,19 +120,33 @@ class Logfiles:
       # rename new file to old file
       os.rename(self.filename+".tmp", self.filename)
 
-def mkindex():
+def mkindex(subdirs=False):
     os.chdir(prefix)
     filelist = []
+    sublists = {}
     for root, dirs, files in os.walk("."):
       for file in files:
+        root_file = os.path.join(root, file)
         if not file.startswith("index.html") and not file.endswith(".tmp"):
-          filelist.append(os.path.join(root, file))
+          filelist.append(root_file)
+          split_root = root.split("/")
+          host = split_root[1]
+          host_file = split_root[0]+"/./"+split_root[2]+"/"+file
+          if not host in sublists:
+            sublists[host] = [host_file]
+          else:
+            sublists[host].append(host_file)
     filelist.sort()
     open(os.path.join(prefix, "index.html"), "wt").write("\n".join(filelist))
+    if subdirs:
+      for host, files in sublists.items():
+        open(os.path.join(prefix, host, "index.html"), "wt").write(
+          "\n".join(sorted(files))
+        )
 
 if __name__ == "__main__":
   if "--make-index" in sys.argv:
-    mkindex()
+    mkindex("--subdirs" in sys.argv)
   else:
     hostname = os.environ.get("NAGIOS_HOSTNAME")
     service_name = os.environ.get("NAGIOS_SERVICEDISPLAYNAME")
