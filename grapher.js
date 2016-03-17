@@ -116,6 +116,13 @@ function parsedatetime(d, t) {
   );
 }
 
+// Decode strings
+function unbase(data) {
+  if (data && data[0]=="~" && window.atob!==undefined)
+    return window.atob(data.substr(1));
+  return data
+}
+
 // Color generator from flot
 function gen_colors(neededColors) {
   var colorPool = ["#4da74d", "#cb4b4b", "#9440ed", "#edc240", "#afd8f8"],
@@ -1585,7 +1592,7 @@ service_groups = {
   },
   temperature: {
     name: "Temperature",
-    search: /Temperature\/temperature/i,
+    search: /temperature.*\/(temp|dew|humidity)/i,
     unit: "C"
   },
   ping_rta: {
@@ -1736,7 +1743,7 @@ NagiosLoader.prototype.load_index = function(url) {
     url: url+"/",
     cache: false
   }).done(function(data) {
-    var rows = data.split("\n"), row, urlrow, selected, fni,
+    var rows = data.split("\n"), row, urlrow, derow, selected, fni,
         current_datetime = new Date(),
         service = $("select#service option:selected").val(),
         hosts = $("select#host"), host, files = {};
@@ -1750,6 +1757,7 @@ NagiosLoader.prototype.load_index = function(url) {
     for (var rowi=0; rowi<rows.length; rowi++) {
       row = rows[rowi].substr(1);
       if (!row) continue; // skip empty lines
+      unrow = row.split("/").map(unbase).join("/");
       urlrow = url+escape(row);
       host = row.split("/")[1];
       if (service) {
@@ -1768,7 +1776,7 @@ NagiosLoader.prototype.load_index = function(url) {
       }
       // push data
       for (var srvi in service_groups) {
-        if (row.search(service_groups[srvi].search)>=0) {
+        if (unrow.search(service_groups[srvi].search)>=0) {
           files_push(host, srvi, urlrow);
           if (service_groups[srvi].next!==true) break;
         }
