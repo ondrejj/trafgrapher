@@ -12,9 +12,9 @@ Requirements:
 
 How to install?
 
-Download salstar.sk scripts:
-	git clone http://git.salstar.sk/scripts.git
-	cd scripts/trafgrapher
+Download from git.salstar.sk:
+	git clone http://git.salstar.sk/trafgrapher.git
+	cd trafgrapher
 Download flotcharts and unpack it into "flot" directory:
 	git clone https://github.com/flot/flot
 	make
