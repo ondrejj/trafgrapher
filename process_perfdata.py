@@ -131,7 +131,7 @@ def mkindex(subdirs=False):
           filelist.append(root_file)
           split_root = root.split("/")
           host = split_root[1]
-          host_file = split_root[0]+"/./"+split_root[2]+"/"+file
+          host_file = ".//"+split_root[2]+"/"+file
           if not host in sublists:
             sublists[host] = [host_file]
           else:
