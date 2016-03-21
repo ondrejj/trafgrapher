@@ -1456,23 +1456,23 @@ NagiosLoader.prototype = Object.create(Loader.prototype);
 service_groups = {
   load1: {
     name: "Load 1",
-    hide: true,
     search: /load\/load1$/,
     unit: "",
+    hide: true,
     next: true
   },
   load5: {
     name: "Load 5",
-    hide: true,
     search: /load\/load5$/,
     unit: "",
+    hide: true,
     next: true
   },
   load15: {
     name: "Load 15",
-    hide: true,
     search: /load\/load15$/,
     unit: "",
+    hide: true,
     next: true
   },
   load: {
@@ -1482,9 +1482,9 @@ service_groups = {
   },
   swap: {
     name: "Swap",
-    hide: true,
     search: /(mem|swap)\/swap/i,
     unit: "B",
+    hide: true,
     next: true
   },
   swap_check_mk: {
@@ -1494,9 +1494,9 @@ service_groups = {
   },
   mem_total: {
     name: "Memory total",
-    hide: true,
     search: /mem\/Total/i,
-    unit: "B"
+    unit: "B",
+    hide: true
   },
   mem: {
     name: "Memory",
@@ -1538,11 +1538,18 @@ service_groups = {
   },
   diskio_queue: {
     name: "Disk queue",
-    hide: true, // wrong data type, change to counter
     search: /diskio_.\/queue/i,
-    unit: "/s"
+    unit: "/s",
+    hide: true // wrong data type, change to counter
   },
   disk_usage: {
+    name: "Disk usage",
+    search: /(disk_|fs_[A-Z]:)/i,
+    unit: "B",
+    hide: true,
+    next: true
+  },
+  disk_usage_percent: {
     name: "Disk usage",
     search: /(disk_|fs_[A-Z]:)/i,
     unit: "%",
