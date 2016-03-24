@@ -709,7 +709,7 @@ class iptables_src(fwcounter_base):
         yield cols[self.ip_column], int(cols[1]), int(cols[0])
 
 class iptables_dst(iptables_src):
-  ip_column = iptables_src.ip_column + 1
+  ip_column = iptables_src.ip_column - 1
 
 def fwcounter_mkindex(name, ip, parser_src, parser_dst):
     cfg = dict(
