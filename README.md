@@ -66,8 +66,7 @@ for example:
 `http://localhost/trafgrapher/network.html?m=/mrtg/router/`  
 `http://localhost/trafgrapher/network.html?j=/tg/router/index.json`
 
-How to collect data from IBM Storwize
--------------------------------------
+### How to collect data from IBM Storwize
 
 Create "mrtg" or "iostats" directory and copy statistics data from storage.
 

@@ -1555,7 +1555,8 @@ service_groups = {
     unit: "%",
     convert: function(value, warn, crit, min, max) {
       return value*100/max;
-    }
+    },
+    name_suffix: "_percent"
   },
   users: {
     name: "Users",
@@ -1668,6 +1669,8 @@ NagiosLoader.prototype.load_data = function(filename, service) {
       desc = desc + hdr[2];
     }
     name = desc.replace(/[ .:\/]/g, "_");
+    if (service_group.name_suffix)
+      name += service_group.name_suffix;
     // add group
     if (service!==undefined && self.graph.groups)
       self.graph.groups[service].push({name: name, enabled: true});
