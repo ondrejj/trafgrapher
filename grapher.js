@@ -289,7 +289,8 @@ Graph.prototype.add_plot_callbacks = function(placeholder) {
             self.arraybytes(self.deltas[label][graph_type]), null, 'iB'
           ),
           description = self.info[label].name,
-          switchname = self.info[label].ip;
+          switchname = self.info[label].ip,
+          dt = new Date(item.datapoint[0]);
       self.find("throughput").val(value);
       self.find("bytes").val(sum_value);
       self.find("description").val(description);
@@ -299,7 +300,7 @@ Graph.prototype.add_plot_callbacks = function(placeholder) {
         top: item.pageY+5,
         left: Math.min(item.pageX+5, window.innerWidth*0.8)
       };
-      $("#tooltip").html(description + ": " + value)
+      $("#tooltip").html(dt.toString() + "<br/>" + description + ": " + value)
         .css(tooltip_position)
         .show();
       // display information from json file
