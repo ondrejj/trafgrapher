@@ -19,10 +19,10 @@ Examples:
   tgc -c public@10.0.0.1 -w index.json
   tgc index.json
   tgc index.json --filter=`date -d '2015-07-04 02:00:00' '+%s'`
-  tgc --ipset "ipset list acc_download" "ipset list acc_upload"
+  tgc --ipset "ipset list acc_download" "ipset list acc_upload" [index_file]
 '''
 
-import sys, os, socket, time, json, getopt
+import sys, os, fcntl, socket, time, json, getopt
 
 VERBOSE = False
 QUIET = False
@@ -519,7 +519,7 @@ class logfile:
       self.deltas = {}
       try:
         # binary mode required to allow seeking
-        self.f = open(self.filename, "rb+")
+        self.open(self.filename, "rb+")
         counter = self.f.readline()
         if counter:
           self.counter = tuple(long(x, 10) for x in counter.split(" ", 2))
@@ -536,8 +536,11 @@ class logfile:
           #print("Compress:", self.filename)
           self.load()
       except IOError:
-        self.f = open(self.filename, "wb")
+        self.open(self.filename, "wb")
         self.counter = ()
+  def open(self, filename, mode):
+      self.f = open(filename, mode)
+      fcntl.flock(self.f, fcntl.LOCK_EX|fcntl.LOCK_NB)
   def load(self):
       for row in self.f.readlines():
         if row.strip():
@@ -550,7 +553,7 @@ class logfile:
         self.f.close()
         self.deltas[delta[0]] = delta[1:] # add current values
         self.compress()
-        self.f = open(self.filename+'.tmp', "wb")
+        self.open(self.filename+'.tmp', "wb")
         self.f.write(self.counter_format % self.counter)
         for t in sorted(self.deltas, reverse=True):
           self.f.write("%d %d %d %d %d\n" % tuple([t]+list(self.deltas[t])))
@@ -655,7 +658,7 @@ def read_uptime(filename=None):
     uptime = open(filename, "r").readline().strip().split(" ", 1)
     return float(uptime[0])
 
-def update_local(cfg, force_compress=False):
+def update_local(cfg, tdir, force_compress=False):
     for key, value in cfg['ifs'].items():
       logfile(
         os.path.join(tdir, value['log']),
@@ -736,6 +739,54 @@ def fwcounter_mkindex(name, ip, parser_src, parser_dst):
       )
     return cfg
 
+def process_configs(files):
+    filter = ""
+    if "--filter" in opts:
+      filter = opts["--filter"]
+    for fn in files:
+      if '@' in fn:
+        community, fn = fn.split('@', 1)
+      else:
+        community = 'public'
+      if not os.path.exists(fn):
+        print("Configuration file doesn't exist [%s]!" % fn)
+        continue
+      # update env
+      if "PATH" in os.environ:
+        os.environ["PATH"] += ":/sbin:/usr/sbin"
+      # load config
+      cfg = json.load(open(fn))
+      prefix = os.path.dirname(fn)
+      if "prefix" in cfg:
+        prefix = cfg["prefix"]
+      if "--local" in opts:
+        tdir = os.path.dirname(os.path.realpath(fn))
+        update_local(cfg, tdir)
+      elif "cmd_type" in cfg:
+        if cfg["cmd_type"] == "ipset":
+          ps = ipset(cfg["cmd_src"])
+          pd = ipset(cfg["cmd_dst"])
+        elif cfg["cmd_type"] == "iptables":
+          ps = iptables_src(cfg["cmd_src"])
+          pd = iptables_dst(cfg["cmd_dst"])
+        else:
+          print "Unknown command type:", cfg["cmd_type"]
+          continue
+        list(ps.items()), list(pd.items()) # load object
+        for ip in cfg["ifs"].values():
+          ipid = ip['ifName']
+          #print ip['ifName'], pd.bytes[ipid], ps.bytes[ipid]
+          lf = logfile(os.path.join(prefix, ip['log']))
+          if ipid in pd.bytes and ipid in ps.bytes:
+            lf.update(pd.bytes[ipid], ps.bytes[ipid])
+          elif not QUIET:
+            print "Missing key:", ipid
+      else:
+        cfg = json.load(open(fn))
+        tdir = os.path.dirname(os.path.realpath(fn))
+        force_compress = ('-z' in opts) or ('--compress' in opts)
+        update_io(cfg, tdir, community, force_compress, filter=filter)
+
 if __name__ == "__main__":
   opts, files = getopt.gnu_getopt(sys.argv[1:], 'hctzw:dvq',
     ['help', 'mkcfg', 'test', 'write=', 'mkdir', 'id=', 'rename',
@@ -815,55 +866,22 @@ if __name__ == "__main__":
       socket.gethostname(), socket.gethostbyname(socket.gethostname()),
       ipset(files[0]), ipset(files[1])
     )
-    print json.dumps(cfg, indent=2)
+    if len(files)>2:
+      open(files[2], "wt").write(json.dumps(cfg, indent=2))
+      process_configs(files[2:])
+    else:
+      print json.dumps(cfg, indent=2)
   elif "--iptables" in opts:
     cfg = fwcounter_mkindex(
       socket.gethostname(), socket.gethostbyname(socket.gethostname()),
       iptables_src(files[0]), iptables_dst(files[1])
     )
-    print json.dumps(cfg, indent=2)
+    if len(files)>2:
+      open(files[2], "wt").write(json.dumps(cfg, indent=2))
+      process_configs(files[2:])
+    else:
+      print json.dumps(cfg, indent=2)
   elif "--test" in opts or "-t" in opts:
     print(SNMP(files[0]).getall(files[1:]))
   else:
-    filter = ""
-    if "--filter" in opts:
-      filter = opts["--filter"]
-    for fn in files:
-      if '@' in fn:
-        community, fn = fn.split('@', 1)
-      else:
-        community = 'public'
-      if not os.path.exists(fn):
-        print("Configuration file doesn't exist [%s]!" % fn)
-        continue
-      cfg = json.load(open(fn))
-      prefix = os.path.dirname(fn)
-      if "prefix" in cfg:
-        prefix = cfg["prefix"]
-      if "--local" in opts:
-        tdir = os.path.dirname(os.path.realpath(fn))
-        update_local(cfg, tdir)
-      elif "cmd_type" in cfg:
-        if cfg["cmd_type"] == "ipset":
-          ps = ipset(cfg["cmd_src"])
-          pd = ipset(cfg["cmd_dst"])
-        elif cfg["cmd_type"] == "iptables":
-          ps = iptables_src(cfg["cmd_src"])
-          pd = iptables_dst(cfg["cmd_dst"])
-        else:
-          print "Unknown command type:", cfg["cmd_type"]
-          continue
-        list(ps.items()), list(pd.items())
-        for ip in cfg["ifs"].values():
-          ipid = ip['ifName']
-          #print ip['ifName'], pd.bytes[ipid], ps.bytes[ipid]
-          lf = logfile(os.path.join(prefix, ip['log']))
-          if ipid in pd.bytes and ipid in ps.bytes:
-            lf.update(pd.bytes[ipid], ps.bytes[ipid])
-          elif not QUIET:
-            print "Missing key:", ipid
-      else:
-        cfg = json.load(open(fn))
-        tdir = os.path.dirname(os.path.realpath(fn))
-        force_compress = ('-z' in opts) or ('--compress' in opts)
-        update_io(cfg, tdir, community, force_compress, filter=filter)
+    process_configs(files)
