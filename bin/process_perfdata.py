@@ -84,7 +84,10 @@ class Logfiles:
   def update(self, utime, values):
       if not values[0]:
         return # do not process empty values
-      mtime = os.stat(self.filename).st_mtime
+      try:
+        mtime = os.stat(self.filename).st_mtime
+      except OSError:
+        mtime = time.time()
       value, unit = self.re_num_unit.search(
         values[0].replace(",", ".")
       ).groups()
@@ -147,9 +150,9 @@ def mkindex(subdirs=False):
 if __name__ == "__main__":
   if "--make-index" in sys.argv:
     mkindex("--subdirs" in sys.argv)
-  else:
+  elif len(sys.argv)==1:
     hostname = os.environ.get("NAGIOS_HOSTNAME")
-    service_name = os.environ.get("NAGIOS_SERVICEDISPLAYNAME")
+    service_name = os.environ.get("NAGIOS_SERVICEDESC")
     service_perfdata = os.environ.get("NAGIOS_SERVICEPERFDATA")
     service_time = os.environ.get("NAGIOS_TIMET")
     #print >> sys.stderr, service_name, service_perfdata
@@ -158,3 +161,18 @@ if __name__ == "__main__":
         label, values = data.split("=", 1)
         logfile = Logfiles(hostname, service_name, label)
         logfile.update(int(service_time), values.split(";"))
+  else:
+    # bulk mode
+    for line in open(sys.argv[1]).readlines():
+      kw = dict([x.split("::", 1) for x in line.strip().split("\t")])
+      hostname = kw["HOSTNAME"]
+      service_name = kw["SERVICEDESC"]
+      service_perfdata = kw["SERVICEPERFDATA"]
+      service_time = kw["TIMET"]
+      #print >> sys.stderr, service_name, service_perfdata
+      if service_name and service_perfdata:
+        for data in service_perfdata.split(" "):
+          label, values = data.split("=", 1)
+          logfile = Logfiles(hostname, service_name, label)
+          logfile.update(int(service_time), values.split(";"))
+    os.unlink(sys.argv[1])

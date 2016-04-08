@@ -649,14 +649,22 @@ def read_file(filename, row_name, column):
     for row in open(filename, "r").readlines():
       row = row.strip().split()
       if row[0]==row_name:
-        return int(row[column])
+        try:
+          return int(row[column])
+        except ValueError, err:
+          sys.exit("ERROR: Unable to parse value: "+str(err))
     return 0
 
 def read_uptime(filename=None):
     if not filename:
       return None
     uptime = open(filename, "r").readline().strip().split(" ", 1)
-    return float(uptime[0])
+    if not uptime[0]:
+      sys.exit("ERROR: Unable to read uptime (empty string).")
+    try:
+      return float(uptime[0])
+    except ValueError, err:
+      sys.exit("ERROR: Unable to parse uptime value: "+str(err))
 
 def update_local(cfg, tdir, force_compress=False):
     for key, value in cfg['ifs'].items():

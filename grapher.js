@@ -4,7 +4,7 @@
   Licensed under the MIT license.
 */
 
-var trafgrapher_version = '2.0',
+var trafgrapher_version = '2.1',
     one_hour = 3600000,
     last_reload = null;
 
@@ -300,8 +300,11 @@ Graph.prototype.add_plot_callbacks = function(placeholder) {
         top: item.pageY+5,
         left: Math.min(item.pageX+5, window.innerWidth*0.8)
       };
-      $("#tooltip").html(dt.toString() + "<br/>" + description + ": " + value)
-        .css(tooltip_position)
+      $("#tooltip").html(
+          description + ": " + value
+          + "<br/>"
+          + dt.toString()
+       ).css(tooltip_position)
         .show();
       // display information from json file
       if (self.index_mode=="json" && self.deltas[label]['info']) {
@@ -1511,16 +1514,16 @@ service_groups = {
   },
   eth_io: {
     name: "Ethernet [bits]",
-    search: /eth.+\/[rt]x_bytes/i,
-    join_by: /^[rt]x_/,
-    reversed: /^rx/,
+    search: /(eth.+\/[rt]x_bytes|Interface [0-9]+\/(in|out)$)/i,
+    join_by: /^(rx_|tx_|in|out)/,
+    reversed: /^(rx|in)/,
     unit: "b/s"
   },
   eth_stat: {
     name: "Ethernet packets",
-    search: /eth.+\/./i,
-    join_by: /^[rt]x_/,
-    reversed: /^rx/,
+    search: /(eth.+|Interface [0-9]+)\/./i,
+    join_by: /^(rx|tx|in|out)_/,
+    reversed: /^(rx|in)/,
     unit: "/s"
   },
   disk_bytes: {
@@ -1703,8 +1706,11 @@ NagiosLoader.prototype.load_data = function(filename, service) {
         self.graph.deltas[name] = {i: [], j: [], o: []};
       self.graph.deltas[name][rw] = arraydelta(counters);
       if (rw=="i")
-        self.graph.deltas[name].j = arrayinverse(arraydelta(counters));
+        self.graph.deltas[name].j = arrayinverse(self.graph.deltas[name].i);
     } else {
+      rw = "o";
+      if (service_group.reversed && hdr[2].search(service_group.reversed)>=0)
+        rw = "i";
       // create deltas
       var warn=null, crit=null, min=null, max=null;
       if (service_group.convert) {
@@ -1721,9 +1727,11 @@ NagiosLoader.prototype.load_data = function(filename, service) {
         value = parseFloat(cols[1])*multiplier;
         if (service_group.convert)
           value = service_group.convert(value, warn, crit, min, max);
-        self.graph.deltas[name].o.push([to_ms(cols[0]), value]);
+        self.graph.deltas[name][rw].push([to_ms(cols[0]), value]);
       }
-      self.graph.deltas[name].o.sort(col0diff);
+      self.graph.deltas[name][rw].sort(col0diff);
+      if (rw=="i")
+        self.graph.deltas[name].j = arrayinverse(self.graph.deltas[name].i);
     }
     self.file_loaded();
   }).fail(function(jqXHR, textStatus, error) {
