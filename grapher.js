@@ -1325,10 +1325,16 @@ StorageLoader.prototype.load_compellent = function(filename) {
     url: filename,
     dataType: "xml"
   }).done(function(data) {
-    var l2 = data.getElementsByTagName("return")[0].innerHTML;
-    // HTML processing is very slow in Chrome, replaced by regular expression
-    //var rows = $($('<div/>').html(l2).text()).find("Data").text().split(":");
-    var rows = l2.split(/&lt;\/?Data&gt;/)[1].split(":");
+    var rows, l2 = data.getElementsByTagName("return")[0].innerHTML;
+    if (l2===undefined) {
+      // IE has no innerHTML for this element
+      l2 = $($(data.getElementsByTagName("return")).text()).find("data").text();
+      rows = l2.split(":");
+    } else {
+      // HTML processing is very slow in Chrome, replaced by regular expression
+      //var rows = $($('<div/>').html(l2).text()).find("Data").text().split(":");
+      rows = l2.split(/&lt;\/?Data&gt;/)[1].split(":");
+    }
     var sizeunit = 1024;
     for (var row_id=0; row_id<rows.length; row_id++) {
       if (rows[row_id]=="") continue;
