@@ -10,6 +10,7 @@ Source1:	http://www.flotcharts.org/downloads/flot-0.8.3.tar.gz
 BuildArch:      noarch
 
 #Requires:       nodejs-flot
+#Requires:       js-jquery1
 
 %description
 TrafGrapher is an javascript script to collect and display data.
