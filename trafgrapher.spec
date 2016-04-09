@@ -39,6 +39,20 @@ ln -s ../share/%{name}/compellent.py $RPM_BUILD_ROOT%{_bindir}/tg_compellent
 ln -s ../share/%{name}/process_perfdata.py $RPM_BUILD_ROOT%{_bindir}/tg_process_perfdata
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/httpd/conf.d
 cat > $RPM_BUILD_ROOT%{_sysconfdir}/httpd/conf.d/trafgrapher.conf << EOF
+<Directory /usr/share/trafgrapher/web>
+    Options SymLinksifOwnerMatch
+    <IfModule mod_authz_core.c>  
+        # Apache 2.4
+        Require all granted
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        # Apache 2.2
+        AllowOverride None
+        Order allow,deny
+        Allow from all      
+    </IfModule>
+</Directory>
+
 Alias /trafgrapher %{_datadir}/%{name}/web
 #Alias /trafgrapher/flot /usr/lib/node_modules/flot
 EOF
