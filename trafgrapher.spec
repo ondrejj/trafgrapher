@@ -9,8 +9,10 @@ Source0:        http://www.salstar.sk/pub/trafgrapher/trafgrapher-%{version}.tgz
 Source1:	http://www.flotcharts.org/downloads/flot-0.8.3.tar.gz
 BuildArch:      noarch
 
+BuildRequires:  js-jquery1
+
+Requires:       js-jquery1
 #Requires:       nodejs-flot
-#Requires:       js-jquery1
 
 %description
 TrafGrapher is an javascript script to collect and display data.
@@ -28,6 +30,8 @@ ln -s network.html index.html
 mv *.css *.html *.js web/
 tar xvzf %{SOURCE1} -C web --exclude '._*'
 rm -rf web/flot/examples
+rm web/flot/jquery.js web/flot/jquery.min.js
+ln -s /usr/share/javascript/jquery/1/* web/flot/
 
 
 %install
@@ -62,6 +66,8 @@ EOF
 %files
 %defattr(-,root,root)
 %doc README.md
+%{!?_licensedir:%global license %%doc}
+%license LICENSE.txt
 %config(noreplace) %verify(not md5 size mtime) %{_sysconfdir}/httpd/conf.d/trafgrapher.conf
 %{_bindir}/*
 %{_datadir}/%{name}
