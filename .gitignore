@@ -1,4 +1,4 @@
 flot
 mrtg
 *.py[co]
-rsync.sh
+rebuild.sh
