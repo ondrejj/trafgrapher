@@ -936,7 +936,7 @@ Loader = function(graph, index_files) {
   graph.deltas = {};
   graph.info = {};
   // set current interval
-  if (!graph.range_from || !graph.range_to)
+  if (!graph.range_from || !graph.range_to || graph.custom_range===false)
     graph.reset_range();
   this.graph.placeholder.empty();
 };
