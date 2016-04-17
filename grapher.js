@@ -442,7 +442,15 @@ Graph.prototype.urllink = function() {
   if (this.custom_range) {
     url += "&rf=" + this.range_from + "&rt=" + this.range_to;
   }
-  window.location = window.location.href.split("?")[0] + url;
+  if (history.pushState) {
+    history.pushState(
+      {"params": url},
+      url,
+      window.location.href.split("?")[0] + url
+    );
+  } else {
+    window.location = window.location.href.split("?")[0] + url;
+  }
 };
 
 // Menu commands
