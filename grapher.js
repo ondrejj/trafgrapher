@@ -307,8 +307,8 @@ Graph.prototype.add_plot_callbacks = function(placeholder) {
        ).css(tooltip_position)
         .show();
       // display information from json file
-      if (self.index_mode=="json" && self.deltas[label]['info']) {
-        var table = ['<table>'], info = self.deltas[label]['info'],
+      if (self.index_mode=="json" && self.info[label].info) {
+        var table = ['<table>'], info = self.info[label].info,
             ftime = new Date(item.datapoint[0]).toLocaleString();
         table.push("<tr><td>Time</td><td>"+ftime+"</td></tr>");
         for (var key in info)
@@ -321,9 +321,9 @@ Graph.prototype.add_plot_callbacks = function(placeholder) {
         self.find("info_table").html($(table.join('\n')));
       }
       // load table information from MRTG html file
-      if (self.index_mode=="mrtg" && self.deltas[label]['html']) {
+      if (self.index_mode=="mrtg" && self.info[label].html) {
         $.ajax({
-          url: self.deltas[label]['html'],
+          url: self.info[label].html,
           dataType: "html"
         }).done(function(data) {
           // don't load images from .html
