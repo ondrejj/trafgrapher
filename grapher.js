@@ -89,7 +89,14 @@ function unit_si(val, axis, unit) {
   if (typeof(axis)=="number") precision = axis;
   if (unit===undefined && axis) unit = axis.options.si_unit;
   if (unit=="ms") {
-    if (aval>=k) return (aval/k).toFixed(precision)+" s";
+    aval = aval/1000;
+    unit = "s";
+  }
+  if (unit=="s") {
+    if (aval<0.001)
+      return (aval*1000000).toFixed(precision)+" us";
+    if (aval<1)
+      return (aval*1000).toFixed(precision)+" ms";
   } else {
     if (aval>=(k*k*k*k*k))
       return (aval/k/k/k/k/k).toFixed(precision)+" P"+unit;
@@ -284,7 +291,7 @@ Graph.prototype.add_plot_callbacks = function(placeholder) {
       // compute bytes
       var graph_type = item.series.label.gt,
           unit = self.get_unit(label);
-      var value = unit_si(item.datapoint[1], 2, unit),
+      var value = unit_si(item.datapoint[1], 3, unit),
           sum_value = unit_si(
             self.arraybytes(self.deltas[label][graph_type]), null, 'iB'
           ),
@@ -1624,7 +1631,7 @@ service_groups = {
   ping_rta: {
     name: "Ping RTA",
     search: /PING\/(rta|rtmin|rtmax)/,
-    unit: "ms"
+    unit: "s"
   },
   ping_pl: {
     name: "Ping loss",
@@ -1634,7 +1641,7 @@ service_groups = {
   latency: {
     name: "Latency",
     search: /.*\/time$/,
-    unit: "ms"
+    unit: "s"
   },
   size: {
     name: "Reply size",
@@ -1654,7 +1661,7 @@ service_groups = {
   check_mk: {
     name: "Check MK",
     search: /Check_MK\/./,
-    unit: "ms"
+    unit: "s"
   },
   other: {
     name: "Other",
