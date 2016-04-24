@@ -83,31 +83,43 @@ function to_ms(value) {
 }
 
 // Convert unit to kilo, mega, giga or tera.
+function guessPrecision(ticksize) {
+  if (ticksize<0.01) return 3
+  else if (ticksize<0.1) return 2
+  else if (ticksize<1) return 1
+  return 0;
+}
 function unit_si(val, axis, unit) {
-  var k = 1024, precision = 2, aval = Math.abs(val);
-  if (axis && axis.tickDecimals) precision = axis.tickDecimals;
+  var ki = 1024, precision = 3, aval = Math.abs(val);
   if (typeof(axis)=="number") precision = axis;
-  if (unit===undefined && axis) unit = axis.options.si_unit;
+  else if (axis && axis.tickSize) precision = guessPrecision(axis.tickSize);
+  if (axis && unit===undefined) unit = axis.options.si_unit;
   if (unit=="ms") {
     aval = aval/1000;
     unit = "s";
   }
   if (unit=="s") {
-    if (aval<0.001)
+    if (aval<0.001) {
+      if (axis && axis.tickSize)
+        precision = guessPrecision(axis.tickSize*1000000);
       return (aval*1000000).toFixed(precision)+" us";
-    if (aval<1)
+    }
+    if (aval<1) {
+      if (axis && axis.tickSize)
+        precision = guessPrecision(axis.tickSize*1000);
       return (aval*1000).toFixed(precision)+" ms";
+    }
   } else {
-    if (aval>=(k*k*k*k*k))
-      return (aval/k/k/k/k/k).toFixed(precision)+" P"+unit;
-    if (aval>=(k*k*k*k))
-      return (aval/k/k/k/k).toFixed(precision)+" T"+unit;
-    if (aval>=(k*k*k))
-      return (aval/k/k/k).toFixed(precision)+" G"+unit;
-    if (aval>=(k*k))
-      return (aval/k/k).toFixed(precision)+" M"+unit;
-    if (aval>=k)
-      return (aval/k).toFixed(precision)+" k"+unit;
+    if (aval>=(ki*ki*ki*ki*ki))
+      return (aval/ki/ki/ki/ki/ki).toFixed(precision)+" P"+unit;
+    if (aval>=(ki*ki*ki*ki))
+      return (aval/ki/ki/ki/ki).toFixed(precision)+" T"+unit;
+    if (aval>=(ki*ki*ki))
+      return (aval/ki/ki/ki).toFixed(precision)+" G"+unit;
+    if (aval>=(ki*ki))
+      return (aval/ki/ki).toFixed(precision)+" M"+unit;
+    if (aval>=ki)
+      return (aval/ki).toFixed(precision)+" k"+unit;
   }
   if (unit && unit[0]=="i" && unit[1]!="o")
     return aval.toFixed(precision)+" "+unit.substr(1);
@@ -712,8 +724,7 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
     xaxis: { mode: "time", timezone: "browser" },
     yaxis: {
       tickFormatter: unit_si,
-      si_unit: unit,
-      tickDecimals: 1
+      si_unit: unit
     },
     legend: { show: false },
     grid: { hoverable: true, clickable: true },
