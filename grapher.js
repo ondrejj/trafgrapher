@@ -4,7 +4,7 @@
   Licensed under the MIT license.
 */
 
-var trafgrapher_version = '2.1',
+var trafgrapher_version = '2.2',
     one_hour = 3600000,
     last_reload = null;
 
@@ -361,6 +361,7 @@ Graph.prototype.add_plot_callbacks = function(placeholder) {
     if (item) {
       var label = item.series.label.name,
           checkbox = self.div.find("input#cb"+self.ID+label.escapeSelector());
+      $("#tooltip").hide();
       checkbox.prop("checked", !checkbox.prop("checked") );
       if (self.groups) {
         for (var srvi in self.groups)
@@ -1036,7 +1037,7 @@ JSONLoader.prototype.load_log = function(filename, args) {
     lines = lines.filter(function(row) {
       return row[0]; // filter out empty values
     }).map(function(row) {
-      return row.split(" ").map(function(col) { return parseInt(col); });
+      return row.split(" ").map(function(col) { return parseFloat(col); });
     });
     lines.sort(col0diff);
     for (var line=0; line<lines.length; line++) {
@@ -1075,26 +1076,54 @@ JSONLoader.prototype.load_index = function(url) {
     cache: false
   }).done(function(data) {
     var files = [];
-    for (var port_id in data.ifs) {
-      for (var i in excluded_interfaces)
-        if (data.ifs[port_id].ifDescr.search(excluded_interfaces[i])>=0) {
-          port_id = null;
-          break;
+    if (data.ifs) {
+      for (var port_id in data.ifs) {
+        for (var i in excluded_interfaces)
+          if (data.ifs[port_id].ifDescr.search(excluded_interfaces[i])>=0) {
+            port_id = null;
+            break;
+          }
+        if (port_id===null) continue;
+        var ethid = data.ip.replace(/[^a-z0-9]/gi, '_')
+                  + port_id.replace(".", "_");
+        function get_if_name(ifs) {
+          if (ifs[port_id].ifAlias) return ifs[port_id].ifAlias;
+          if (data.ifs[port_id].ifDescr=="Ethernet Interface") {
+            // linksys
+            return data.ifs[port_id].ifDescr + " " + data.ifs[port_id].ifName;
+          }
+          return data.ifs[port_id].ifDescr;
         }
-      if (port_id===null) continue;
-      var ethid = data.ip.replace(/[^a-z0-9]/gi, '_')
-                + port_id.replace(".", "_");
-      files.push({
-        'filename': urldir + data.ifs[port_id].log,
-        'port_id': port_id,
-        'ethid': ethid,
-        'name': data.ifs[port_id].ifAlias || data.ifs[port_id].ifDescr,
-        'ip': data.ip,
-        'info': data.ifs[port_id]
-      });
-      if (preselect_graphs.length>0)
-        if ($.inArray(port_id, preselect_graphs)>=0)
-          self.graph.preselect_graphs.push(ethid);
+        files.push({
+          'filename': urldir + data.ifs[port_id].log,
+          'port_id': port_id,
+          'ethid': ethid,
+          'name': get_if_name(data.ifs),
+          'ip': data.ip,
+          'info': data.ifs[port_id]
+        });
+        if (preselect_graphs.length>0)
+          if ($.inArray(port_id, preselect_graphs)>=0)
+            self.graph.preselect_graphs.push(ethid);
+      }
+    }
+    if (data.oids) {
+      self.graph.unit_type.val("B");
+      for (var oid in data.oids) {
+        if (oid===null) continue;
+        var ethid = data.ip.replace(/[^a-z0-9]/gi, '_')
+                  + oid.replace(".", "_");
+        files.push({
+          'filename': urldir + data.oids[oid].log,
+          'ethid': ethid,
+          'name': data.oids[oid].description || data.oids[oid].name,
+          'ip': data.ip,
+          'info': data.oids[oid]
+        });
+        if (preselect_graphs.length>0)
+          if ($.inArray(oid, preselect_graphs)>=0)
+            self.graph.preselect_graphs.push(ethid);
+      }
     }
     self.progress.add(files.length, data.length);
     for (var fni=0; fni<files.length; fni++)

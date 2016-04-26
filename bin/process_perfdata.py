@@ -50,10 +50,10 @@ class grouper(dict):
       for t in sorted(deltas, reverse=True):
         if start-t>=limit:
           if intervals:
-            limit, range = intervals.pop(0)
+            limit, interval_range = intervals.pop(0)
           else:
             break
-        st = int(t/range)*range
+        st = int(t/interval_range)*interval_range
         self[st].append(deltas[t])
 
 class Logfiles:

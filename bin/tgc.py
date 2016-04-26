@@ -8,9 +8,8 @@ TrafGrapher client
 Licensed under the MIT license.
 
 Usage: tgc.py [--mkcfg|-c [community@]IP_or_hostname] \\
-		[--write|-w index.json] [--mkdir|-d] \\
-		[--id ifName] [--rename] [--compress|-z] \\
-		[--verbose|-v] [--check]
+		[--write|-w index.json] [--mkdir|-d] [--verbose|-v] \\
+		[--id ifName] [--rename] [--compress|-z] [--check]
        tgc.py [--verbose|-v] [community@]config.json \\
 		[--filter=timestamp]
        tgc.py [--ipset|--iptables] [-q|--quiet] download_cmd upload_cmd
@@ -35,6 +34,7 @@ def ustr(x):
     return str(x).decode("utf8", "replace")
 
 def macaddr(x):
+    '''Format as MAC address.'''
     ret = []
     try:
       x = long(x.prettyPrint()[2:], 16)
@@ -48,6 +48,7 @@ def macaddr(x):
     return ':'.join(ret)
 
 def ifspeed(speed, unit="b/s"):
+    '''Interface speed.'''
     k = 1000
     speed = long(speed)
     if (speed>=k**3): return "%d G%s" % (speed/k**3, unit)
@@ -56,9 +57,10 @@ def ifspeed(speed, unit="b/s"):
     return "%d %s" % (speed, unit)
 
 def ifhighspeed(speed):
+    '''SNMP v2 interface speed.'''
     return ifspeed(long(speed)*1000000)
 
-IFTYPES = dict([(x[1],x[0]) for x in [
+IFTYPES = dict([(itx[1],itx[0]) for itx in [
   ("other", 1),
   ("iso88026Man", 10),
   ("voiceEM", 100),
@@ -305,7 +307,6 @@ IFTYPES = dict([(x[1],x[0]) for x in [
   ("myrinet", 99)
 ]])
 
-
 def iftype(ift):
     #from pysnmp.entity.rfc3413.oneliner import cmdgen
     #cmdGen = cmdgen.CommandGenerator()
@@ -337,11 +338,43 @@ oids_io = dict(
   ifHCOutOctets=long,
 )
 
-mib_source = \
-  os.path.join(os.path.dirname(os.path.realpath(__file__)), 'pysnmp_mibs')
+oids_sensor = [
+  'entPhysicalDescr',
+  'entSensorType',
+  'entSensorScale',
+  'entSensorPrecision',
+  'entSensorValue',
+]
+
+OID_TABLE = dict(
+  ifIndex = "1.3.6.1.2.1.2.2.1.1",
+
+  ifDescr = "1.3.6.1.2.1.2.2.1.2",
+  ifName = "1.3.6.1.2.1.31.1.1.1.1",
+  ifAlias = "1.3.6.1.2.1.31.1.1.1.18",
+  ifType = "1.3.6.1.2.1.2.2.1.3",
+  ifMtu = "1.3.6.1.2.1.2.2.1.4",
+  ifSpeed = "1.3.6.1.2.1.2.2.1.5",
+  ifHighSpeed = "1.3.6.1.2.1.31.1.1.1.15",
+  ifPhysAddress = "1.3.6.1.2.1.2.2.1.6",
+  ifAdminStatus = "1.3.6.1.2.1.2.2.1.7",
+  ifOperStatus = "1.3.6.1.2.1.2.2.1.8",
+
+  ifHCInOctets = "1.3.6.1.2.1.31.1.1.1.6",
+  ifHCOutOctets = "1.3.6.1.2.1.31.1.1.1.10",
+
+  entPhysicalDescr = "1.3.6.1.2.1.47.1.1.1.1.2",
+  entSensorType = "1.3.6.1.4.1.9.9.91.1.1.1.1.1",
+  entSensorScale = "1.3.6.1.4.1.9.9.91.1.1.1.1.2",
+  entSensorPrecision = "1.3.6.1.4.1.9.9.91.1.1.1.1.3",
+  entSensorValue = "1.3.6.1.4.1.9.9.91.1.1.1.1.4"
+)
 
 class SNMP:
   port = 161
+  sensor_datatypes = dict(enumerate(
+    ",,,V,V,A,W,Hz,C,%,rpm,cmm,,,dBm".split(",")
+  ))
   def __init__(self, addr, community_name="public"):
       import site
       from pysnmp.entity.rfc3413.oneliner import cmdgen
@@ -351,20 +384,22 @@ class SNMP:
       self.addr = addr
       self.community = cmdgen.CommunityData(community_name)
       self.transport = cmdgen.UdpTransportTarget((addr, self.port))
-  def get_info(self, ifid='ifIndex', log_prefix=None, oids=oids_info):
-      if log_prefix is None:
-        log_prefix = self.addr
-
+  def oid(self, prefix, suffix, *ids):
+      if prefix=="" or suffix in OID_TABLE:
+        if ids:
+          return OID_TABLE.get(suffix, suffix) \
+               + "." + (".".join([str(x) for x in ids]))
+        else:
+          return OID_TABLE.get(suffix, suffix)
+      return self.cmdgen.MibVariable(prefix, suffix, *ids)
+               #.addMibSource(mib_source)
+  def get_data(self, prefix, oids):
       errorIndication, errorStatus, errorIndex, varBindTable = \
         self.cmdGen.nextCmd(
           self.community,
           self.transport,
-          *[
-            self.cmdgen.MibVariable('IF-MIB', x).addMibSource(mib_source)
-            for x in oids
-           ]
+          *[self.oid(prefix, x) for x in oids]
         )
-
       if errorIndication:
         print(errorIndication)
       elif errorStatus:
@@ -374,42 +409,72 @@ class SNMP:
           )
         )
       else:
-        ret = {}
-        for row in varBindTable:
-          data = dict([
-            (x[0].replace("ifHC", "if"), oids[x[0]](x[1][1]))
-            for x in zip(oids, row)
-          ])
-          # check IO retrieval
-          ifindex = data['ifIndex']
-          io = self.getall([ifindex])
-          if io[ifindex]['error']:
-            print("Unable to get 64bit IO for id %s, ignoring ..." % ifindex)
-            if VERBOSE:
-              print(data)
-              print(io)
-            continue
-          # ignored types and names
-          if 'ifType' in data and data['ifType']=='ieee8023adLag':
-            continue
-          # use HighSpeed if possible
-          if 'ifHighSpeed' in data:
-            data['ifSpeed'] = data['ifHighSpeed']
-            del data['ifHighSpeed']
+        return varBindTable
+      return []
+  def get_info(self, ifid='ifIndex', log_prefix=None, oids=oids_info):
+      ret = {}
+      for row in self.get_data("IF-MIB", oids):
+        data = dict([
+          (x[0].replace("ifHC", "if"), oids[x[0]](x[1][1]))
+          for x in zip(oids, row)
+        ])
+        # check IO retrieval
+        ifindex = data['ifIndex']
+        io = self.getall([ifindex])
+        if io[ifindex]['error']:
+          print("Unable to get 64bit IO for id %s, ignoring ..." % ifindex)
+          if VERBOSE:
+            print(data)
+            print(io)
+          continue
+        # ignored types and names
+        if 'ifType' in data and data['ifType']=='ieee8023adLag':
+          continue
+        # use HighSpeed if possible
+        if 'ifHighSpeed' in data:
+          data['ifSpeed'] = data['ifHighSpeed']
+          del data['ifHighSpeed']
+        if log_prefix is not None:
           # append to log
           data['log'] = "%s_%s.log" % (log_prefix,
             data[ifid].lower().replace("/", "_")
           )
-          if data['ifName']!='Nu0':
-            ret[ifindex] = data
-        return ret
+        if data['ifName']!='Nu0':
+          ret[ifindex] = data
+      return ret
+  def get_sensors(self):
+      ret = {}
+      receive_sensor_string = " Receive Power Sensor"
+      infos = dict(
+        (x['ifDescr'], x)
+        for x in self.get_info().values()
+      )
+      #import IPython;IPython.embed()
+      for row in self.get_data("", oids_sensor[:1]):
+        if str(row[0][1]).endswith(receive_sensor_string):
+          id = row[0][0].asTuple()[-1]
+          interface = str(row[0][1]).replace(receive_sensor_string, "")
+          datatype, scale, precision, value \
+            = self.getsome("", oids_sensor[1:], [id])
+          scale = 1000**(float(scale)-9)
+          precision = 10**float(precision)
+          value = float(value)*scale/precision
+          ret[self.oid("", oids_sensor[-1], id)] = dict(
+            log = "%s_%s.log" % (self.addr, id),
+            unit = self.sensor_datatypes.get(int(datatype), ""),
+            scale = scale/precision,
+            description = interface,
+            name = interface,
+            **infos.get(interface, {}) # update with interface info
+          )
+      return ret
   def get_uptime(self):
       errorIndication, errorStatus, errorIndex, varBindTable = \
         self.cmdGen.nextCmd(
           self.community, self.transport,
           self.cmdgen.MibVariable(
             'SNMPv2-MIB', 'sysUpTime'
-          ).addMibSource(mib_source)
+          )#.addMibSource(mib_source)
         )
       if not varBindTable:
         print "%s: %s" % (self.addr, errorIndication)
@@ -421,7 +486,11 @@ class SNMP:
         request = [ids.pop(0)]
         while ids and len(request)<n:
           request.append(ids.pop(0))
-        result = self.getsome(request)
+        result = self.getsome(
+          "IF-MIB",
+          ["ifHCInOctets", "ifHCOutOctets"],
+          request
+        )
         for id in request:
           try:
             ino = result.pop(0)
@@ -438,14 +507,18 @@ class SNMP:
                       % (self.addr, self.port, id)
             )
       return ret
-  def getsome(self, ids):
+  def getsome(self, prefix="", suffixes=[], ids=[]):
       mibvars = []
-      for id in ids:
+      if ids:
+        for id in ids:
+          mibvars.extend([
+            self.oid(prefix, suffix, int(id))
+            for suffix in suffixes
+          ])
+      else:
         mibvars.extend([
-          self.cmdgen.MibVariable('IF-MIB', 'ifHCInOctets', int(id)
-            ).addMibSource(mib_source),
-          self.cmdgen.MibVariable('IF-MIB', 'ifHCOutOctets', int(id)
-            ).addMibSource(mib_source)
+          self.oid(prefix, str(suffix))
+          for suffix in suffixes
         ])
       errorIndication, errorStatus, errorIndex, varBinds = self.cmdGen.getCmd(
         self.community,
@@ -458,16 +531,19 @@ class SNMP:
       elif errorStatus:
         print('%s at %s' % (
             errorStatus.prettyPrint(),
-            errorIndex and varBindTable[-1][int(errorIndex)-1] or '?'
+            errorIndex and varBinds[-1][int(errorIndex)-1] or '?'
           )
         )
         return []
       ret = []
       try:
         vars = dict(varBinds)
+        svars = dict([(str(x[0]), x[1]) for x in vars.items()])
         for key in mibvars:
           if key in vars:
             ret.append(vars[key])
+          if key in svars:
+            ret.append(svars[key])
       except AttributeError, err:
         print(err, id)
       return ret
@@ -512,8 +588,9 @@ class grouper(dict):
         self[st].append(deltas[t])
 
 class logfile:
-  counter_format = "%010d %020d %020d\n"
-  counter_length = len(counter_format % (0, 0, 0))
+  header_format = "%010d %020d %020d\n"
+  header_length = len(header_format % (0, 0, 0))
+  data_format = "%d %d %d %d %d\n"
   def __init__(self, filename, force_compress=False):
       self.filename = filename
       self.deltas = {}
@@ -522,13 +599,18 @@ class logfile:
         self.open(self.filename, "rb+")
         counter = self.f.readline()
         if counter:
-          self.counter = tuple(long(x, 10) for x in counter.split(" ", 2))
+          counter_split = counter.split(" ", 2)
+          self.counter = (
+            long(counter_split[0]),
+            self.data_type(counter_split[1]),
+            self.data_type(counter_split[2])
+          )
           if self.counter[0]//grouper.one_day != time.time()//grouper.one_day:
             # next day, force compress
             force_compress = True
         else:
           self.counter = ()
-        if len(counter)!=self.counter_length:
+        if len(counter)!=self.header_length:
           # load deltas and convert this file from MRTG to trafgrapher
           print("Converting file:", self.filename)
           self.load()
@@ -541,11 +623,16 @@ class logfile:
   def open(self, filename, mode):
       self.f = open(filename, mode)
       fcntl.flock(self.f, fcntl.LOCK_EX|fcntl.LOCK_NB)
+  def data_type(self, value):
+      return long(value, 10)
   def load(self):
       for row in self.f.readlines():
         if row.strip():
-          data = tuple(long(x, 10) for x in row.split(" ", 4))
-          self.deltas[data[0]] = data[1:]
+          row_split = row.split(" ", 4)
+          self.deltas[long(row_split[0])] \
+            = tuple(self.data_type(x) for x in row_split[1:])
+  def header(self):
+      return self.header_format % self.counter
   def save(self, delta):
       if self.deltas:
         # save data when converting to new format
@@ -554,16 +641,18 @@ class logfile:
         self.deltas[delta[0]] = delta[1:] # add current values
         self.compress()
         self.open(self.filename+'.tmp', "wb")
-        self.f.write(self.counter_format % self.counter)
+        if self.header_format:
+          self.f.write(self.header())
         for t in sorted(self.deltas, reverse=True):
-          self.f.write("%d %d %d %d %d\n" % tuple([t]+list(self.deltas[t])))
+          self.f.write(self.data_format % tuple([t]+list(self.deltas[t])))
         self.f.close()
         os.rename(self.filename+'.tmp', self.filename)
       else:
         self.f.seek(0)
-        self.f.write(self.counter_format % self.counter)
+        if self.header_format:
+          self.f.write(self.header())
         self.f.seek(0, 2) # EOF
-        self.f.write("%d %d %d %d %d\n" % delta)
+        self.f.write(self.data_format % delta)
         self.f.close()
   def update(self, data_in, data_out,
              gauge_in=False, gauge_out=False,
@@ -609,16 +698,52 @@ class logfile:
       grp.load(self.deltas, self.counter[0])
       self.deltas = dict(grp.items())
   def filter(self, filter):
+      '''
+      Filter out data
+      '''
       if not filter:
         return self
       self.load()
-      #for key, value in self.deltas.items():
-      #  print key, value
       for key in filter.split(","):
         key = int(key)
         if key in self.deltas:
           del self.deltas[key]
       return self
+
+class logfile_simple(logfile):
+  header_format = "%s\t%s\t%s\t%s\n"
+  data_type = float
+  data_format = "%d %s\n"
+  def __init__(self, filename, header, force_compress=False):
+      self.filename = filename
+      self.header_data = header
+      self.deltas = {}
+      try:
+        mtime = os.stat(self.filename).st_mtime
+        # binary mode required to allow seeking
+        self.open(self.filename, "rb+")
+        header = self.f.readline() # read header
+        if mtime//grouper.one_day < time.time()//grouper.one_day:
+          self.load()
+      except OSError:
+        self.open(self.filename, "wb")
+        self.f.write(self.header())
+  def header(self):
+      return "%s\t%s\t%s\t%s\n" % self.header_data
+  def update(self, value):
+      '''
+      Update with current value
+      '''
+      t = long(time.time()) # Local time
+      delta = (t, value)
+      self.save(delta)
+  def compress(self):
+      '''
+      Compress data
+      '''
+      grp = grouper()
+      grp.load(self.deltas)
+      self.deltas = dict(grp.items(['avg']))
 
 def update_io(cfg, tdir, community_name="public", force_compress=False,
               filter=None):
@@ -644,6 +769,23 @@ def update_io(cfg, tdir, community_name="public", force_compress=False,
           uptime = uptime,
           counter_bits=cfg['ifs'][idx].get('counter_bits', 64)
         )
+
+def update_value(cfg, tdir, community_name="public", force_compress=False,
+                 filter=None):
+    ids = cfg['oids'].keys()
+    IP = cfg['ip']
+    snmpc = SNMP(IP, community_name)
+    for val, data in zip(snmpc.getsome("", cfg['oids'].keys()), cfg['oids'].values()):
+      #print float(val)*data['scale'], data
+      logfile_simple(
+        os.path.join(tdir, data['log']),
+        (cfg.get('name', IP), 'receive_power', data['name'], data['unit']),
+        force_compress
+      ).filter(
+        filter
+      ).update(
+        float(val)*data['scale']
+      )
 
 def read_file(filename, row_name, column):
     for row in open(filename, "r").readlines():
@@ -689,6 +831,7 @@ def update_local(cfg, tdir, force_compress=False):
 # ipset and iptables counters for firewall accounting
 
 class fwcounter_base():
+  cmd = "" # redefined in subclass
   def read(self):
       self.bytes = {}
       self.packets = {}
@@ -793,12 +936,18 @@ def process_configs(files):
         cfg = json.load(open(fn))
         tdir = os.path.dirname(os.path.realpath(fn))
         force_compress = ('-z' in opts) or ('--compress' in opts)
-        update_io(cfg, tdir, community, force_compress, filter=filter)
+        if 'ifs' in cfg:
+          update_io(cfg, tdir, community, force_compress, filter=filter)
+        elif 'oids' in cfg:
+          update_value(cfg, tdir, community, force_compress, filter=filter)
+        else:
+          print "Missing ifs or oids in cfg file!"
 
 if __name__ == "__main__":
   opts, files = getopt.gnu_getopt(sys.argv[1:], 'hctzw:dvq',
     ['help', 'mkcfg', 'test', 'write=', 'mkdir', 'id=', 'rename',
      'verbose', 'quiet', 'check', 'filter=', 'local',
+     'sensors',
      'iptables', 'ipset'])
   opts = dict(opts)
   if "--verbose" in opts or "-v" in opts:
@@ -827,45 +976,51 @@ if __name__ == "__main__":
       print("Connecting to: %s@%s" % (community, name))
     else:
       print("Connecting to: %s@%s [%s]" % (community, name, log_prefix))
-    ifs = SNMP(name, community).get_info(ifid, log_prefix)
+    ret = {}
+    if "--sensors" in opts:
+      result = SNMP(name, community).get_sensors()
+      ret['oids'] = result
+    else:
+      result = SNMP(name, community).get_info(ifid, log_prefix)
+      ret['ifs'] = result
     ret = json.dumps(
-      dict(name = name, ip = socket.gethostbyname(name), ifs = ifs),
+      dict(name = name, ip = socket.gethostbyname(name), **ret),
       indent=2, separators=(',', ': ')
     )
     if "--write" in opts:
       out_filename = opts["--write"]
-      dir = os.path.dirname(out_filename)
+      dirname = os.path.dirname(out_filename)
     elif "-w" in opts:
       out_filename = opts["-w"]
-      dir = os.path.dirname(out_filename)
+      dirname = os.path.dirname(out_filename)
     else:
       out_filename = ""
       print(ret)
-      dir = "."
+      dirname = "."
     if "--rename" in opts:
       if not out_filename:
         print "ERROR: --write filename required for --rename option"
         sys.exit(1)
       rename_from = json.load(open(out_filename))
-    if ifs:
+    if result:
       if "--check" in opts:
-        for key, value in ifs.items():
-          if not os.path.exists(os.path.join(dir, value['log'])):
+        for key, value in result.items():
+          if not os.path.exists(os.path.join(dirname, value['log'])):
             print("Missing log file: %s" % value['log'])
       if out_filename:
         if "--rename" in opts:
           rename_from = json.load(open(out_filename))
-          for id in ifs:
+          for id in result:
             old_name = rename_from['ifs'][id]['log']
-            if os.path.exists(old_name) and not os.path.exists(ifs[id]['log']):
-              print "Rename: %s -> %s" % (old_name, ifs[id]['log'])
-              os.rename(old_name, ifs[id]['log'])
+            if os.path.exists(old_name) and not os.path.exists(result[id]['log']):
+              print "Rename: %s -> %s" % (old_name, result[id]['log'])
+              os.rename(old_name, result[id]['log'])
         if os.path.exists(out_filename):
           os.rename(out_filename, out_filename+".old")
         if "--mkdir" in opts or "-d" in opts:
-          if not os.path.isdir(dir):
-            print("Creating missing directory: %s" % dir)
-            os.makedirs(dir)
+          if not os.path.isdir(dirname):
+            print("Creating missing directory: %s" % dirname)
+            os.makedirs(dirname)
         open(out_filename, "wt").write(ret)
         print("Update command: %s %s@%s"
               % (sys.argv[0], community, out_filename))
