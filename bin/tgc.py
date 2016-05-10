@@ -21,7 +21,12 @@ Examples:
   tgc --ipset "ipset list acc_download" "ipset list acc_upload" [index_file]
 '''
 
+from __future__ import print_function
+
 import sys, os, fcntl, socket, time, json, getopt
+
+if sys.version_info[0]>2: # python3
+  long = int
 
 VERBOSE = False
 QUIET = False
@@ -58,6 +63,8 @@ def ifspeed(speed, unit="b/s"):
 
 def ifhighspeed(speed):
     '''SNMP v2 interface speed.'''
+    if not str(speed).isdigit():
+      return None
     return ifspeed(long(speed)*1000000)
 
 IFTYPES = dict([(itx[1],itx[0]) for itx in [
@@ -422,7 +429,8 @@ class SNMP:
         ifindex = data['ifIndex']
         io = self.getall([ifindex])
         if io[ifindex]['error']:
-          print("Unable to get 64bit IO for id %s, ignoring ..." % ifindex)
+          print("Unable to get 64bit IO for id %s [%s], ignoring ..."
+                % (ifindex, data.get("ifName", "")))
           if VERBOSE:
             print(data)
             print(io)
@@ -432,7 +440,8 @@ class SNMP:
           continue
         # use HighSpeed if possible
         if 'ifHighSpeed' in data:
-          data['ifSpeed'] = data['ifHighSpeed']
+          if data['ifHighSpeed'] is not None:
+            data['ifSpeed'] = data['ifHighSpeed']
           del data['ifHighSpeed']
         if log_prefix is not None:
           # append to log
@@ -477,10 +486,10 @@ class SNMP:
           )#.addMibSource(mib_source)
         )
       if not varBindTable:
-        print "%s: %s" % (self.addr, errorIndication)
+        print("%s: %s" % (self.addr, errorIndication))
         return None
       return float(varBindTable[0][0][1])/100
-  def getall(self, ids, n=16):
+  def getall(self, ids, ifs={}, n=16):
       ret = {}
       while ids:
         request = [ids.pop(0)]
@@ -500,11 +509,12 @@ class SNMP:
               ifOutOctets = long(outo),
               error = None
             )
-          except (AttributeError, IndexError, ValueError), err:
+          except (AttributeError, IndexError, ValueError) as err:
             ret[id] = dict(
               ifInOctets = None, ifOutOctets = None,
-              error = "No such instance: ip: %s:%d, id: %s"
-                      % (self.addr, self.port, id)
+              error = "No such instance: ip: %s:%d, id: %s [%s]"
+                      % (self.addr, self.port, id,
+                         ifs.get(id, {}).get("ifName", ""))
             )
       return ret
   def getsome(self, prefix="", suffixes=[], ids=[]):
@@ -544,8 +554,8 @@ class SNMP:
             ret.append(vars[key])
           if key in svars:
             ret.append(svars[key])
-      except AttributeError, err:
-        print(err, id)
+      except AttributeError as err:
+        print(err.args[0], id)
       return ret
 
 class grouper(dict):
@@ -753,7 +763,7 @@ def update_io(cfg, tdir, community_name="public", force_compress=False,
     uptime = snmpc.get_uptime()
     if uptime is None:
       return
-    for idx, io in snmpc.getall(ids).items():
+    for idx, io in snmpc.getall(ids, ifs=cfg['ifs']).items():
       if io['error']:
         print(io['error'])
         if VERBOSE:
@@ -776,7 +786,7 @@ def update_value(cfg, tdir, community_name="public", force_compress=False,
     IP = cfg['ip']
     snmpc = SNMP(IP, community_name)
     for val, data in zip(snmpc.getsome("", cfg['oids'].keys()), cfg['oids'].values()):
-      #print float(val)*data['scale'], data
+      #print(float(val)*data['scale'], data)
       logfile_simple(
         os.path.join(tdir, data['log']),
         (cfg.get('name', IP), 'receive_power', data['name'], data['unit']),
@@ -793,8 +803,8 @@ def read_file(filename, row_name, column):
       if row[0]==row_name:
         try:
           return int(row[column])
-        except ValueError, err:
-          sys.exit("ERROR: Unable to parse value: "+str(err))
+        except ValueError as err:
+          sys.exit("ERROR: Unable to parse value: "+str(err.args[0]))
     return 0
 
 def read_uptime(filename=None):
@@ -805,8 +815,8 @@ def read_uptime(filename=None):
       sys.exit("ERROR: Unable to read uptime (empty string).")
     try:
       return float(uptime[0])
-    except ValueError, err:
-      sys.exit("ERROR: Unable to parse uptime value: "+str(err))
+    except ValueError as err:
+      sys.exit("ERROR: Unable to parse uptime value: "+str(err.args[0]))
 
 def update_local(cfg, tdir, force_compress=False):
     for key, value in cfg['ifs'].items():
@@ -921,17 +931,17 @@ def process_configs(files):
           ps = iptables_src(cfg["cmd_src"])
           pd = iptables_dst(cfg["cmd_dst"])
         else:
-          print "Unknown command type:", cfg["cmd_type"]
+          print("Unknown command type:", cfg["cmd_type"])
           continue
         list(ps.items()), list(pd.items()) # load object
         for ip in cfg["ifs"].values():
           ipid = ip['ifName']
-          #print ip['ifName'], pd.bytes[ipid], ps.bytes[ipid]
+          #print(ip['ifName'], pd.bytes[ipid], ps.bytes[ipid])
           lf = logfile(os.path.join(prefix, ip['log']))
           if ipid in pd.bytes and ipid in ps.bytes:
             lf.update(pd.bytes[ipid], ps.bytes[ipid])
           elif not QUIET:
-            print "Missing key:", ipid
+            print("Missing key:", ipid)
       else:
         cfg = json.load(open(fn))
         tdir = os.path.dirname(os.path.realpath(fn))
@@ -941,7 +951,7 @@ def process_configs(files):
         elif 'oids' in cfg:
           update_value(cfg, tdir, community, force_compress, filter=filter)
         else:
-          print "Missing ifs or oids in cfg file!"
+          print("Missing ifs or oids in cfg file!")
 
 if __name__ == "__main__":
   opts, files = getopt.gnu_getopt(sys.argv[1:], 'hctzw:dvq',
@@ -999,7 +1009,7 @@ if __name__ == "__main__":
       dirname = "."
     if "--rename" in opts:
       if not out_filename:
-        print "ERROR: --write filename required for --rename option"
+        print("ERROR: --write filename required for --rename option")
         sys.exit(1)
       rename_from = json.load(open(out_filename))
     if result:
@@ -1013,7 +1023,7 @@ if __name__ == "__main__":
           for id in result:
             old_name = rename_from['ifs'][id]['log']
             if os.path.exists(old_name) and not os.path.exists(result[id]['log']):
-              print "Rename: %s -> %s" % (old_name, result[id]['log'])
+              print("Rename: %s -> %s" % (old_name, result[id]['log']))
               os.rename(old_name, result[id]['log'])
         if os.path.exists(out_filename):
           os.rename(out_filename, out_filename+".old")
@@ -1033,7 +1043,7 @@ if __name__ == "__main__":
       open(files[2], "wt").write(json.dumps(cfg, indent=2))
       process_configs(files[2:])
     else:
-      print json.dumps(cfg, indent=2)
+      print(json.dumps(cfg, indent=2))
   elif "--iptables" in opts:
     cfg = fwcounter_mkindex(
       socket.gethostname(), socket.gethostbyname(socket.gethostname()),
@@ -1043,7 +1053,7 @@ if __name__ == "__main__":
       open(files[2], "wt").write(json.dumps(cfg, indent=2))
       process_configs(files[2:])
     else:
-      print json.dumps(cfg, indent=2)
+      print(json.dumps(cfg, indent=2))
   elif "--test" in opts or "-t" in opts:
     print(SNMP(files[0]).getall(files[1:]))
   else:
