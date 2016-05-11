@@ -9,6 +9,7 @@ Licensed under the MIT license.
 
 Usage: tgc.py [--mkcfg|-c [community@]IP_or_hostname] \\
 		[--write|-w index.json] [--mkdir|-d] [--verbose|-v] \\
+		[--filter ifOperStatus|ifAdminStatus] \\
 		[--id ifName] [--rename] [--compress|-z] [--check]
        tgc.py [--verbose|-v] [community@]config.json \\
 		[--filter=timestamp]
@@ -418,7 +419,10 @@ class SNMP:
       else:
         return varBindTable
       return []
-  def get_info(self, ifid='ifIndex', log_prefix=None, oids=oids_info):
+  def get_info(self, ifid='ifIndex', log_prefix=None, oids=oids_info,
+               filter=None):
+      if filter:
+        oids[filter] = int
       ret = {}
       for row in self.get_data("IF-MIB", oids):
         data = dict([
@@ -448,6 +452,11 @@ class SNMP:
           data['log'] = "%s_%s.log" % (log_prefix,
             data[ifid].lower().replace("/", "_")
           )
+        # remove filtering status
+        if filter in data:
+          if data[filter]!=1: # !UP
+            continue
+          del data[filter]
         if data['ifName']!='Nu0':
           ret[ifindex] = data
       return ret
@@ -979,9 +988,13 @@ if __name__ == "__main__":
     except:
       pass
     if "--id" in opts:
-      ifid = opts['--id']
+      ifid = opts["--id"]
     else:
       ifid = "ifIndex"
+    if "--filter" in opts:
+      iffilter = opts["--filter"]
+    else:
+      iffilter = None
     if name == log_prefix:
       print("Connecting to: %s@%s" % (community, name))
     else:
@@ -991,7 +1004,7 @@ if __name__ == "__main__":
       result = SNMP(name, community).get_sensors()
       ret['oids'] = result
     else:
-      result = SNMP(name, community).get_info(ifid, log_prefix)
+      result = SNMP(name, community).get_info(ifid, log_prefix, filter=iffilter)
       ret['ifs'] = result
     ret = json.dumps(
       dict(name = name, ip = socket.gethostbyname(name), **ret),
