@@ -20,6 +20,7 @@ Examples:
   tgc index.json
   tgc index.json --filter=`date -d '2015-07-04 02:00:00' '+%s'`
   tgc --ipset "ipset list acc_download" "ipset list acc_upload" [index_file]
+  tgc --iptables "iptables -L acc_download -vxn" "iptables -L acc_upload -vxn"
 '''
 
 from __future__ import print_function
@@ -368,6 +369,9 @@ OID_TABLE = dict(
   ifAdminStatus = "1.3.6.1.2.1.2.2.1.7",
   ifOperStatus = "1.3.6.1.2.1.2.2.1.8",
 
+  ifInOctets = "1.3.6.1.2.1.2.2.1.10",
+  ifOutOctets = "1.3.6.1.2.1.2.2.1.16",
+
   ifHCInOctets = "1.3.6.1.2.1.31.1.1.1.6",
   ifHCOutOctets = "1.3.6.1.2.1.31.1.1.1.10",
 
@@ -433,12 +437,18 @@ class SNMP:
         ifindex = data['ifIndex']
         io = self.getall([ifindex])
         if io[ifindex]['error']:
-          print("Unable to get 64bit IO for id %s [%s], ignoring ..."
+          print("Unable to get 64bit IO for id %s [%s], trying 32bit ..."
                 % (ifindex, data.get("ifName", "")))
-          if VERBOSE:
-            print(data)
-            print(io)
-          continue
+          io = self.getall([ifindex], prefix="if")
+          if io[ifindex]['error']:
+            print("Unable to get IO for id %s [%s], ignoring ..."
+                  % (ifindex, data.get("ifName", "")))
+            if VERBOSE:
+              print(data)
+              print(io)
+            continue
+          else:
+            data["_counter_size"] = 32
         # ignored types and names
         if 'ifType' in data and data['ifType']=='ieee8023adLag':
           continue
@@ -498,15 +508,18 @@ class SNMP:
         print("%s: %s" % (self.addr, errorIndication))
         return None
       return float(varBindTable[0][0][1])/100
-  def getall(self, ids, ifs={}, n=16):
+  def getall(self, ids, ifs={}, n=16, prefix="ifHC"):
       ret = {}
       while ids:
         request = [ids.pop(0)]
         while ids and len(request)<n:
           request.append(ids.pop(0))
+        # override to 32bit, if configured
+        if ifs.get(request[0], {}).get("_counter_size", 0)==32:
+          prefix = "if"
         result = self.getsome(
           "IF-MIB",
-          ["ifHCInOctets", "ifHCOutOctets"],
+          [prefix+"InOctets", prefix+"OutOctets"],
           request
         )
         for id in request:
@@ -794,7 +807,8 @@ def update_value(cfg, tdir, community_name="public", force_compress=False,
     ids = cfg['oids'].keys()
     IP = cfg['ip']
     snmpc = SNMP(IP, community_name)
-    for val, data in zip(snmpc.getsome("", cfg['oids'].keys()), cfg['oids'].values()):
+    vals = snmpc.getsome("", cfg['oids'].keys())
+    for val, data in zip(vals, cfg['oids'].values()):
       #print(float(val)*data['scale'], data)
       logfile_simple(
         os.path.join(tdir, data['log']),
@@ -870,7 +884,7 @@ class ipset(fwcounter_base):
 
 class iptables_src(fwcounter_base):
   type = "iptables"
-  ip_column = 7
+  ip_column = -2
   def __init__(self, cmd):
       self.cmd = cmd
   def items(self):
@@ -882,7 +896,7 @@ class iptables_src(fwcounter_base):
         yield cols[self.ip_column], int(cols[1]), int(cols[0])
 
 class iptables_dst(iptables_src):
-  ip_column = iptables_src.ip_column - 1
+  ip_column = -1
 
 def fwcounter_mkindex(name, ip, parser_src, parser_dst):
     cfg = dict(
@@ -1060,7 +1074,7 @@ if __name__ == "__main__":
   elif "--iptables" in opts:
     cfg = fwcounter_mkindex(
       socket.gethostname(), socket.gethostbyname(socket.gethostname()),
-      iptables_src(files[0]), iptables_dst(files[1])
+      iptables_src(files[1]), iptables_dst(files[0])
     )
     if len(files)>2:
       open(files[2], "wt").write(json.dumps(cfg, indent=2))
