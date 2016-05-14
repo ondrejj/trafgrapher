@@ -13,7 +13,7 @@ Usage: tgc.py [--mkcfg|-c [community@]IP_or_hostname] \\
 		[--id ifName] [--rename] [--compress|-z] [--check]
        tgc.py [--verbose|-v] [community@]config.json \\
 		[--filter=timestamp]
-       tgc.py [--ipset|--iptables] [-q|--quiet] download_cmd upload_cmd
+       tgc.py --ipset|--iptables [-q|--quiet] download_cmd upload_cmd
 
 Examples:
   tgc -c public@10.0.0.1 -w index.json
@@ -25,7 +25,7 @@ Examples:
 
 from __future__ import print_function
 
-import sys, os, fcntl, socket, time, json, getopt
+import sys, os, re, fcntl, socket, time, json, getopt
 
 if sys.version_info[0]>2: # python3
   long = int
@@ -923,6 +923,31 @@ def fwcounter_mkindex(name, ip, parser_src, parser_dst):
       )
     return cfg
 
+class pid_cpu_usage():
+  def __init__(self):
+      self.ticks = float(os.sysconf(os.sysconf_names["SC_CLK_TCK"]))
+      self.load_pids()
+  def load_pids(self):
+      self.pid_stats = {}
+      for pid in os.listdir("/proc"):
+        if not pid.isdigit():
+          continue
+        try:
+          cmd = open(
+                  os.path.join("/proc", pid, "cmdline"), "r"
+                ).read().replace("\x00", " ")
+          stat = open(
+                   os.path.join("/proc", pid, "stat"), "r"
+                 ).read().split(" ")
+        except IOError:
+          continue
+        self.pid_stats[cmd] = stat
+  def cpu_usage(self, reg_name):
+      for cmd, stat in self.pid_stats.items():
+        name = re.compile(reg_name).search(cmd)
+        if name:
+          return [int(x) for x in stat[13:17]]
+
 def process_configs(files):
     filter = ""
     if "--filter" in opts:
@@ -953,6 +978,14 @@ def process_configs(files):
         elif cfg["cmd_type"] == "iptables":
           ps = iptables_src(cfg["cmd_src"])
           pd = iptables_dst(cfg["cmd_dst"])
+        elif cfg["cmd_type"] == "pid_cpu_usage":
+          usages = pid_cpu_usage()
+          for cmd_name, cmd in cfg["ifs"].items():
+            lf = logfile(os.path.join(prefix, cmd["log"]))
+            usage = usages.cpu_usage(cmd["re_cmd"])
+            if usage:
+              lf.update(usage[2]+usage[3], usage[0]+usage[1])
+          return
         else:
           print("Unknown command type:", cfg["cmd_type"])
           continue
