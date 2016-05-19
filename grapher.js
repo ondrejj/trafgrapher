@@ -280,6 +280,8 @@ Graph.prototype.get_unit = function(label) {
   var unit = this.info[label].unit;
   if (typeof(unit)=="string")
     return unit;
+  else if (this.info[label].info && this.info[label].info.unit)
+    return this.info[label].info.unit;
   else if (this.unit_type && this.unit_type.length>0)
     return unit[this.unit_type.find("option:selected").val()];
   else if (this.graph_type && this.graph_type.length>0)

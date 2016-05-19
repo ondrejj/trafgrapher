@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <title>TrafGrapher</title>
+  <link href="style.css" rel="stylesheet" type="text/css">
+  <script type="text/javascript" src="flot/jquery.min.js"></script>
+  <script type="text/javascript" src="flot/jquery.flot.min.js"></script>
+  <script type="text/javascript" src="flot/jquery.flot.time.min.js"></script>
+  <script type="text/javascript" src="flot/jquery.flot.selection.min.js"></script>
+  <!--[if lte IE 8]><script language="javascript" type="text/javascript" src="flot/excanvas.min.js"></script><![endif]-->
+  <script type="text/javascript" src="grapher.js"></script>
+</head>
+<body>
+  <div id="graph1" class="trafgrapher">
+    <div id="loader" class="loader">
+      <div id="error" class="error"></div>
+      <h1>Loading...</h1>
+      <h2 id="progress">&nbsp;</h2>
+    </div>
+    <div id="placeholder" class="graph">
+    </div>
+    <div class="selection">
+      <select id="graph_type">
+        <option value="jo" selected="selected">Avg OUT/IN</option>
+        <option value="o">Avg OUT</option>
+        <option value="i">Avg IN</option>
+        <option value="JO">Max OUT/IN</option>
+        <option value="O">Max OUT</option>
+        <option value="I">Max IN</option>
+      </select>
+      <select id="interval">
+        <option value="4">4 hours</option>
+        <option value="8">8 hours</option>
+        <option value="24" selected="selected">1 day</option>
+        <option value="72">3 days</option>
+        <option value="168">7 days</option>
+        <option value="744">1 month</option>
+        <option value="8766">1 year</option>
+        <option value="17532">2 years</option>
+        <option value="26298">3 years</option>
+      </select>
+      <select id="menu">
+        <option value="">Menu</option>
+        <option value="inv">Invert sel. [X]</option>
+        <option value="none">Select none [N]</option>
+        <option value="all">Select all [A]</option>
+        <option value="virtual">Invert virtual [V]</option>
+        <option value="zoomout">Zoom out [Z]</option>
+        <option value="reload">Reload [R]</option>
+        <option value="urllink">URL link</option>
+      </select>
+      <input type="text" value="" size="9" id="throughput" class="right"/>
+      <br/>
+      <input type="text" value="" size="30" id="description"/>
+      @ <input type="text" value="" size="20" id="switchname"/>
+      <input type="submit" value="(i)" id="toggle_info"/>
+      <input type="submit" value="(f)" id="toggle_filter"/>
+    </div>
+    <div id="info_table" class="info">
+      Interface info.<br/>
+      Hover on graph to fill this.
+    </div>
+    <ul id="filter"></ul>
+    <div class="footer">
+      <a href="http://www.salstar.sk/trafgrapher/">TrafGrapher v#.#</a>
+    </div>
+  </div>
+  <div id='tooltip' class='tooltip'></div>
+</body>
+</html>

@@ -585,8 +585,8 @@ class grouper(dict):
   compress_intervals = {
     600: 1,
     3*one_day: 300,
-    14*one_day: 1800,
-    62*one_day: 7200,
+    14*one_day: 900, #1800,
+    62*one_day: 3600, #7200,
     int(4*365.25*one_day): one_day
   }
   def __getitem__(self, key):
