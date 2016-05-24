@@ -1195,7 +1195,7 @@ MRTGLoader.prototype.load_index = function(url) {
         files.push({
           'filename': file_prefix+".log",
           'port_id': port_id,
-          'ethid': ethid,
+          'ethid': basename,
           'name': name,
           'ip': switch_ip,
           'html': file_prefix+".html"
@@ -1705,6 +1705,23 @@ service_groups = {
     search: /Check_MK\/./,
     unit: "s"
   },
+  // sagator
+  sagator_count: {
+    name: "Sagator email count",
+    search: /sagator\/.*-count/,
+    unit: "/s"
+  },
+  sagator_bytes: {
+    name: "Sagator email bytes",
+    search: /sagator\/.*-bytes/,
+    unit: "/s"
+  },
+  sagator_time: {
+    name: "Sagator time",
+    search: /sagator\/.*-time/,
+    unit: "/s"
+  },
+  // other
   other: {
     name: "Other",
     search: /./
