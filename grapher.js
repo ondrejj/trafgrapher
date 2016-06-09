@@ -1708,13 +1708,18 @@ service_groups = {
   // sagator
   sagator_count: {
     name: "Sagator email count",
+    search: /sagator\/(total|clean|spam|virus)-count/,
+    unit: "/s"
+  },
+  sagator_policy_count: {
+    name: "Sagator policy count",
     search: /sagator\/.*-count/,
     unit: "/s"
   },
   sagator_bytes: {
     name: "Sagator email bytes",
     search: /sagator\/.*-bytes/,
-    unit: "/s"
+    unit: "B/s"
   },
   sagator_time: {
     name: "Sagator time",
@@ -1770,6 +1775,12 @@ NagiosLoader.prototype.load_data = function(filename, service) {
     }
     if (service_group.unit!==undefined)
       self.graph.info[name].unit = service_group.unit;
+    if (service_group.convert) {
+      warn = parseFloat(hdr[4])*multiplier;
+      crit = parseFloat(hdr[5])*multiplier;
+      min = parseFloat(hdr[6])*multiplier;
+      max = parseFloat(hdr[7])*multiplier;
+    }
     if (hdr[3]=="c") { // counters
       rw = "o";
       if (service_group.reversed && hdr[2].search(service_group.reversed)>=0)
@@ -1779,6 +1790,8 @@ NagiosLoader.prototype.load_data = function(filename, service) {
       for (rowi=1; rowi<rows.length; rowi++) {
         cols = rows[rowi].split(" ");
         value = parseFloat(cols[1])*multiplier;
+        if (service_group.convert)
+          value = service_group.convert(value, warn, crit, min, max);
         counters.push([to_ms(cols[0]), value]);
       }
       // compute deltas
@@ -1793,12 +1806,6 @@ NagiosLoader.prototype.load_data = function(filename, service) {
         rw = "i";
       // create deltas
       var warn=null, crit=null, min=null, max=null;
-      if (service_group.convert) {
-        warn = parseFloat(hdr[4])*multiplier;
-        crit = parseFloat(hdr[5])*multiplier;
-        min = parseFloat(hdr[6])*multiplier;
-        max = parseFloat(hdr[7])*multiplier;
-      }
       if (!self.graph.deltas[name])
         self.graph.deltas[name] = {i: [], j: [], o: []};
       for (rowi=1; rowi<rows.length; rowi++) {
