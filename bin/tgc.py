@@ -508,7 +508,7 @@ class SNMP:
         print("%s: %s" % (self.addr, errorIndication))
         return None
       return float(varBindTable[0][0][1])/100
-  def getall(self, ids, ifs={}, n=16, prefix="ifHC"):
+  def getall(self, ids, ifs={}, n=8, prefix="ifHC"):
       ret = {}
       while ids:
         request = [ids.pop(0)]
@@ -999,7 +999,6 @@ def process_configs(files):
           elif not QUIET:
             print("Missing key:", ipid)
       else:
-        cfg = json.load(open(fn))
         tdir = os.path.dirname(os.path.realpath(fn))
         force_compress = ('-z' in opts) or ('--compress' in opts)
         if 'ifs' in cfg:
