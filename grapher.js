@@ -896,9 +896,10 @@ Graph.prototype.parse_query_string = function() {
   ===================
 */
 
-Progress = function(graph) {
-  this.loader = graph.find("loader");
-  this.tag = this.loader.find("[id^=progress]");
+Progress = function(graph, loader) {
+  this.data_loader = loader;
+  this.loader_tag = graph.find("loader");
+  this.tag = this.loader_tag.find("[id^=progress]");
   this.tag.text("");
   this.files_to_load = 0;
 };
@@ -908,7 +909,7 @@ Progress.prototype.echo = function() {
     this.tag.html(this.files_to_load+
       " files to load (<a href=\"#\">skip</a>)"
     );
-    this.loader.show();
+    this.loader_tag.show();
   }
 };
 
@@ -920,25 +921,26 @@ Progress.prototype.add = function(files, bytes) {
 };
 
 Progress.prototype.update = function(remaining_files) {
+  var self = this;
   if (remaining_files===undefined)
     this.files_to_load -= 1;
   else
     this.files_to_load = remaining_files;
   if (this.files_to_load>0) {
     this.echo();
-    var self = this;
     this.tag.find("a").click(function() {
-      self.file_loaded(0);
+      self.update(1); // set last file
+      self.data_loader.file_loaded();
       return false;
     });
   } else {
-    this.loader.hide();
+    this.loader_tag.hide();
   }
   return this.files_to_load;
 };
 
 Progress.prototype.error = function(msg) {
-  var error = this.loader.find("#error");
+  var error = this.loader_tag.find("#error");
   if (error.length>0) {
     error.text(msg).show();
   } else {
@@ -958,9 +960,8 @@ Progress.prototype.loading_error = function(filename, msg) {
 
 Loader = function(graph, index_files) {
   this.graph = graph;
-  //this.graph.loader = this;
   this.index_files = index_files;
-  this.progress = new Progress(graph);
+  this.progress = new Progress(graph, this);
   this.counters = {};
   graph.deltas = {};
   graph.info = {};
@@ -977,7 +978,7 @@ Loader.prototype.reload = function() {
 };
 
 // File loaded, update counter, show graph if all files processed.
-Loader.prototype.file_loaded = function(remaining_files) {
+Loader.prototype.file_loaded = function() {
   var counters = this.counters, deltas = this.graph.deltas;
   if (this.progress.update()==0) { // last file loaded
     // if counters is empty, this is skipped
