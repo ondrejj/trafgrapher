@@ -1743,7 +1743,8 @@ NagiosLoader.prototype.load_data = function(filename, service) {
     cache: false
   }).done(function(data) {
     var value, cols, rows = data.split("\n"), rowi, hdr = rows[0].split("\t"),
-        rw, name, desc, service_group, lunit = hdr[3], multiplier = 1;
+        rw, name, desc, service_group, lunit = hdr[3], multiplier = 1,
+        warn=null, crit=null, min=null, max=null;
     if (service_groups[service])
       service_group = service_groups[service];
     else
@@ -1806,7 +1807,6 @@ NagiosLoader.prototype.load_data = function(filename, service) {
       if (service_group.reversed && hdr[2].search(service_group.reversed)>=0)
         rw = "i";
       // create deltas
-      var warn=null, crit=null, min=null, max=null;
       if (!self.graph.deltas[name])
         self.graph.deltas[name] = {i: [], j: [], o: []};
       for (rowi=1; rowi<rows.length; rowi++) {
