@@ -4,7 +4,7 @@
   Licensed under the MIT license.
 */
 
-var trafgrapher_version = '2.2',
+var trafgrapher_version = '2.3',
     one_hour = 3600000,
     last_reload = null;
 
@@ -63,7 +63,8 @@ function arraydelta(nodes) {
     // divide by 1000 because time is in miliseconds
     var time_interval = (item[0]-prev[0])/1000;
     if (value<0) value = 0;
-    deltas.push([item[0], value/time_interval]);
+    if (time_interval>0)
+      deltas.push([item[0], value/time_interval]);
     prev = item;
   }
   return deltas;
@@ -1790,6 +1791,7 @@ NagiosLoader.prototype.load_data = function(filename, service) {
       // create counters
       var counters = []; // use local counters
       for (rowi=1; rowi<rows.length; rowi++) {
+        if (!rows[rowi]) continue; // ignore empty lines
         cols = rows[rowi].split(" ");
         value = parseFloat(cols[1])*multiplier;
         if (service_group.convert)

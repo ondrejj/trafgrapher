@@ -10,15 +10,14 @@ Licensed under the MIT license.
 Testing variables:
 export NAGIOS_PERF_LOG_DIR=/tmp/perf
 export NAGIOS_HOSTNAME=www
-#export NAGIOS_SERVICEDISPLAYNAME=PING
 #export NAGIOS_SERVICEPERFDATA='rta=1.276000ms;100.000000;500.000000;0.000000 pl=0%;30;60;0'
-export NAGIOS_SERVICEDISPLAYNAME=nrpe_eth0
+export NAGIOS_SERVICEDESC=nrpe_eth0
 export NAGIOS_SERVICEPERFDATA='collisions=0c;1;10;0;131072000 rx_bytes=408966251704c;117964800;124518400;0;131072000 tx_bytes=6116960562c;117964800;124518400;0;131072000 rx_packets=198208226c;;;0;131072000 tx_packets=76580546c;;;0;131072000 rx_errors=0c;1;10;0;131072000 tx_errors=0c;1;10;0;131072000 rx_dropped=0c;1;10;0;131072000 tx_dropped=0c;1;10;0;131072000'
 export NAGIOS_TIMET=1457008744
 ./process_perfdata.py
 '''
 
-import sys, re, os, time
+import sys, re, os, fcntl, time
 
 prefix = os.environ.get("NAGIOS_PERF_LOG_DIR", "/var/log/nagios/perf")
 
@@ -44,7 +43,10 @@ class grouper(dict):
       return ret
   def load(self, deltas, start=None):
       if start is None:
-        start = max(deltas.keys())
+        if deltas:
+          start = max(deltas.keys())
+        else:
+          start = time.time()
       intervals = self.compress_intervals.items()
       limit = None
       for t in sorted(deltas, reverse=True):
@@ -81,6 +83,13 @@ class Logfiles:
         else:
           ret += "%%%02x" % ord(x)
       return ret
+  def fmt(self, value):
+      if type(value)==int:
+        return "%d" % value
+      elif type(value)==float:
+        #return ("%.9f" % value).rstrip('0')
+        return str(value)
+      return value
   def update(self, utime, values):
       if not values[0]:
         return # do not process empty values
@@ -91,35 +100,40 @@ class Logfiles:
       value, unit = self.re_num_unit.search(
         values[0].replace(",", ".")
       ).groups()
+      # compress before write
+      if mtime//grouper.one_day < time.time()//grouper.one_day:
+        self.compress("\t".join([self.hsl, unit] + values[1:])+"\n")
+      # write new data
       self.f = open(self.filename, "at")
+      fcntl.flock(self.f, fcntl.LOCK_EX|fcntl.LOCK_NB)
       if not self.header:
         self.f.write("\t".join([self.hsl, unit] + values[1:])+"\n")
-      self.f.write("%d %s\n" % (utime, value))
+      self.f.write("%d %s\n" % (utime, self.fmt(value)))
       self.f.close()
-      if mtime//grouper.one_day < time.time()//grouper.one_day:
-        self.compress()
-  def compress(self):
+  def compress(self, header):
       # read current file
       in_f = open(self.filename, "rt")
-      header = in_f.readline()
+      old_header = in_f.readline()
       data = {}
       for row in in_f.readlines():
-        rowa = row.strip().split()
-        data[int(rowa[0])] = float(rowa[1])
+        rowa = row.strip().split("\0 \r\n")
+        if len(rowa)>1: # ignore incomplete rows
+          data[int(rowa[0])] = float(rowa[1])
       in_f.close()
       # compress data
       grp = grouper()
       grp.load(data)
       ret = dict(grp.items(header.split("\t")[3]=="c"))
       # save new file
-      out_f = open(self.filename+".tmp", "wt")
-      out_f.write(header)
+      self.f = open(self.filename+".tmp", "wt")
+      fcntl.flock(self.f, fcntl.LOCK_EX|fcntl.LOCK_NB)
+      self.f.write(header)
       for key in sorted(ret.keys()):
         val = ret[key]
         if int(val)==val:
           val = int(val)
-        out_f.write("%d %s\n" % (key, val))
-      out_f.close()
+        self.f.write("%d %s\n" % (key, self.fmt(val)))
+      self.f.close()
       # rename new file to old file
       os.rename(self.filename+".tmp", self.filename)
 
