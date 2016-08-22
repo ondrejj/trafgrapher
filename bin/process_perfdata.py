@@ -116,9 +116,12 @@ class Logfiles:
       old_header = in_f.readline()
       data = {}
       for row in in_f.readlines():
-        rowa = row.strip().split("\0 \r\n")
-        if len(rowa)>1: # ignore incomplete rows
+        rowa = row.strip("\0 \r\n").split()
+        if len(rowa)>1:
           data[int(rowa[0])] = float(rowa[1])
+        else:
+          # ignore incomplete rows
+          print("Load error:", self.filename, row)
       in_f.close()
       # compress data
       grp = grouper()

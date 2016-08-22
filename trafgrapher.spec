@@ -1,5 +1,5 @@
 Name:           trafgrapher
-Version:        2.3
+Version:        2.4
 Release:        1%{?dist}
 Summary:        Collect and display network/disk/storage transfers.
 
