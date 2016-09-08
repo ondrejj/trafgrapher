@@ -439,7 +439,7 @@ class SNMP:
         if io[ifindex]['error']:
           print("Unable to get 64bit IO for id %s [%s], trying 32bit ..."
                 % (ifindex, data.get("ifName", "")))
-          io = self.getall([ifindex], prefix="if")
+          io = self.getall([ifindex], only32bit=True)
           if io[ifindex]['error']:
             print("Unable to get IO for id %s [%s], ignoring ..."
                   % (ifindex, data.get("ifName", "")))
@@ -508,36 +508,47 @@ class SNMP:
         print("%s: %s" % (self.addr, errorIndication))
         return None
       return float(varBindTable[0][0][1])/100
-  def getall(self, ids, ifs={}, n=8, prefix="ifHC"):
+  def getblock(self, request, prefix, ifs):
+      ret = {}
+      result = self.getsome(
+        "IF-MIB",
+        [prefix+"InOctets", prefix+"OutOctets"],
+        request
+      )
+      for id in request:
+        try:
+          ino = result.pop(0)
+          outo = result.pop(0)
+          ret[id] = dict(
+            ifInOctets = long(ino),
+            ifOutOctets = long(outo),
+            error = None
+          )
+        except (AttributeError, IndexError, ValueError) as err:
+          ret[id] = dict(
+            ifInOctets = None, ifOutOctets = None,
+            error = "No such instance: ip: %s:%d, id: %s [%s]"
+                    % (self.addr, self.port, id,
+                       ifs.get(id, {}).get("ifName", ""))
+          )
+      return ret
+  def getall(self, ids, ifs={}, n=8, only32bit=False):
       ret = {}
       while ids:
-        request = [ids.pop(0)]
-        while ids and len(request)<n:
-          request.append(ids.pop(0))
-        # override to 32bit, if configured
-        if ifs.get(request[0], {}).get("_counter_size", 0)==32:
-          prefix = "if"
-        result = self.getsome(
-          "IF-MIB",
-          [prefix+"InOctets", prefix+"OutOctets"],
-          request
-        )
-        for id in request:
-          try:
-            ino = result.pop(0)
-            outo = result.pop(0)
-            ret[id] = dict(
-              ifInOctets = long(ino),
-              ifOutOctets = long(outo),
-              error = None
-            )
-          except (AttributeError, IndexError, ValueError) as err:
-            ret[id] = dict(
-              ifInOctets = None, ifOutOctets = None,
-              error = "No such instance: ip: %s:%d, id: %s [%s]"
-                      % (self.addr, self.port, id,
-                         ifs.get(id, {}).get("ifName", ""))
-            )
+        request = {"ifHC": [], "if": []}
+        while ids:
+          # override to 32bit, if configured
+          if only32bit or ifs.get(ids[0], {}).get("_counter_size", 0)==32:
+            prefix = "if"
+          else:
+            prefix = "ifHC"
+          request[prefix].append(ids.pop(0))
+          if len(request[prefix])>=n:
+            ret.update(self.getblock(request[prefix], prefix, ifs))
+            request[prefix] = []
+        for prefix in ["ifHC", "if"]:
+          if request[prefix]:
+            ret.update(self.getblock(request[prefix], prefix, ifs))
       return ret
   def getsome(self, prefix="", suffixes=[], ids=[]):
       mibvars = []

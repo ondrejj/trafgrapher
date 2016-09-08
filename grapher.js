@@ -4,7 +4,7 @@
   Licensed under the MIT license.
 */
 
-var trafgrapher_version = '2.4',
+var trafgrapher_version = '2.5',
     one_hour = 3600000,
     last_reload = null;
 
