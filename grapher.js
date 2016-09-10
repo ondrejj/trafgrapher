@@ -191,6 +191,7 @@ var Graph = function(ID) {
   this.ID = ID;
   this.div = $("div#"+ID);
   this.deltas = {}; this.info = {};
+  this.loaders = [];
   this.index_mode = "json";
   this.index_files = [];
   this.plot = null;
@@ -772,6 +773,10 @@ Graph.prototype.refresh_range = function() {
 
 Graph.prototype.refresh_graph = function() {
   var loader;
+  // stop all loaders
+  for (var i=0; i<this.loaders.length; i++) {
+    this.loaders.pop().abort();
+  }
   if (this.index_mode=="json") {
     loader = new JSONLoader(this, this.index_files);
   } else if (this.index_mode=="mrtg") {
@@ -950,7 +955,7 @@ Progress.prototype.error = function(msg) {
 };
 
 Progress.prototype.loading_error = function(filename, msg) {
-  if (msg)
+  if (msg && msg!="abort")
     this.error("Error loading file " + filename + ": " + msg);
 };
 
@@ -1738,7 +1743,7 @@ service_groups = {
 // Load perfdata stats for one service label.
 NagiosLoader.prototype.load_data = function(filename, service) {
   var self = this;
-  $.ajax({
+  return $.ajax({
     url: filename,
     dataType: "text",
     cache: false
@@ -1902,7 +1907,9 @@ NagiosLoader.prototype.load_index = function(url) {
     if (service) {
       self.progress.add(files["ALL"][service].length);
       for (fni=0; fni<files["ALL"][service].length; fni++)
-        self.load_data(files["ALL"][service][fni], service);
+        self.graph.loaders.push(
+          self.load_data(files["ALL"][service][fni], service)
+        );
     } else {
       host = hosts.find('option:selected').val();
       for (service in files[host])
@@ -1911,7 +1918,9 @@ NagiosLoader.prototype.load_index = function(url) {
       for (service in files[host]) {
         self.graph.groups[service] = [];
         for (fni=0; fni<files[host][service].length; fni++) {
-          self.load_data(files[host][service][fni], service);
+          self.graph.loaders.push(
+            self.load_data(files[host][service][fni], service)
+          );
         }
       }
     }
