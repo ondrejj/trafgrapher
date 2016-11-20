@@ -12,13 +12,13 @@ Usage: tgc.py [--mkcfg|-c [community@]IP_or_hostname] \\
 		[--filter ifOperStatus|ifAdminStatus] \\
 		[--id ifName] [--rename] [--compress|-z] [--check]
        tgc.py [--verbose|-v] [community@]config.json \\
-		[--filter=timestamp]
+		[--filter=timestamp|datetime]
        tgc.py --ipset|--iptables [-q|--quiet] download_cmd upload_cmd
 
 Examples:
   tgc -c public@10.0.0.1 -w index.json
   tgc index.json
-  tgc index.json --filter=`date -d '2015-07-04 02:00:00' '+%s'`
+  tgc index.json --filter='2015-07-04 02:00:00'
   tgc --ipset "ipset list acc_download" "ipset list acc_upload" [index_file]
   tgc --iptables "iptables -L acc_download -vxn" "iptables -L acc_upload -vxn"
 '''
@@ -963,6 +963,12 @@ def process_configs(files):
     filter = ""
     if "--filter" in opts:
       filter = opts["--filter"]
+      if ':' in filter:
+        # convert date and time format to timestamps
+        filter = ",".join([
+          "%d" % time.mktime(time.strptime(x, "%Y-%m-%d %H:%M:%S"))
+          for x in filter.split(",")
+        ])
     for fn in files:
       if '@' in fn:
         community, fn = fn.split('@', 1)
