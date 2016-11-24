@@ -14,6 +14,7 @@ Usage: tgc.py [--mkcfg|-c [community@]IP_or_hostname] \\
        tgc.py [--verbose|-v] [community@]config.json \\
 		[--filter=timestamp|datetime]
        tgc.py --ipset|--iptables [-q|--quiet] download_cmd upload_cmd
+       tgc.py --cmd [-q|--quiet] cmd1 [cmd2 ...]
 
 Examples:
   tgc -c public@10.0.0.1 -w index.json
@@ -25,7 +26,7 @@ Examples:
 
 from __future__ import print_function
 
-import sys, os, re, fcntl, socket, time, json, getopt
+import sys, os, re, fcntl, socket, time, json, getopt, hashlib
 
 if sys.version_info[0]>2: # python3
   long = int
@@ -909,6 +910,24 @@ class iptables_src(fwcounter_base):
 class iptables_dst(iptables_src):
   ip_column = -1
 
+def cmd_mkindex(cmds):
+    cfg = dict(
+      ip = socket.gethostbyname(socket.gethostname()),
+      name = socket.gethostname(),
+      cmd_type = "sh",
+      ifs = {}
+    )
+    for cmdid, cmd in enumerate(cmds):
+      descr = "%d:%s" % (cmdid, cmd)
+      md5 = hashlib.md5(descr).hexdigest()
+      cfg["ifs"][cmdid] = dict(
+        cmd = cmd,
+        index = cmdid,
+        ifDescr = descr,
+        log = md5+".log"
+      )
+    return cfg
+
 def fwcounter_mkindex(name, ip, parser_src, parser_dst):
     cfg = dict(
       ip = ip,
@@ -989,7 +1008,17 @@ def process_configs(files):
         tdir = os.path.dirname(os.path.realpath(fn))
         update_local(cfg, tdir)
       elif "cmd_type" in cfg:
-        if cfg["cmd_type"] == "ipset":
+        if cfg["cmd_type"] == "sh":
+          for row in cfg["ifs"].values():
+            value = os.popen(row["cmd"]).read()
+            lf = logfile_simple(
+              os.path.join(prefix, row["log"]),
+              (row["cmd"], "-", "-", row.get("unit", "-"))
+            )
+            if value:
+              lf.update(float(value))
+          return
+        elif cfg["cmd_type"] == "ipset":
           ps = ipset(cfg["cmd_src"])
           pd = ipset(cfg["cmd_dst"])
         elif cfg["cmd_type"] == "iptables":
@@ -1030,7 +1059,7 @@ if __name__ == "__main__":
     ['help', 'mkcfg', 'test', 'write=', 'mkdir', 'id=', 'rename',
      'verbose', 'quiet', 'check', 'filter=', 'local',
      'sensors',
-     'iptables', 'ipset'])
+     'iptables', 'ipset', 'cmd'])
   opts = dict(opts)
   if "--verbose" in opts or "-v" in opts:
     VERBOSE = True
@@ -1130,6 +1159,9 @@ if __name__ == "__main__":
       process_configs(files[2:])
     else:
       print(json.dumps(cfg, indent=2))
+  elif "--cmd" in opts:
+    cfg = cmd_mkindex(files)
+    print(json.dumps(cfg, indent=2))
   elif "--test" in opts or "-t" in opts:
     print(SNMP(files[0]).getall(files[1:]))
   else:

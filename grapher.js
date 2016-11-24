@@ -1054,12 +1054,16 @@ JSONLoader.prototype.load_log = function(filename, args) {
       var t = cols[0]*1000,
           ib = cols[1], ob = cols[2],
           im = cols[3], om = cols[4];
-      deltas.i.push([t, ib]);
-      deltas.j.push([t, -ib]);
-      deltas.o.push([t, ob]);
-      deltas.I.push([t, im]);
-      deltas.J.push([t, -im]);
-      deltas.O.push([t, om]);
+      if (cols.length==2) {
+        deltas.o.push([t, ib]);
+      } else {
+        deltas.i.push([t, ib]);
+        deltas.j.push([t, -ib]);
+        deltas.o.push([t, ob]);
+        deltas.I.push([t, im]);
+        deltas.J.push([t, -im]);
+        deltas.O.push([t, om]);
+      }
     }
     self.graph.deltas[ethid] = deltas;
     // create info and copy args
