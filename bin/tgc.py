@@ -631,6 +631,9 @@ class grouper(dict):
         st = int(t/range)*range
         self[st].append(deltas[t])
 
+class LockError(Exception):
+  pass
+
 class logfile:
   header_format = "%010d %020d %020d\n"
   header_length = len(header_format % (0, 0, 0))
@@ -644,14 +647,21 @@ class logfile:
         counter = self.f.readline()
         if counter:
           counter_split = counter.split(" ", 2)
-          self.counter = (
-            long(counter_split[0]),
-            self.data_type(counter_split[1]),
-            self.data_type(counter_split[2])
-          )
-          if self.counter[0]//grouper.one_day != time.time()//grouper.one_day:
-            # next day, force compress
-            force_compress = True
+          if counter_split[0].isdigit():
+            self.counter = (
+              long(counter_split[0]),
+              self.data_type(counter_split[1]),
+              self.data_type(counter_split[2])
+            )
+            if self.counter[0]//grouper.one_day != time.time()//grouper.one_day:
+              # next day, force compress
+              force_compress = True
+          else:
+            bkp_filename = filename+time.strftime(".backup-%Y%m%d-%H%M%S")
+            print("ERROR: Unable to parse logfile. Made a backup to %s and recovering." % bkp_filename)
+            os.rename(filename, bkp_filename)
+            self.open(self.filename, "wb")
+            self.counter = ()
         else:
           self.counter = ()
         if len(counter)!=self.header_length:
@@ -666,15 +676,22 @@ class logfile:
         self.counter = ()
   def open(self, filename, mode):
       self.f = open(filename, mode)
-      fcntl.flock(self.f, fcntl.LOCK_EX|fcntl.LOCK_NB)
+      try:
+        fcntl.flock(self.f, fcntl.LOCK_EX)#|fcntl.LOCK_NB)
+      except IOError:
+        raise LockError("ERROR: File locked: %s!" % filename)
   def data_type(self, value):
       return long(value, 10)
   def load(self):
       for row in self.f.readlines():
         if row.strip():
           row_split = row.split(" ", 4)
-          self.deltas[long(row_split[0])] \
-            = tuple(self.data_type(x) for x in row_split[1:])
+          try:
+            self.deltas[long(row_split[0])] \
+              = tuple(self.data_type(x) for x in row_split[1:])
+          except ValueError as err:
+            print("Error loading logfile: %s" % err)
+            print("Ignoring row: '%s'" % row.strip("\r\n"))
   def header(self):
       return self.header_format % self.counter
   def save(self, delta):
@@ -692,9 +709,10 @@ class logfile:
         self.f.close()
         os.rename(self.filename+'.tmp', self.filename)
       else:
-        self.f.seek(0)
-        if self.header_format:
-          self.f.write(self.header())
+        # Header can change it's length. Update header only on compress!
+        #self.f.seek(0)
+        #if self.header_format:
+        #  self.f.write(self.header())
         self.f.seek(0, 2) # EOF
         self.f.write(self.data_format % delta)
         self.f.close()
@@ -803,16 +821,19 @@ def update_io(cfg, tdir, community_name="public", force_compress=False,
         if VERBOSE:
           print(json.dumps(cfg['ifs'][idx], indent=2, separators=(',', ': ')))
       else:
-        logfile(
-          os.path.join(tdir, cfg['ifs'][idx]['log']),
-          force_compress
-        ).filter(
-          filter
-        ).update(
-          io['ifInOctets'], io['ifOutOctets'],
-          uptime = uptime,
-          counter_bits=cfg['ifs'][idx].get('counter_bits', 64)
-        )
+        try:
+          logfile(
+            os.path.join(tdir, cfg['ifs'][idx]['log']),
+            force_compress
+          ).filter(
+            filter
+          ).update(
+            io['ifInOctets'], io['ifOutOctets'],
+            uptime = uptime,
+            counter_bits=cfg['ifs'][idx].get('counter_bits', 64)
+          )
+        except LockError as err:
+          print(err)
 
 def update_value(cfg, tdir, community_name="public", force_compress=False,
                  filter=None):
@@ -822,15 +843,18 @@ def update_value(cfg, tdir, community_name="public", force_compress=False,
     vals = snmpc.getsome("", cfg['oids'].keys())
     for val, data in zip(vals, cfg['oids'].values()):
       #print(float(val)*data['scale'], data)
-      logfile_simple(
-        os.path.join(tdir, data['log']),
-        (cfg.get('name', IP), 'receive_power', data['name'], data['unit']),
-        force_compress
-      ).filter(
-        filter
-      ).update(
-        float(val)*data['scale']
-      )
+      try:
+        logfile_simple(
+          os.path.join(tdir, data['log']),
+          (cfg.get('name', IP), 'receive_power', data['name'], data['unit']),
+          force_compress
+        ).filter(
+          filter
+        ).update(
+          float(val)*data['scale']
+        )
+      except LockError as err:
+        print(err)
 
 def read_file(filename, row_name, column):
     for row in open(filename, "r").readlines():
@@ -855,23 +879,26 @@ def read_uptime(filename=None):
 
 def update_local(cfg, tdir, force_compress=False):
     for key, value in cfg['ifs'].items():
-      logfile(
-        os.path.join(tdir, value['log']),
-        force_compress
-      ).update(
-        read_file(
-          value['rx_filename'],
-          value['rx_row_name'], value['rx_column']
-        ),
-        read_file(
-          value['tx_filename'],
-          value['tx_row_name'], value['tx_column']
-        ),
-        value.get('rx_gauge', False),
-        value.get('tx_gauge', False),
-        read_uptime(value.get('uptime_filename')),
-        value.get('counter_bits')
-      )
+      try:
+        logfile(
+          os.path.join(tdir, value['log']),
+          force_compress
+        ).update(
+          read_file(
+            value['rx_filename'],
+            value['rx_row_name'], value['rx_column']
+          ),
+          read_file(
+            value['tx_filename'],
+            value['tx_row_name'], value['tx_column']
+          ),
+          value.get('rx_gauge', False),
+          value.get('tx_gauge', False),
+          read_uptime(value.get('uptime_filename')),
+          value.get('counter_bits')
+        )
+      except LockError as err:
+        print(err)
 
 # ipset and iptables counters for firewall accounting
 
@@ -1009,14 +1036,24 @@ def process_configs(files):
         update_local(cfg, tdir)
       elif "cmd_type" in cfg:
         if cfg["cmd_type"] == "sh":
-          for row in cfg["ifs"].values():
+          for rowid, row in cfg["ifs"].items():
             value = os.popen(row["cmd"]).read()
-            lf = logfile_simple(
-              os.path.join(prefix, row["log"]),
-              (row["cmd"], "-", "-", row.get("unit", "-"))
-            )
-            if value:
-              lf.update(float(value))
+            try:
+              lf = logfile_simple(
+                os.path.join(prefix, row["log"]),
+                (row["cmd"], "-", "-", row.get("unit", "-"))
+              )
+              if value:
+                try:
+                  value = float(value)
+                except ValueError:
+                  print(
+                    "Cound not convert value to float: '%s', id %s"
+                    % (value, rowid)
+                  )
+                lf.update(value)
+            except LockError as err:
+              print(err)
           return
         elif cfg["cmd_type"] == "ipset":
           ps = ipset(cfg["cmd_src"])
@@ -1027,10 +1064,13 @@ def process_configs(files):
         elif cfg["cmd_type"] == "pid_cpu_usage":
           usages = pid_cpu_usage()
           for cmd_name, cmd in cfg["ifs"].items():
-            lf = logfile(os.path.join(prefix, cmd["log"]))
-            usage = usages.cpu_usage(cmd["re_cmd"])
-            if usage:
-              lf.update(usage[2]+usage[3], usage[0]+usage[1])
+            try:
+              lf = logfile(os.path.join(prefix, cmd["log"]))
+              usage = usages.cpu_usage(cmd["re_cmd"])
+              if usage:
+                lf.update(usage[2]+usage[3], usage[0]+usage[1])
+            except LockError as err:
+              print(err)
           return
         else:
           print("Unknown command type:", cfg["cmd_type"])
@@ -1039,11 +1079,14 @@ def process_configs(files):
         for ip in cfg["ifs"].values():
           ipid = ip['ifName']
           #print(ip['ifName'], pd.bytes[ipid], ps.bytes[ipid])
-          lf = logfile(os.path.join(prefix, ip['log']))
-          if ipid in pd.bytes and ipid in ps.bytes:
-            lf.update(pd.bytes[ipid], ps.bytes[ipid])
-          elif not QUIET:
-            print("Missing key:", ipid)
+          try:
+            lf = logfile(os.path.join(prefix, ip['log']))
+            if ipid in pd.bytes and ipid in ps.bytes:
+              lf.update(pd.bytes[ipid], ps.bytes[ipid])
+            elif not QUIET:
+              print("Missing key:", ipid)
+          except LockError as err:
+            print(err)
       else:
         tdir = os.path.dirname(os.path.realpath(fn))
         force_compress = ('-z' in opts) or ('--compress' in opts)
