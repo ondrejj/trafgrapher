@@ -643,7 +643,7 @@ class logfile:
       self.deltas = {}
       try:
         # binary mode required to allow seeking
-        self.open(self.filename, "rb+")
+        self.f = self.open(self.filename, "rb+")
         counter = self.f.readline()
         if counter:
           counter_split = counter.split(" ", 2)
@@ -660,7 +660,7 @@ class logfile:
             bkp_filename = filename+time.strftime(".backup-%Y%m%d-%H%M%S")
             print("ERROR: Unable to parse logfile. Made a backup to %s and recovering." % bkp_filename)
             os.rename(filename, bkp_filename)
-            self.open(self.filename, "wb")
+            self.f = self.open(self.filename, "wb")
             self.counter = ()
         else:
           self.counter = ()
@@ -672,14 +672,16 @@ class logfile:
           #print("Compress:", self.filename)
           self.load()
       except IOError:
-        self.open(self.filename, "wb")
+        self.f = self.open(self.filename, "wb")
         self.counter = ()
   def open(self, filename, mode):
-      self.f = open(filename, mode)
+      f = open(filename, mode)
       try:
-        fcntl.flock(self.f, fcntl.LOCK_EX)#|fcntl.LOCK_NB)
+        # do not use LOCK_NB, wait until file is unlocked to avoid errors
+        fcntl.flock(f, fcntl.LOCK_EX)
       except IOError:
         raise LockError("ERROR: File locked: %s!" % filename)
+      return f
   def data_type(self, value):
       return long(value, 10)
   def load(self):
@@ -698,16 +700,18 @@ class logfile:
       if self.deltas:
         # save data when converting to new format
         #print("Full save:", self.filename)
-        self.f.close()
+        # rename old file, do not close it to leave it locked
+        old_f = self.f
         self.deltas[delta[0]] = delta[1:] # add current values
         self.compress()
-        self.open(self.filename+'.tmp', "wb")
+        self.f = self.open(self.filename+'.tmp', "wb")
         if self.header_format:
           self.f.write(self.header())
         for t in sorted(self.deltas, reverse=True):
           self.f.write(self.data_format % tuple([t]+list(self.deltas[t])))
         self.f.close()
         os.rename(self.filename+'.tmp', self.filename)
+        old_f.close() # close old file after rename
       else:
         # Header can change it's length. Update header only on compress!
         #self.f.seek(0)
@@ -783,12 +787,12 @@ class logfile_simple(logfile):
       try:
         mtime = os.stat(self.filename).st_mtime
         # binary mode required to allow seeking
-        self.open(self.filename, "rb+")
+        self.f = self.open(self.filename, "rb+")
         header = self.f.readline() # read header
         if mtime//grouper.one_day < time.time()//grouper.one_day:
           self.load()
       except OSError:
-        self.open(self.filename, "wb")
+        self.f = self.open(self.filename, "wb")
         self.f.write(self.header())
   def header(self):
       return "%s\t%s\t%s\t%s\n" % self.header_data
