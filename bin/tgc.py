@@ -324,6 +324,12 @@ def iftype(ift):
     #return repr(iana['IANAifType'](ift)).split("'")[1]
     return IFTYPES.get(ift, 'UNKNOWN')
 
+def ip2host(ip):
+    try:
+      return socket.gethostbyaddr(ip)[0]
+    except socket.herror:
+      return ip
+
 oids_info = dict(
   ifIndex=str,
   ifDescr=str,
@@ -978,7 +984,7 @@ def fwcounter_mkindex(name, ip, parser_src, parser_dst):
       cfg["ifs"][ipid] = dict(
         ifIndex = ipid,
         ifName = ip,
-        ifAlias = ip,
+        ifAlias = ip2host(ip),
         ifDescr = ip,
         log = ipid+'.log'
       )
