@@ -3,7 +3,7 @@
 '''
 TrafGrapher client
 
-(c) 2015-2016 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
+(c) 2015-2017 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
 
 Licensed under the MIT license.
 
@@ -652,7 +652,7 @@ class logfile:
         self.f = self.open(self.filename, "rb+")
         counter = self.f.readline()
         if counter:
-          counter_split = counter.split(" ", 2)
+          counter_split = counter.split(" ")
           if counter_split[0].isdigit():
             self.counter = (
               long(counter_split[0]),
@@ -683,8 +683,7 @@ class logfile:
   def open(self, filename, mode):
       f = open(filename, mode)
       try:
-        # do not use LOCK_NB, wait until file is unlocked to avoid errors
-        fcntl.flock(f, fcntl.LOCK_EX)
+        fcntl.flock(f, fcntl.LOCK_EX|fcntl.LOCK_NB)
       except IOError:
         raise LockError("ERROR: File locked: %s!" % filename)
       return f
@@ -1025,6 +1024,7 @@ def process_configs(files):
           "%d" % time.mktime(time.strptime(x, "%Y-%m-%d %H:%M:%S"))
           for x in filter.split(",")
         ])
+    force_compress = ('-z' in opts) or ('--compress' in opts)
     for fn in files:
       if '@' in fn:
         community, fn = fn.split('@', 1)
@@ -1043,7 +1043,7 @@ def process_configs(files):
         prefix = cfg["prefix"]
       if "--local" in opts:
         tdir = os.path.dirname(os.path.realpath(fn))
-        update_local(cfg, tdir)
+        update_local(cfg, tdir, force_compress)
       elif "cmd_type" in cfg:
         if cfg["cmd_type"] == "sh":
           for rowid, row in cfg["ifs"].items():
@@ -1099,7 +1099,6 @@ def process_configs(files):
             print(err)
       else:
         tdir = os.path.dirname(os.path.realpath(fn))
-        force_compress = ('-z' in opts) or ('--compress' in opts)
         if 'ifs' in cfg:
           update_io(cfg, tdir, community, force_compress, filter=filter)
         elif 'oids' in cfg:
