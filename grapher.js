@@ -1,6 +1,6 @@
 /*
   TrafGrapher
-  (c) 2015-2016 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
+  (c) 2015-2017 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
   Licensed under the MIT license.
 */
 
@@ -1659,6 +1659,11 @@ service_groups = {
   apache_states: {
     name: "Apache states",
     search: /apache\/(waiting|reading|sending|closing|dns_lookup)/,
+    unit: ""
+  },
+  php_fpm_states: {
+    name: "PHP-FPM",
+    search: /php-fpm/,
     unit: ""
   },
   mailq: {
