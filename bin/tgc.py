@@ -683,7 +683,8 @@ class logfile:
   def open(self, filename, mode):
       f = open(filename, mode)
       try:
-        fcntl.flock(f, fcntl.LOCK_EX|fcntl.LOCK_NB)
+        # do not use LOCK_NB, wait until file is unlocked to avoid errors
+        fcntl.flock(f, fcntl.LOCK_EX)
       except IOError:
         raise LockError("ERROR: File locked: %s!" % filename)
       return f
@@ -718,10 +719,13 @@ class logfile:
         os.rename(self.filename+'.tmp', self.filename)
         old_f.close() # close old file after rename
       else:
-        # Header can change it's length. Update header only on compress!
-        #self.f.seek(0)
-        #if self.header_format:
-        #  self.f.write(self.header())
+        # Avoid change length of header here.
+        # Update header only when does not change it's length or on full save!
+        if self.header_format:
+          header = self.header()
+          if len(header)==self.header_length:
+            self.f.seek(0)
+            self.f.write(header)
         self.f.seek(0, 2) # EOF
         self.f.write(self.data_format % delta)
         self.f.close()
