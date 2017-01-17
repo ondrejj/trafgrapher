@@ -3,7 +3,7 @@
 '''
 Process nagios performance data for TrafGrapher
 
-(c) 2016 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
+(c) 2016-2017 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
 
 Licensed under the MIT license.
 
@@ -189,7 +189,10 @@ if __name__ == "__main__":
       #print >> sys.stderr, service_name, service_perfdata
       if service_name and service_perfdata:
         for data in service_perfdata.split(" "):
-          label, values = data.split("=", 1)
-          logfile = Logfiles(hostname, service_name, label)
-          logfile.update(int(service_time), values.split(";"))
+          try:
+            label, values = data.split("=", 1)
+            logfile = Logfiles(hostname, service_name, label)
+            logfile.update(int(service_time), values.split(";"))
+          except Exception as err:
+            print("Error processing data [%s]: %s" % (data, err.args[0]))
     os.unlink(sys.argv[1])
