@@ -434,7 +434,7 @@ Graph.prototype.urllink = function() {
   if (this.index_mode=="json") {
     url = "?"+this.files_to_args("j", ";");
   } else if (this.index_mode=="mrtg") {
-    url = "?"+this.files("m", ";");
+    url = "?"+this.files_to_args("m", ";");
   } else if (this.index_mode=="storage") {
     url = "?"+this.files_to_args("s", ";");
   } else if (this.index_mode=="nagios_service") {
@@ -1213,7 +1213,7 @@ MRTGLoader.prototype.load_index = function(url) {
         });
         if (preselect_graphs.length>0)
           if ($.inArray(port_id, preselect_graphs)>=0)
-            self.graph.preselect_graphs.push(ethid);
+            self.graph.preselect_graphs.push(basename);
       }
     });
     self.progress.add(files.length, data.length);
