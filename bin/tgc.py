@@ -1060,12 +1060,12 @@ def process_configs(files):
               if value:
                 try:
                   value = float(value)
+                  lf.update(value)
                 except ValueError:
                   print(
                     "Cound not convert value to float: '%s', id %s"
                     % (value, rowid)
                   )
-                lf.update(value)
             except LockError as err:
               print(err)
           return
