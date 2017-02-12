@@ -1051,7 +1051,7 @@ def process_configs(files):
       elif "cmd_type" in cfg:
         if cfg["cmd_type"] == "sh":
           for rowid, row in cfg["ifs"].items():
-            value = os.popen(row["cmd"]).read()
+            value = os.popen(row["cmd"]).read().strip()
             try:
               lf = logfile_simple(
                 os.path.join(prefix, row["log"]),
@@ -1063,7 +1063,7 @@ def process_configs(files):
                   lf.update(value)
                 except ValueError:
                   print(
-                    "Cound not convert value to float: '%s', id %s"
+                    "Could not convert value to float: '%s', id %s"
                     % (value, rowid)
                   )
             except LockError as err:
