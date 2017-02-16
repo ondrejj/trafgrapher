@@ -14,8 +14,8 @@ var excluded_interfaces = [
       /^unrouted[\ \-]VLAN/,
       /^Control.Plane.Interface/,
       // DELL
-      /^[\ \-]Link[\ \-]Aggregate[\ \-]/,
-      /^[\ \-]CPU[\ \-]Interface[\ \-]for[\ \-]Unit:[\ \-]/,
+      ///^[\ \-]Link[\ \-]Aggregate[\ \-]/,
+      /^[\ \-]CPU[\ \-]Interface[\ \-]for[\ \-]/,
       /^Backbone$/
     ];
 

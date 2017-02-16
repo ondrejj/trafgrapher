@@ -458,7 +458,8 @@ class SNMP:
             data["_counter_size"] = 32
         # ignored types and names
         if 'ifType' in data and data['ifType']=='ieee8023adLag':
-          continue
+          if ('ifSpeed' not in data) or data['ifSpeed'].startswith("0"):
+            continue
         # use HighSpeed if possible
         if 'ifHighSpeed' in data:
           if data['ifHighSpeed'] is not None:
