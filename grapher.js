@@ -1617,8 +1617,7 @@ service_groups = {
   diskio_queue: {
     name: "Disk queue",
     search: /diskio_.\/queue/i,
-    unit: "/s",
-    hide: true // wrong data type, change to counter
+    unit: "/s"
   },
   disk_usage: {
     name: "Disk usage",
