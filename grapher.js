@@ -6,7 +6,8 @@
 
 var trafgrapher_version = '2.7',
     one_hour = 3600000,
-    last_reload = null;
+    last_reload = null,
+    degreeC = "℃";
 
 // Predefined settings
 var excluded_interfaces = [
@@ -91,10 +92,11 @@ function guessPrecision(ticksize) {
   return 0;
 }
 function unit_si(val, axis, unit) {
-  var ki = 1024, precision = 3, aval = Math.abs(val);
+  var ki = 1024, precision = 3, aval = Math.abs(val), sign = "";
   if (typeof(axis)=="number") precision = axis;
   else if (axis && axis.tickSize) precision = guessPrecision(axis.tickSize);
   if (axis && unit===undefined) unit = axis.options.si_unit;
+  if ((unit=="C" || unit==degreeC) && val<0) sign = "-";
   if (unit=="ms") {
     aval = aval/1000;
     unit = "s";
@@ -103,28 +105,28 @@ function unit_si(val, axis, unit) {
     if (aval<0.001) {
       if (axis && axis.tickSize)
         precision = guessPrecision(axis.tickSize*1000000);
-      return (aval*1000000).toFixed(precision)+" us";
+      return sign+(aval*1000000).toFixed(precision)+" us";
     }
     if (aval<1) {
       if (axis && axis.tickSize)
         precision = guessPrecision(axis.tickSize*1000);
-      return (aval*1000).toFixed(precision)+" ms";
+      return sign+(aval*1000).toFixed(precision)+" ms";
     }
   } else {
     if (aval>=(ki*ki*ki*ki*ki))
-      return (aval/ki/ki/ki/ki/ki).toFixed(precision)+" P"+unit;
+      return sign+(aval/ki/ki/ki/ki/ki).toFixed(precision)+" P"+unit;
     if (aval>=(ki*ki*ki*ki))
-      return (aval/ki/ki/ki/ki).toFixed(precision)+" T"+unit;
+      return sign+(aval/ki/ki/ki/ki).toFixed(precision)+" T"+unit;
     if (aval>=(ki*ki*ki))
-      return (aval/ki/ki/ki).toFixed(precision)+" G"+unit;
+      return sign+(aval/ki/ki/ki).toFixed(precision)+" G"+unit;
     if (aval>=(ki*ki))
-      return (aval/ki/ki).toFixed(precision)+" M"+unit;
+      return sign+(aval/ki/ki).toFixed(precision)+" M"+unit;
     if (aval>=ki)
-      return (aval/ki).toFixed(precision)+" k"+unit;
+      return sign+(aval/ki).toFixed(precision)+" k"+unit;
   }
   if (unit && unit[0]=="i" && unit[1]!="o")
     return aval.toFixed(precision)+" "+unit.substr(1);
-  return aval.toFixed(precision)+" "+unit;
+  return sign+aval.toFixed(precision)+" "+unit;
 }
 
 // Parse date and time in format "YYMMHH HHMMSS" into Date object.
@@ -215,19 +217,33 @@ Graph.prototype.find = function(id, selectors) {
   }
 };
 
-// Array bytes
-Graph.prototype.arraybytes = function(arr) {
-  var bytes = 0, last = null;
+// Array sum & avg
+Graph.prototype.arraysum = function(arr) {
+  var value = 0, last = null;
   if (arr.length==0) return 0;
   for (var idx=arr.length-1; idx>=0; idx--) {
     var t = arr[idx][0];
     if (this.range_from<=t && t<this.range_to && arr[idx][1]!=undefined) {
       if (last===null) last = t;
-      bytes += Math.abs(arr[idx][1])*(t-last)/1000;
+      value += Math.abs(arr[idx][1])*(t-last)/1000;
       last = t;
     }
   }
-  return bytes;
+  return value;
+};
+Graph.prototype.arrayavg = function(arr) {
+  var value = 0, count = 0, last = null;
+  if (arr.length==0) return 0;
+  for (var idx=arr.length-1; idx>=0; idx--) {
+    var t = arr[idx][0];
+    if (this.range_from<=t && t<this.range_to && arr[idx][1]!=undefined) {
+      if (last===null) last = t;
+      value += arr[idx][1];
+      count += 1;
+      last = t;
+    }
+  }
+  return value/count;
 };
 
 // Get data for current time interval
@@ -308,12 +324,25 @@ Graph.prototype.add_plot_callbacks = function(placeholder) {
       var graph_type = item.series.label.gt,
           unit = self.get_unit(label);
       var value = unit_si(item.datapoint[1], 3, unit),
-          sum_value = unit_si(
-            self.arraybytes(self.deltas[label][graph_type]), null, 'iB'
-          ),
           description = self.info[label].name,
           switchname = self.info[label].ip,
           dt = new Date(item.datapoint[0]);
+      if (unit=="C" || unit==degreeC) {
+        sum_value = unit_si(
+          self.arrayavg(self.deltas[label][graph_type]),
+          null, degreeC
+        );
+      } else if (unit.match(/\/h$/)) {
+        sum_value = unit_si(
+          self.arraysum(self.deltas[label][graph_type])/3600,
+          null, unit.split("/")[0]
+        );
+      } else {
+        sum_value = unit_si(
+          self.arraysum(self.deltas[label][graph_type]),
+          null, 'iB'
+        );
+      }
       self.find("throughput").val(value);
       self.find("bytes").val(sum_value);
       self.find("description").val(description);
@@ -410,6 +439,9 @@ Graph.prototype.add_menu_callbacks = function() {
   });
   this.find("toggle_filter").click(function() {
     self.filter.toggle();
+  });
+  this.find("hide_graph").click(function() {
+    self.placeholder.toggle();
   });
 };
 
@@ -1683,7 +1715,7 @@ service_groups = {
   temperature: {
     name: "Temperature",
     search: /temperature.*\/(temp|dew|humidity)/i,
-    unit: "C"
+    unit: degreeC
   },
   ping_rta: {
     name: "Ping RTA",
