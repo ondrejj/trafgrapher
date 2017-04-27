@@ -856,6 +856,8 @@ def update_value(cfg, tdir, community_name="public", force_compress=False,
     snmpc = SNMP(IP, community_name)
     vals = snmpc.getsome("", cfg['oids'].keys())
     for val, data in zip(vals, cfg['oids'].values()):
+      if not val:
+        continue
       #print(float(val)*data['scale'], data)
       try:
         logfile_simple(
