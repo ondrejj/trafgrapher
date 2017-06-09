@@ -1078,8 +1078,8 @@ def process_configs(files):
           ps = ipset(cfg["cmd_src"])
           pd = ipset(cfg["cmd_dst"])
         elif cfg["cmd_type"] == "iptables":
-          ps = iptables_src(cfg["cmd_src"])
-          pd = iptables_dst(cfg["cmd_dst"])
+          ps = iptables_dst(cfg["cmd_dst"])
+          pd = iptables_src(cfg["cmd_src"])
         elif cfg["cmd_type"] == "pid_cpu_usage":
           usages = pid_cpu_usage()
           for cmd_name, cmd in cfg["ifs"].items():
