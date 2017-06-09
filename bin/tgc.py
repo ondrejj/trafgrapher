@@ -329,6 +329,8 @@ def ip2host(ip):
       return socket.gethostbyaddr(ip)[0]
     except socket.herror:
       return ip
+    except socket.gaierror:
+      return ip
 
 oids_info = dict(
   ifIndex=str,

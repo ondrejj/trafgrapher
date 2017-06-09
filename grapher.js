@@ -1132,7 +1132,13 @@ JSONLoader.prototype.load_index = function(url) {
         var ethid = data.ip.replace(/[^a-z0-9]/gi, '_')
                   + port_id.replace(".", "_");
         function get_if_name(ifs) {
-          if (ifs[port_id].ifAlias) return ifs[port_id].ifAlias;
+          if (ifs[port_id].ifAlias) {
+            if (ifs[port_id].ifDescr.match(/^Vlan[0-9]+$/i)) {
+              return ifs[port_id].ifAlias+" ["+ifs[port_id].ifDescr+"]";
+            } else {
+              return ifs[port_id].ifAlias;
+            }
+          }
           if (data.ifs[port_id].ifDescr=="Ethernet Interface") {
             // linksys
             return data.ifs[port_id].ifDescr + " " + data.ifs[port_id].ifName;
