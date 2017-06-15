@@ -1758,6 +1758,11 @@ service_groups = {
     search: /Check_MK\/./,
     unit: "s"
   },
+  // psacct
+  sa: {
+    name: "SA",
+    search: /_sa\/./,
+  },
   // sagator
   sagator_count: {
     name: "Sagator email count",

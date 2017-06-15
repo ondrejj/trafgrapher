@@ -1,7 +1,7 @@
 #!/usr/bin/python -S
 
 '''
-TrafGrapher client
+TrafGrapher collector
 
 (c) 2015-2017 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
 
@@ -534,7 +534,7 @@ class SNMP:
             ifOutOctets = long(outo),
             error = None
           )
-        except (AttributeError, IndexError, ValueError) as err:
+        except (AttributeError, IndexError, ValueError, TypeError) as err:
           ret[id] = dict(
             ifInOctets = None, ifOutOctets = None,
             error = "No such instance: ip: %s:%d, id: %s [%s]"
