@@ -1762,6 +1762,7 @@ service_groups = {
   sa: {
     name: "SA",
     search: /_sa\/./,
+    unit: ""
   },
   // sagator
   sagator_count: {
