@@ -586,6 +586,10 @@ Graph.prototype.keyevent = function(event) {
       this.interval.val(4);
       this.refresh_range();
       break;
+    case '5'.charCodeAt(0):
+      this.interval.val(744);
+      this.refresh_range();
+      break;
     case '7'.charCodeAt(0):
       this.interval.val(24*7);
       this.refresh_range();
@@ -596,6 +600,10 @@ Graph.prototype.keyevent = function(event) {
       break;
     case '9'.charCodeAt(0):
       this.interval.val(24*8766); // 1 year
+      this.refresh_range();
+      break;
+    case '2'.charCodeAt(0):
+      this.interval.val(24*8766*2); // 2 years
       this.refresh_range();
       break;
     case '0'.charCodeAt(0):
@@ -1760,7 +1768,7 @@ service_groups = {
   },
   // psacct
   sa: {
-    name: "SA",
+    name: "psacct",
     search: /_sa\/./,
     unit: ""
   },
