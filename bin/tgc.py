@@ -12,14 +12,16 @@ Usage: tgc.py [--mkcfg|-c [community@]IP_or_hostname] \\
 		[--filter ifOperStatus|ifAdminStatus] \\
 		[--id ifName] [--rename] [--compress|-z] [--check]
        tgc.py [--verbose|-v] [community@]config.json \\
-		[--filter=timestamp|datetime]
+		[--filter-time=timestamp|datetime] \\
+		[--filter-value=value=>value[kMGTP]]
        tgc.py --ipset|--iptables [-q|--quiet] download_cmd upload_cmd
        tgc.py --cmd [-q|--quiet] cmd1 [cmd2 ...]
 
 Examples:
   tgc -c public@10.0.0.1 -w index.json
   tgc index.json
-  tgc index.json --filter='2015-07-04 02:00:00'
+  tgc index.json --filter-time='2015-07-04 02:00:00'
+  tgc index.json --filter-value='>1T'
   tgc --ipset "ipset list acc_download" "ipset list acc_upload" [index_file]
   tgc --iptables "iptables -L acc_download -vxn" "iptables -L acc_upload -vxn"
 '''
@@ -69,6 +71,9 @@ def ifhighspeed(speed):
     if not str(speed).isdigit():
       return None
     return ifspeed(long(speed)*1000000)
+
+def from_ts(ts):
+    return time.strftime("%c", time.localtime(ts))
 
 IFTYPES = dict([(itx[1],itx[0]) for itx in [
   ("other", 1),
@@ -775,9 +780,9 @@ class logfile:
       grp = grouper()
       grp.load(self.deltas, self.counter[0])
       self.deltas = dict(grp.items())
-  def filter(self, filter):
+  def filter_time(self, filter):
       '''
-      Filter out data
+      Filter out data by time
       '''
       if not filter:
         return self
@@ -785,7 +790,35 @@ class logfile:
       for key in filter.split(","):
         key = int(key)
         if key in self.deltas:
+          print("Filtered: %s: %s" % (
+            from_ts(key),
+            ", ".join([str(x) for x in self.deltas[key]]))
+          )
           del self.deltas[key]
+      return self
+  def unit_si(self, value):
+      units = dict(k=1024, m=1024**2, g=1024**3, t=1024**4, p=1024**5)
+      for unit, multiply in units.items():
+        if value[-1].lower()==unit:
+          return long(value[:-1])*multiply
+      return long(value)
+  def filter_value(self, filter):
+      '''
+      Filter out data by value
+      '''
+      if not filter:
+        return self
+      self.load()
+      if filter.startswith(">"):
+        value = self.unit_si(filter[1:])
+        for key in self.deltas.keys():
+          for vx in self.deltas[key]:
+            if vx>value:
+              print("Filtered value: %s - %s" % (from_ts(key), vx))
+              del self.deltas[key]
+              break
+      else:
+        print("Ignoring unknown filter: %s" % filter)
       return self
 
 class logfile_simple(logfile):
@@ -824,7 +857,7 @@ class logfile_simple(logfile):
       self.deltas = dict(grp.items(['avg']))
 
 def update_io(cfg, tdir, community_name="public", force_compress=False,
-              filter=None):
+              filter_time=None, filter_value=None):
     ids = cfg['ifs'].keys()
     IP = cfg['ip']
     snmpc = SNMP(IP, community_name)
@@ -841,8 +874,10 @@ def update_io(cfg, tdir, community_name="public", force_compress=False,
           logfile(
             os.path.join(tdir, cfg['ifs'][idx]['log']),
             force_compress
-          ).filter(
-            filter
+          ).filter_time(
+            filter_time
+          ).filter_value(
+            filter_value
           ).update(
             io['ifInOctets'], io['ifOutOctets'],
             uptime = uptime,
@@ -852,7 +887,7 @@ def update_io(cfg, tdir, community_name="public", force_compress=False,
           print(err)
 
 def update_value(cfg, tdir, community_name="public", force_compress=False,
-                 filter=None):
+                 filter_time=None, filter_value=None):
     ids = cfg['oids'].keys()
     IP = cfg['ip']
     snmpc = SNMP(IP, community_name)
@@ -866,8 +901,10 @@ def update_value(cfg, tdir, community_name="public", force_compress=False,
           os.path.join(tdir, data['log']),
           (cfg.get('name', IP), 'receive_power', data['name'], data['unit']),
           force_compress
-        ).filter(
-          filter
+        ).filter_time(
+          filter_time
+        ).filter_value(
+          filter_value
         ).update(
           float(val)*data['scale']
         )
@@ -1024,15 +1061,17 @@ class pid_cpu_usage():
           return [int(x) for x in stat[13:17]]
 
 def process_configs(files):
-    filter = ""
-    if "--filter" in opts:
-      filter = opts["--filter"]
+    filter_time = filter_value = ""
+    if "--filter-time" in opts:
+      filter_time = opts["--filter-time"]
       if ':' in filter:
         # convert date and time format to timestamps
         filter = ",".join([
           "%d" % time.mktime(time.strptime(x, "%Y-%m-%d %H:%M:%S"))
           for x in filter.split(",")
         ])
+    if "--filter-value" in opts:
+      filter_value = opts["--filter-value"]
     force_compress = ('-z' in opts) or ('--compress' in opts)
     for fn in files:
       if '@' in fn:
@@ -1109,17 +1148,23 @@ def process_configs(files):
       else:
         tdir = os.path.dirname(os.path.realpath(fn))
         if 'ifs' in cfg:
-          update_io(cfg, tdir, community, force_compress, filter=filter)
+          update_io(
+            cfg, tdir, community, force_compress,
+            filter_time=filter_time, filter_value=filter_value
+          )
         elif 'oids' in cfg:
-          update_value(cfg, tdir, community, force_compress, filter=filter)
+          update_value(
+            cfg, tdir, community, force_compress,
+            filter_time=filter_time, filter_value=filter_value
+          )
         else:
           print("Missing ifs or oids in cfg file!")
 
 if __name__ == "__main__":
   opts, files = getopt.gnu_getopt(sys.argv[1:], 'hctzw:dvq',
     ['help', 'mkcfg', 'test', 'write=', 'mkdir', 'id=', 'rename',
-     'verbose', 'quiet', 'check', 'filter=', 'local',
-     'sensors',
+     'verbose', 'quiet', 'check', 'filter-time=', 'filter-value=',
+     'local', 'sensors',
      'iptables', 'ipset', 'cmd'])
   opts = dict(opts)
   if "--verbose" in opts or "-v" in opts:
