@@ -449,6 +449,8 @@ class SNMP:
         ])
         # check IO retrieval
         ifindex = data['ifIndex']
+        if ifindex.startswith('-'): # skip negative indexes
+          continue
         io = self.getall([ifindex])
         if io[ifindex]['error']:
           print("Unable to get 64bit IO for id %s [%s], trying 32bit ..."
@@ -492,7 +494,6 @@ class SNMP:
         (x['ifDescr'], x)
         for x in self.get_info().values()
       )
-      #import IPython;IPython.embed()
       for row in self.get_data("", oids_sensor[:1]):
         if str(row[0][1]).endswith(receive_sensor_string):
           id = row[0][0].asTuple()[-1]

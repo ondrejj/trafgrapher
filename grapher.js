@@ -1665,21 +1665,21 @@ service_groups = {
     search: /diskio_.\/queue/i,
     unit: "/s"
   },
-  disk_usage: {
-    name: "Disk usage",
-    search: /(disk_|fs_[A-Z]:)/i,
-    unit: "B",
-    hide: true,
-    next: true
-  },
   disk_usage_percent: {
-    name: "Disk usage",
+    name: "Disk usage %",
     search: /(disk_|fs_[A-Z]:)/i,
     unit: "%",
     convert: function(value, warn, crit, min, max) {
       return value*100/max;
     },
-    name_suffix: "_percent"
+    name_suffix: "_percent",
+    next: true
+  },
+  disk_usage: {
+    name: "Disk usage bytes",
+    search: /(disk_|fs_[A-Z]:)/i,
+    unit: "B",
+    //hide: true,
   },
   users: {
     name: "Users",
