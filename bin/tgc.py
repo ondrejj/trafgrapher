@@ -449,8 +449,9 @@ class SNMP:
         ])
         # check IO retrieval
         ifindex = data['ifIndex']
-        if ifindex.startswith('-'): # skip negative indexes
-          continue
+        if ifindex.startswith('-'):
+          # fix broken negative values for Huawei
+          ifindex = str(2**32+long(ifindex))
         io = self.getall([ifindex])
         if io[ifindex]['error']:
           print("Unable to get 64bit IO for id %s [%s], trying 32bit ..."
