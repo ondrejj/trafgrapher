@@ -1127,13 +1127,15 @@ def process_configs(files):
               if "file" in cmd:
                 lf = logfile_simple(
                        os.path.join(prefix, cmd["log"]), cmd["file"])
-                p = float(open(cmd["file"]).read().strip())
+                p = float(open(os.path.join(prefix, cmd["file"])
+                              ).read().strip())
                 lf.update(p)
               elif "file2" in cmd:
                 lf = logfile(os.path.join(prefix, cmd["log"]))
                 ps, pd = [
                   float(x)
-                  for x in open(cmd["file2"]).read().strip().split()
+                  for x in open(os.path.join(prefix, cmd["file2"])
+                               ).read().strip().split()
                 ]
                 lf.update(ps, pd)
             except LockError as err:
