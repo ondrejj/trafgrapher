@@ -711,7 +711,7 @@ class logfile:
             print("Error loading logfile: %s" % err)
             print("Ignoring row: '%s'" % row.strip("\r\n"))
   def header(self):
-      return self.header_format % self.counter
+      return (self.header_format % self.counter).encode("utf8")
   def save(self, delta):
       if self.deltas:
         # save data when converting to new format
@@ -811,11 +811,27 @@ class logfile:
       if not filter:
         return self
       self.load()
-      if filter.startswith(">"):
+      if filter.startswith("="):
+        value = self.unit_si(filter[1:])
+        for key in self.deltas.keys():
+          for vx in self.deltas[key]:
+            if vx==value:
+              print("Filtered value: %s - %s" % (from_ts(key), vx))
+              del self.deltas[key]
+              break
+      elif filter.startswith(">"):
         value = self.unit_si(filter[1:])
         for key in self.deltas.keys():
           for vx in self.deltas[key]:
             if vx>value:
+              print("Filtered value: %s - %s" % (from_ts(key), vx))
+              del self.deltas[key]
+              break
+      elif filter.startswith("<"):
+        value = self.unit_si(filter[1:])
+        for key in self.deltas.keys():
+          for vx in self.deltas[key]:
+            if vx<value:
               print("Filtered value: %s - %s" % (from_ts(key), vx))
               del self.deltas[key]
               break
@@ -842,7 +858,7 @@ class logfile_simple(logfile):
         self.f = self.open(self.filename, "wb")
         self.f.write(self.header())
   def header(self):
-      return "%s\t%s\t%s\t%s\n" % self.header_data
+      return ("%s\t%s\t%s\t%s\n" % self.header_data).encode("utf8")
   def update(self, value):
       '''
       Update with current value
@@ -934,12 +950,17 @@ def read_uptime(filename=None):
     except ValueError as err:
       sys.exit("ERROR: Unable to parse uptime value: "+str(err.args[0]))
 
-def update_local(cfg, tdir, force_compress=False):
+def update_local(cfg, tdir, force_compress=False,
+                 filter_time=None, filter_value=None):
     for key, value in cfg['ifs'].items():
       try:
         logfile(
           os.path.join(tdir, value['log']),
           force_compress
+        ).filter_time(
+          filter_time
+        ).filter_value(
+          filter_value
         ).update(
           read_file(
             value['rx_filename'],
@@ -1093,7 +1114,10 @@ def process_configs(files):
         prefix = cfg["prefix"]
       if "--local" in opts:
         tdir = os.path.dirname(os.path.realpath(fn))
-        update_local(cfg, tdir, force_compress)
+        update_local(
+          cfg, tdir, force_compress,
+          filter_time=filter_time, filter_value=filter_value
+        )
       elif "cmd_type" in cfg:
         if cfg["cmd_type"] == "sh":
           for rowid, row in cfg["ifs"].items():
@@ -1102,16 +1126,17 @@ def process_configs(files):
               lf = logfile_simple(
                 os.path.join(prefix, row["log"]),
                 (row["cmd"], "-", "-", row.get("unit", "-"))
-              )
+              ).filter_time(filter_time).filter_value(filter_value)
               if value:
                 try:
                   value = float(value)
-                  lf.update(value)
                 except ValueError:
                   print(
                     "Could not convert value to float: '%s', id %s"
                     % (value, rowid)
                   )
+                  continue
+                lf.update(value)
             except LockError as err:
               print(err)
           return
@@ -1125,19 +1150,27 @@ def process_configs(files):
           for cmd_name, cmd in cfg["ifs"].items():
             try:
               if "file" in cmd:
-                lf = logfile_simple(
-                       os.path.join(prefix, cmd["log"]), cmd["file"])
-                p = float(open(os.path.join(prefix, cmd["file"])
-                              ).read().strip())
-                lf.update(p)
+                fc = open(os.path.join(prefix, cmd["file"])
+                         ).read().strip()
+                if fc:
+                  lf = logfile_simple(
+                         os.path.join(prefix, cmd["log"]), cmd["file"]
+                       ).filter_time(filter_time).filter_value(filter_value)
+                  p = float(open(os.path.join(prefix, cmd["file"])
+                                ).read().strip())
+                  lf.update(p)
               elif "file2" in cmd:
-                lf = logfile(os.path.join(prefix, cmd["log"]))
-                ps, pd = [
-                  float(x)
-                  for x in open(os.path.join(prefix, cmd["file2"])
-                               ).read().strip().split()
-                ]
-                lf.update(ps, pd)
+                fc = open(os.path.join(prefix, cmd["file2"])
+                         ).read().strip().split()
+                if fc:
+                  lf = logfile(os.path.join(prefix, cmd["log"])
+                       ).filter_time(filter_time).filter_value(filter_value)
+                  ps, pd = [
+                    float(x)
+                    for x in open(os.path.join(prefix, cmd["file2"])
+                                 ).read().strip().split()
+                  ]
+                  lf.update(ps, pd)
             except LockError as err:
               print(err)
           return
@@ -1160,7 +1193,8 @@ def process_configs(files):
           ipid = ip['ifName']
           #print(ip['ifName'], pd.bytes[ipid], ps.bytes[ipid])
           try:
-            lf = logfile(os.path.join(prefix, ip['log']))
+            lf = logfile(os.path.join(prefix, ip['log'])
+                 ).filter_time(filter_time).filter_value(filter_value)
             if ipid in pd.bytes and ipid in ps.bytes:
               lf.update(pd.bytes[ipid], ps.bytes[ipid])
             elif not QUIET:
