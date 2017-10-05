@@ -1121,6 +1121,24 @@ def process_configs(files):
         elif cfg["cmd_type"] == "iptables":
           ps = iptables_dst(cfg["cmd_dst"])
           pd = iptables_src(cfg["cmd_src"])
+        elif cfg["cmd_type"] == "files":
+          for cmd_name, cmd in cfg["ifs"].items():
+            try:
+              if "file" in cmd:
+                lf = logfile_simple(
+                       os.path.join(prefix, cmd["log"]), cmd["file"])
+                p = float(open(cmd["file"]).read().strip())
+                lf.update(p)
+              elif "file2" in cmd:
+                lf = logfile(os.path.join(prefix, cmd["log"]))
+                ps, pd = [
+                  float(x)
+                  for x in open(cmd["file2"]).read().strip().split()
+                ]
+                lf.update(ps, pd)
+            except LockError as err:
+              print(err)
+          return
         elif cfg["cmd_type"] == "pid_cpu_usage":
           usages = pid_cpu_usage()
           for cmd_name, cmd in cfg["ifs"].items():
