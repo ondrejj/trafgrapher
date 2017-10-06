@@ -73,7 +73,19 @@ def ifhighspeed(speed):
     return ifspeed(long(speed)*1000000)
 
 def from_ts(ts):
+    '''Convert timestamp to standard formatted time.'''
     return time.strftime("%c", time.localtime(ts))
+
+def fread(filename):
+    if filename.startswith("http://") or filename.startswith("https://"):
+      import ssl
+      ctx = ssl._create_unverified_context()
+      try:
+        from urllib.request import urlopen
+      except ImportError:
+        from urllib2 import urlopen
+      return urlopen(filename, context=ctx).read().split("\n")
+    return open(filename).read().split("\n")
 
 IFTYPES = dict([(itx[1],itx[0]) for itx in [
   ("other", 1),
@@ -1083,6 +1095,36 @@ class pid_cpu_usage():
         if name:
           return [int(x) for x in stat[13:17]]
 
+class proc_net_dev(fwcounter_base):
+  cmd = "netdev"
+  def __init__(self, direction="rx", filename="/proc/net/dev"):
+      self.filename = filename
+      self.direction = direction
+  def read(self):
+      self.bytes = {}
+      self.packets = {}
+      rows = fread(self.filename)
+      # ignore header rows
+      self.col_names = dict([
+        (x[1], x[0])
+        for x in enumerate(rows[1].split("|")[1].split())
+      ])
+      self.rx_shift = 1
+      self.tx_shift = self.rx_shift + len(self.col_names)
+      if self.direction=="tx":
+        self.shift = self.tx_shift
+      else:
+        self.shift = self.rx_shift
+      return rows[2:]
+  def items(self):
+      for row in self.read():
+        cols = row.strip().split()
+        if cols:
+          cols[0] = cols[0].strip(":")
+          self.bytes[cols[0]] = int(cols[self.shift+self.col_names["bytes"]])
+          self.packets[cols[0]] = int(cols[self.shift+self.col_names["packets"]])
+          yield cols[0], self.bytes[cols[0]], self.packets[cols[0]]
+
 def process_configs(files):
     filter_time = filter_value = ""
     if "--filter-time" in opts:
@@ -1146,6 +1188,9 @@ def process_configs(files):
         elif cfg["cmd_type"] == "iptables":
           ps = iptables_dst(cfg["cmd_dst"])
           pd = iptables_src(cfg["cmd_src"])
+        elif cfg["cmd_type"] == "netdev":
+          ps = proc_net_dev("rx", cfg["net_dev_filename"])
+          pd = proc_net_dev("tx", cfg["net_dev_filename"])
         elif cfg["cmd_type"] == "files":
           for cmd_name, cmd in cfg["ifs"].items():
             try:
