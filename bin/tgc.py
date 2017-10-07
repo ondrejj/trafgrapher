@@ -85,7 +85,11 @@ def fread(filename):
         from urllib.request import urlopen
       except ImportError:
         from urllib2 import urlopen
-      return urlopen(filename, context=ctx).read().split("\n")
+      try:
+        return urlopen(filename, context=ctx).read().split("\n")
+      except Exception as err:
+        print(filename, err)
+        return []
     return open(filename).read().split("\n")
 
 IFTYPES = dict([(itx[1],itx[0]) for itx in [
@@ -871,7 +875,7 @@ class logfile_simple(logfile):
         self.f = self.open(self.filename, "wb")
         self.f.write(self.header())
   def header(self):
-      return ("%s\t%s\t%s\t%s\n" % self.header_data).encode("utf8")
+      return (self.header_format % self.header_data).encode("utf8")
   def update(self, value):
       '''
       Update with current value
@@ -1105,6 +1109,9 @@ class proc_net_dev(fwcounter_base):
       self.bytes = {}
       self.packets = {}
       rows = fread(self.filename)
+      if not rows:
+        self.shift = 0
+        return []
       # ignore header rows
       self.col_names = dict([
         (x[1], x[0])
@@ -1171,6 +1178,7 @@ def process_configs(files):
       prefix = os.path.dirname(fn)
       if "prefix" in cfg:
         prefix = cfg["prefix"]
+      ps = pd = None
       if "--local" in opts:
         tdir = os.path.dirname(os.path.realpath(fn))
         update_local(
@@ -1198,7 +1206,6 @@ def process_configs(files):
                 lf.update(value)
             except LockError as err:
               print(err)
-          return
         elif cfg["cmd_type"] == "ipset":
           ps = ipset(cfg["cmd_src"])
           pd = ipset(cfg["cmd_dst"])
@@ -1216,7 +1223,8 @@ def process_configs(files):
                          ).read().strip()
                 if fc:
                   lf = logfile_simple(
-                         os.path.join(prefix, cmd["log"]), cmd["file"]
+                         os.path.join(prefix, cmd["log"]),
+                         (cmd["file"], "-", "-", "-")
                        ).filter_time(filter_time).filter_value(filter_value)
                   p = float(open(os.path.join(prefix, cmd["file"])
                                 ).read().strip())
@@ -1235,7 +1243,6 @@ def process_configs(files):
                   lf.update(ps, pd)
             except LockError as err:
               print(err)
-          return
         elif cfg["cmd_type"] == "pid_cpu_usage":
           usages = pid_cpu_usage()
           for cmd_name, cmd in cfg["ifs"].items():
@@ -1246,23 +1253,22 @@ def process_configs(files):
                 lf.update(usage[2]+usage[3], usage[0]+usage[1])
             except LockError as err:
               print(err)
-          return
         else:
           print("Unknown command type:", cfg["cmd_type"])
-          continue
-        list(ps.items()), list(pd.items()) # load object
-        for ip in cfg["ifs"].values():
-          ipid = ip['ifName']
-          #print(ip['ifName'], pd.bytes[ipid], ps.bytes[ipid])
-          try:
-            lf = logfile(os.path.join(prefix, ip['log'])
-                 ).filter_time(filter_time).filter_value(filter_value)
-            if ipid in pd.bytes and ipid in ps.bytes:
-              lf.update(pd.bytes[ipid], ps.bytes[ipid])
-            elif not QUIET:
-              print("Missing key:", ipid)
-          except LockError as err:
-            print(err)
+        if ps and pd:
+          list(ps.items()), list(pd.items()) # load object
+          for ip in cfg["ifs"].values():
+            ipid = ip['ifName']
+            #print(ip['ifName'], pd.bytes[ipid], ps.bytes[ipid])
+            try:
+              lf = logfile(os.path.join(prefix, ip['log'])
+                   ).filter_time(filter_time).filter_value(filter_value)
+              if ipid in pd.bytes and ipid in ps.bytes:
+                lf.update(pd.bytes[ipid], ps.bytes[ipid])
+              elif not QUIET:
+                print("Missing key:", ipid)
+            except LockError as err:
+              print(err)
       else:
         tdir = os.path.dirname(os.path.realpath(fn))
         if 'ifs' in cfg:
