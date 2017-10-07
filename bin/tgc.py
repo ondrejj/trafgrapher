@@ -1119,9 +1119,9 @@ class proc_net_dev(fwcounter_base):
       return rows[2:]
   def items(self):
       for row in self.read():
-        cols = row.strip().split()
+        cols = row.strip().replace(":", " ").split()
         if cols:
-          cols[0] = cols[0].strip(":")
+          cols[0] = cols[0]
           self.bytes[cols[0]] = int(cols[self.shift+self.col_names["bytes"]])
           self.packets[cols[0]] = int(cols[self.shift+self.col_names["packets"]])
           yield cols[0], self.bytes[cols[0]], self.packets[cols[0]]
