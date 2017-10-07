@@ -15,6 +15,7 @@ Usage: tgc.py [--mkcfg|-c [community@]IP_or_hostname] \\
 		[--filter-time=timestamp|datetime] \\
 		[--filter-value=value=>value[kMGTP]]
        tgc.py --ipset|--iptables [-q|--quiet] download_cmd upload_cmd
+       tgc.py --netdev [filename|URL]
        tgc.py --cmd [-q|--quiet] cmd1 [cmd2 ...]
 
 Examples:
@@ -1124,6 +1125,22 @@ class proc_net_dev(fwcounter_base):
           self.bytes[cols[0]] = int(cols[self.shift+self.col_names["bytes"]])
           self.packets[cols[0]] = int(cols[self.shift+self.col_names["packets"]])
           yield cols[0], self.bytes[cols[0]], self.packets[cols[0]]
+  def mkindex(self):
+      cfg = dict(
+        ip = socket.gethostbyname(socket.gethostname()),
+        name = socket.gethostname(),
+        cmd_type = "netdev",
+        net_dev_filename = self.filename,
+        ifs = {}
+      )
+      for iface_nr, (iface_name, bytes, packets) in enumerate(self.items()):
+        cfg["ifs"][iface_nr] = dict(
+          index = iface_nr,
+          ifName = iface_name,
+          ifDescr = iface_name,
+          log = "%s.log" % iface_name
+        )
+      return cfg
 
 def process_configs(files):
     filter_time = filter_value = ""
@@ -1266,7 +1283,7 @@ if __name__ == "__main__":
     ['help', 'mkcfg', 'test', 'write=', 'mkdir', 'id=', 'rename',
      'verbose', 'quiet', 'check', 'filter-time=', 'filter-value=',
      'local', 'sensors',
-     'iptables', 'ipset', 'cmd'])
+     'iptables', 'ipset', 'netdev', 'cmd'])
   opts = dict(opts)
   if "--verbose" in opts or "-v" in opts:
     VERBOSE = True
@@ -1366,6 +1383,9 @@ if __name__ == "__main__":
       process_configs(files[2:])
     else:
       print(json.dumps(cfg, indent=2))
+  elif "--netdev" in opts:
+    cfg = proc_net_dev("both", files[0]).mkindex()
+    print(json.dumps(cfg, indent=2))
   elif "--cmd" in opts:
     cfg = cmd_mkindex(files)
     print(json.dumps(cfg, indent=2))
