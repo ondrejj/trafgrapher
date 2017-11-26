@@ -307,6 +307,15 @@ Graph.prototype.get_unit = function(label) {
   return unit;
 };
 
+// Get color
+Graph.prototype.get_color = function(label) {
+  try {
+    return this.info[label].info.color;
+  } catch(err) {
+    return null;
+  }
+}
+
 // Add callbacks for plot
 Graph.prototype.add_plot_callbacks = function(placeholder) {
   var self = this;
@@ -719,21 +728,22 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
       checked_choices.push($(this).prop("name"));
     });
   }
-  var colors = gen_colors(checked_choices.length);
+  var colors = gen_colors(checked_choices.length), color;
   for (var n=0; n<checked_choices.length; n++) {
     name = checked_choices[n];
     unit = this.get_unit(name);
+    var color = this.get_color(name) || colors[n];
     if (this.index_mode=="storage") {
       if (graph_type[0]=="x") {
         // storage read and write graph
         flots.push({
           label: {name: name, gt: 'r'+graph_type[1]},
-          color: colors[n],
+          color: color,
           data: this.filter_interval(this.deltas[name]['r'+graph_type[1]])
         });
         flots.push({
           label: {name: name, gt: 'w'+graph_type[1]},
-          color: colors[n],
+          color: color,
           data: this.filter_interval(arrayinverse(
                   this.deltas[name]['w'+graph_type[1]]))
         });
@@ -741,7 +751,7 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
         // storage one way graph (read or write only)
         flots.push({
           label: {name: name, gt: graph_type[0]},
-          color: colors[n],
+          color: color,
           data: this.filter_interval(this.deltas[name][graph_type])
         });
       }
@@ -754,7 +764,7 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
           continue; // skip empty graph
         flots.push({
           label: {name: name, gt: graph_type[gt]},
-          color: String(colors[n]),
+          color: String(color),
           data: this.filter_interval(
                   this.deltas[name][graph_type[gt]],
                   this.unit_type.find("option:selected").val(),
