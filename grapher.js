@@ -308,12 +308,14 @@ Graph.prototype.get_unit = function(label) {
 };
 
 // Get color
-Graph.prototype.get_color = function(label) {
-  try {
-    return this.info[label].info.color;
-  } catch(err) {
-    return null;
+Graph.prototype.get_color = function(label, n) {
+  var info = this.info[label].info;
+  if (info && info.color) {
+    if (typeof info.color === "number")
+      return this.palette[info.color];
+    return info.color;
   }
+  return this.palette[n];
 }
 
 // Add callbacks for plot
@@ -720,7 +722,7 @@ Graph.prototype.plot_all_graphs = function() {
 };
 
 Graph.prototype.plot_graph = function(checked_choices, placeholder) {
-  var flots = [], name, unit,
+  var flots = [], name, unit, color,
       graph_type = this.graph_type.find("option:selected").val() || "jo";
   if (checked_choices===undefined) {
     checked_choices = [];
@@ -728,11 +730,11 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
       checked_choices.push($(this).prop("name"));
     });
   }
-  var colors = gen_colors(checked_choices.length), color;
+  this.palette = gen_colors(checked_choices.length);
   for (var n=0; n<checked_choices.length; n++) {
     name = checked_choices[n];
     unit = this.get_unit(name);
-    var color = this.get_color(name) || colors[n];
+    var color = this.get_color(name, n);
     if (this.index_mode=="storage") {
       if (graph_type[0]=="x") {
         // storage read and write graph
