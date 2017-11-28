@@ -107,5 +107,6 @@ div.tooltip {
   display: none;
   border: 1px solid #999;
   padding: 2px;
+  background-color: #eee;
   opacity: 0.70;
 }
