@@ -641,13 +641,15 @@ class grouper(dict):
   def items(self, fx=['avg', 'avg', max, max]):
       ret = []
       for key, values in dict.items(self):
-        lv = len(values)
         vals = []
         for id, func in enumerate(fx):
-          if func=="avg":
-            vals.append(sum([x[id] for x in values])/lv) # avg
+          not_none = [x[id] for x in values if x[id] is not None]
+          if not not_none:
+            vals.append(None)
+          elif func=="avg":
+            vals.append(sum(not_none)/len(not_none)) # avg
           else:
-            vals.append(func([x[id] for x in values]))
+            vals.append(func(not_none))
         ret.append((key, vals))
       return ret
   def load(self, deltas, start=None):
@@ -663,6 +665,7 @@ class grouper(dict):
             break
         st = int(t/range)*range
         self[st].append(deltas[t])
+      return self
 
 class LockError(Exception):
   pass
@@ -716,17 +719,24 @@ class logfile:
         raise LockError("ERROR: File locked: %s!" % filename)
       return f
   def data_type(self, value):
+      if value=="N" or value=="None":
+        return None
       return long(value, 10)
+  def store_value(self, value):
+      if value is None:
+        return "N"
+      return value
   def load(self):
       for row in self.f.readlines():
-        if row.strip():
+        row = row.rstrip()
+        if row:
           row_split = row.split(" ", 4)
           try:
             self.deltas[long(row_split[0])] \
               = tuple(self.data_type(x) for x in row_split[1:])
           except ValueError as err:
             print("Error loading logfile: %s" % err)
-            print("Ignoring row: '%s'" % row.strip("\r\n"))
+            print("Ignoring row: '%s'" % row)
   def header(self):
       return (self.header_format % self.counter).encode("utf8")
   def save(self, delta):
@@ -741,7 +751,9 @@ class logfile:
         if self.header_format:
           self.f.write(self.header())
         for t in sorted(self.deltas, reverse=True):
-          self.f.write(self.data_format % tuple([t]+list(self.deltas[t])))
+          self.f.write(self.data_format
+            % tuple([t]+[self.store_value(x) for x in self.deltas[t]])
+          )
         self.f.close()
         os.rename(self.filename+'.tmp', self.filename)
         old_f.close() # close old file after rename
@@ -858,7 +870,6 @@ class logfile:
 
 class logfile_simple(logfile):
   header_format = "%s\t%s\t%s\t%s\n"
-  data_type = float
   data_format = "%d %s\n"
   def __init__(self, filename, header, force_compress=False):
       self.filename = filename
@@ -870,10 +881,16 @@ class logfile_simple(logfile):
         self.f = self.open(self.filename, "rb+")
         header = self.f.readline() # read header
         if mtime//grouper.one_day < time.time()//grouper.one_day:
+          force_compress = True
+        if force_compress:
           self.load()
       except OSError:
         self.f = self.open(self.filename, "wb")
         self.f.write(self.header())
+  def data_type(self, value):
+      if value=="N" or value=="None":
+        return None
+      return float(value)
   def header(self):
       return (self.header_format % self.header_data).encode("utf8")
   def update(self, value):
@@ -1192,7 +1209,8 @@ def process_configs(files):
             try:
               lf = logfile_simple(
                 os.path.join(prefix, row["log"]),
-                (row["cmd"], "-", "-", row.get("unit", "-"))
+                (row["cmd"], "-", "-", row.get("unit", "-")),
+                force_compress=force_compress
               ).filter_time(filter_time).filter_value(filter_value)
               if value:
                 try:
@@ -1224,7 +1242,8 @@ def process_configs(files):
                 if fc:
                   lf = logfile_simple(
                          os.path.join(prefix, cmd["log"]),
-                         (cmd["file"], "-", "-", "-")
+                         (cmd["file"], "-", "-", "-"),
+                         force_compress=force_compress
                        ).filter_time(filter_time).filter_value(filter_value)
                   p = float(open(os.path.join(prefix, cmd["file"])
                                 ).read().strip())
