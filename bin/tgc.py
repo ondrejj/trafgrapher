@@ -1214,7 +1214,7 @@ def process_configs(files):
               ).filter_time(filter_time).filter_value(filter_value)
               if value:
                 try:
-                  value = float(value)
+                  value = lf.data_type(value)
                 except ValueError:
                   print(
                     "Could not convert value to float: '%s', id %s"
@@ -1245,8 +1245,8 @@ def process_configs(files):
                          (cmd["file"], "-", "-", "-"),
                          force_compress=force_compress
                        ).filter_time(filter_time).filter_value(filter_value)
-                  p = float(open(os.path.join(prefix, cmd["file"])
-                                ).read().strip())
+                  p = lf.data_type(open(os.path.join(prefix, cmd["file"])
+                                  ).read().strip())
                   lf.update(p)
               elif "file2" in cmd:
                 fc = open(os.path.join(prefix, cmd["file2"])
