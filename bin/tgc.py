@@ -470,6 +470,8 @@ class SNMP:
           # fix broken negative values for Huawei
           ifindex = str(2**32+long(ifindex))
         io = self.getall([ifindex])
+        if data.get("ifName", "")=="Nu0":
+          continue # ignore Null interfaces
         if io[ifindex]['error']:
           print("Unable to get 64bit IO for id %s [%s], trying 32bit ..."
                 % (ifindex, data.get("ifName", "")))

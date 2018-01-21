@@ -222,11 +222,10 @@ Graph.prototype.arraysum = function(arr) {
   var value = 0, last = null;
   if (arr.length==0) return 0;
   for (var idx=arr.length-1; idx>=0; idx--) {
-    var t = arr[idx][0];
-    if (this.range_from<=t && t<this.range_to
-        && arr[idx][1]!=null && arr[idx][1]!=undefined) {
+    var t = arr[idx][0], v = arr[idx][1];
+    if (this.range_from<=t && t<this.range_to && v!==null && v!==undefined) {
       if (last===null) last = t;
-      value += Math.abs(arr[idx][1])*(t-last)/1000;
+      value += Math.abs(v)*(t-last)/1000;
       last = t;
     }
   }
@@ -236,15 +235,15 @@ Graph.prototype.arrayavg = function(arr) {
   var value = 0, count = 0, last = null;
   if (arr.length==0) return 0;
   for (var idx=arr.length-1; idx>=0; idx--) {
-    var t = arr[idx][0];
-    if (this.range_from<=t && t<this.range_to
-        && arr[idx][1]!=null && arr[idx][1]!=undefined) {
+    var t = arr[idx][0], v = arr[idx][1];
+    if (this.range_from<=t && t<this.range_to && v!==null && v!==undefined) {
       if (last===null) last = t;
-      value += arr[idx][1];
+      value += v;
       count += 1;
       last = t;
     }
   }
+  if (count==0) return null;
   return value/count;
 };
 
