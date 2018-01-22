@@ -223,7 +223,7 @@ Graph.prototype.arraysum = function(arr) {
   if (arr.length==0) return 0;
   for (var idx=arr.length-1; idx>=0; idx--) {
     var t = arr[idx][0], v = arr[idx][1];
-    if (this.range_from<=t && t<this.range_to && v!==null && v!==undefined) {
+    if (this.range_from<=t && t<this.range_to && v!==null && !isNaN(v)) {
       if (last===null) last = t;
       value += Math.abs(v)*(t-last)/1000;
       last = t;
@@ -236,7 +236,7 @@ Graph.prototype.arrayavg = function(arr) {
   if (arr.length==0) return 0;
   for (var idx=arr.length-1; idx>=0; idx--) {
     var t = arr[idx][0], v = arr[idx][1];
-    if (this.range_from<=t && t<this.range_to && v!==null && v!==undefined) {
+    if (this.range_from<=t && t<this.range_to && v!==null && !isNaN(v)) {
       if (last===null) last = t;
       value += v;
       count += 1;
@@ -339,10 +339,11 @@ Graph.prototype.add_plot_callbacks = function(placeholder) {
           description = self.info[label].name,
           switchname = self.info[label].ip,
           dt = new Date(item.datapoint[0]);
-      if (unit=="C" || unit==degreeC) {
+      if (unit.match(/i[bB]\/s$/)) { // bits per second
+        console.log(unit);
         sum_value = unit_si(
-          self.arrayavg(self.deltas[label][graph_type]),
-          null, degreeC
+          self.arraysum(self.deltas[label][graph_type]),
+          null, 'iB'
         );
       } else if (unit.match(/\/h$/)) {
         sum_value = unit_si(
@@ -351,8 +352,8 @@ Graph.prototype.add_plot_callbacks = function(placeholder) {
         );
       } else {
         sum_value = unit_si(
-          self.arraysum(self.deltas[label][graph_type]),
-          null, 'iB'
+          self.arrayavg(self.deltas[label][graph_type]),
+          null, unit
         );
       }
       self.find("throughput").val(value);
