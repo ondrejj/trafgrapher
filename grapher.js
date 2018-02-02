@@ -368,7 +368,9 @@ Graph.prototype.add_plot_callbacks = function(placeholder) {
       $("#tooltip").html(
           description + ": " + value
           + "<br/>"
-          + dt.toString()
+          + dt.toDateString()
+          + "<br/>"
+          + dt.toTimeString()
        ).css(tooltip_position)
         .show();
       // display information from json file
