@@ -1,6 +1,6 @@
 /*
   TrafGrapher
-  (c) 2015-2017 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
+  (c) 2015-2018 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
   Licensed under the MIT license.
 */
 
@@ -434,6 +434,33 @@ Graph.prototype.add_plot_callbacks = function(placeholder) {
   });
 };
 
+// Menu functions
+Graph.prototype.select_all = function() {
+  this.filter.find("input").prop("checked", true);
+  this.plot_graph();
+}
+Graph.prototype.select_none = function() {
+  this.filter.find("input").prop("checked", false);
+  this.plot_graph();
+}
+Graph.prototype.select_inv = function() {
+  this.filter.find("input").each(function() {
+    var sel = $(this);
+    sel.prop("checked", !sel.prop("checked"));
+  });
+  this.plot_graph();
+}
+Graph.prototype.select_virt = function() {
+  var self = this;
+  this.filter.find("input").each(function() {
+    var sel = $(this);
+    if (self.deltas[this.name]['info']
+        && self.deltas[this.name]['info']['ifType']=='propVirtual')
+      sel.prop("checked", !sel.prop("checked"));
+  });
+  this.plot_graph();
+}
+
 // Add menu callbacks for graph
 Graph.prototype.add_menu_callbacks = function() {
   var self = this;
@@ -458,6 +485,13 @@ Graph.prototype.add_menu_callbacks = function() {
   this.find("hide_graph").click(function() {
     self.placeholder.toggle();
   });
+  this.find("b_select_all").click(function() { self.select_all(); });
+  this.find("b_select_inv").click(function() { self.select_inv(); });
+  this.find("b_select_none").click(function() { self.select_none(); });
+  this.find("b_select_virt").click(function() { self.select_virt(); });
+  this.find("b_zoom_out").click(function() { self.zoom_out(); });
+  this.find("b_reload").click(function() { self.refresh_graph(); });
+  this.find("b_urllink").click(function() { self.urllink(); });
 };
 
 // Create link args for index files
@@ -532,25 +566,13 @@ Graph.prototype.menu_selected = function(sel) {
   if (sel=="") {
     return;
   } else if (sel=="all") {
-    $(inputs_all).prop("checked", true);
-    this.plot_graph();
+    this.select_all();
   } else if (sel=="none") {
-    $(inputs_all).prop("checked", false);
-    this.plot_graph();
+    this.select_none();
   } else if (sel=="inv") {
-    $(inputs_all).each(function() {
-      var sel = $(this);
-      sel.prop("checked", !sel.prop("checked"));
-    });
-    this.plot_graph();
+    this.select_inv();
   } else if (sel=="virtual") {
-    $(inputs_all).each(function() {
-      var sel = $(this);
-      if (self.deltas[this.name]['info']
-          && self.deltas[this.name]['info']['ifType']=='propVirtual')
-        sel.prop("checked", !sel.prop("checked"));
-    });
-    this.plot_graph();
+    this.select_virt();
   } else if (sel=="zoomout") {
     this.zoom_out();
   } else if (sel=="reload") {
@@ -569,22 +591,22 @@ Graph.prototype.menu_selected = function(sel) {
 Graph.prototype.keyevent = function(event) {
   switch(event.which) {
     case 'X'.charCodeAt(0):
-      this.menu_selected("inv");
+      this.select_inv();
       break;
     case 'N'.charCodeAt(0):
-      this.menu_selected("none");
+      this.select_none();
       break;
     case 'A'.charCodeAt(0):
-      this.menu_selected("all");
+      this.select_all();
       break;
     case 'V'.charCodeAt(0):
-      this.menu_selected("virtual");
+      this.select_virt();
       break;
     case 'R'.charCodeAt(0):
-      this.menu_selected("reload");
+      this.refresh_graph();
       break;
     case 'Z'.charCodeAt(0):
-      this.menu_selected("zoomout");
+      this.zoom_out();
       break;
     case 'I'.charCodeAt(0):
       this.find("info_table").animate({height: "toggle"}, 300);
@@ -2004,6 +2026,13 @@ NagiosLoader.prototype.load_index = function(url) {
     self.progress.loading_error(url, error);
   });
 };
+
+// call function on all graphs
+function callgraphs(fx) {
+  for (var i in graphs) {
+    graphs[i][fx]();
+  }
+}
 
 $(function() {
   $(".footer a")
