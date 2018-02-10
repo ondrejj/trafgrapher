@@ -11,3 +11,20 @@ div.tooltip {
 .flot-text {
   color: #eee !important;
 }
+
+/* menu buttons */
+div.trafgrapher div.selection select,
+div.trafgrapher div.selection input,
+div.trafgrapher div.selection button {
+  -webkit-filter: invert(100%);
+  -ms-filter: invert(100%);
+  filter: invert(100%);
+  border: 1px solid #111;
+  box-shadow: 0px 0px 1px #333;
+}
+/* checkbox */
+div.trafgrapher input {
+  -webkit-filter: invert(100%);
+  -ms-filter: invert(100%);
+  filter: invert(100%);
+}
