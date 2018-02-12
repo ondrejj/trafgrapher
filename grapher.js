@@ -356,8 +356,8 @@ Graph.prototype.add_plot_callbacks = function(placeholder) {
           null, unit
         );
       }
-      self.find("throughput").val(value);
-      self.find("bytes").val(sum_value);
+      self.find("value_one").val(value);
+      self.find("value_sum").val(sum_value);
       self.find("description").val(description);
       self.find("switchname").val(switchname);
       // show tooltip
@@ -829,8 +829,8 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
     );
   }
   // clear last graph values
-  this.find("throughput").val("");
-  this.find("bytes").val("");
+  this.find("value_one").val("");
+  this.find("value_sum").val("");
   this.find("description").val("");
   this.find("switchname").val("");
   this.find("info_table").empty();
