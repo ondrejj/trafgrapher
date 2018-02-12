@@ -1,3 +1,8 @@
+body {
+  background-color: black;
+  color: white;
+}
+
 div.trafgrapher div, div.trafgrapher h2 {
   text-align: center;
 }
@@ -105,61 +110,73 @@ div.trafgrapher table tr td {
 div.tooltip {
   position: absolute;
   display: none;
-  border: 1px solid #999;
+  border: 1px solid #333;
+  background-color: #111;
   padding: 2px;
-  background-color: #eee;
   opacity: 0.70;
 }
 
+.flot-text {
+  color: #eee !important;
+}
+
 /* menu buttons */
-div.trafgrapher div.selection input,
-div.trafgrapher div.selection select,
-div.trafgrapher div.selection button {
+div.trafgrapher input,
+div.trafgrapher select,
+div.trafgrapher button {
   height: 22pt;
   min-width: 20pt;
   margin: 2px 0px 1px 0px;
-  border: 1px solid #000;
+  border: 1px solid #ccc;
   border-radius: 3px;
-  box-shadow: 0px 0px 1px #222;
-  background-color: #eee;
-}
-div.trafgrapher div.selection button {
+  box-shadow: 0px 0px 1px #aaa;
+  background-color: #111;
+  color: white;
   background-repeat: no-repeat;
   background-position: center;
-}
-div.trafgrapher div.selection select {
-  padding-left: 2px;
-  padding-right: 12pt;
-  background-repeat: no-repeat;
-  background-position: right;
   appearance: none;
   -moz-appearance: none;
   -webkit-appearance: none;
 }
-div.trafgrapher div.selection select::-ms-expand {
+div.trafgrapher select {
+  background-position: right;
+  padding-left: 2pt;
+  padding-right: 12pt;
+}
+div.trafgrapher select::-ms-expand,
+div.trafgrapher input::-ms-check {
   display: none;
+}
+div.trafgrapher input[type="checkbox"] {
+  height: 15px;
+  width: 15px;
+  min-height: auto;
+  min-width: auto;
+  padding: 0;
 }
 
 /* generated images */
-div.trafgrapher div.selection select {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Cpath d='M 4 7 L 10 13 L 16 7' stroke='black' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+div.trafgrapher input[type="checkbox"]:checked {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10'%3E%3Cpath d='M 1 5 l 3 3 l 5 -6' stroke='white' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
-
 div.trafgrapher button.b_reload {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Cpath d='M 15 12 A 5 5 0 1 1 15 8 h -4 m 4 0 v -4' stroke='black' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Cpath d='M 15 12 A 5 5 0 1 1 15 8 h -4 m 4 0 v -4' stroke='white' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 div.trafgrapher button.b_select_all {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Crect x='2' y='2' width='16' height='16' rx='4' ry='4' stroke='black' stroke-width='2' fill='%23222'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Crect x='2' y='2' width='16' height='16' rx='4' ry='4' stroke='white' stroke-width='2' fill='%23aaa'/%3E%3C/svg%3E");
+}
+div.trafgrapher div.selection select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Cpath d='M 4 7 L 10 13 L 16 7' stroke='white' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 div.trafgrapher button.b_select_invert {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Cdefs%3E%3Cmask id='half' x='0' y='0' width='20' height='20'%3E%3Cpolygon points='0,0 20,0 0,20' fill='white'/%3E%3C/mask%3E%3C/defs%3E%3Cg stroke='black' stroke-width='2'%3E%3Crect x='2' y='2' width='16' height='16' rx='4' ry='4' fill='none'/%3E%3Crect x='2' y='2' width='16' height='16' rx='4' ry='4' fill='%23222' mask='url(%23half)'/%3E%3Cline x1='17' y1='3' x2='3' y2='17'/%3E%3C/g%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Cdefs%3E%3Cmask id='half' x='0' y='0' width='20' height='20'%3E%3Cpolygon points='0,0 20,0 0,20' fill='white'/%3E%3C/mask%3E%3C/defs%3E%3Cg stroke='white' stroke-width='2'%3E%3Crect x='2' y='2' width='16' height='16' rx='4' ry='4' fill='none'/%3E%3Crect x='2' y='2' width='16' height='16' rx='4' ry='4' fill='%23aaa' mask='url(%23half)'/%3E%3Cline x1='17' y1='3' x2='3' y2='17'/%3E%3C/g%3E%3C/svg%3E");
 }
 div.trafgrapher button.b_select_none {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Crect x='2' y='2' width='16' height='16' rx='4' ry='4' stroke='black' stroke-width='2' fill='none'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Crect x='2' y='2' width='16' height='16' rx='4' ry='4' stroke='white' stroke-width='2' fill='none'/%3E%3C/svg%3E");
 }
 div.trafgrapher button.b_urllink {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Cpath d='M 4 5 L 16 5 l -4 -3 M 16 5 l -4 3' transform='rotate(-20 10 7)' stroke='black' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ctext x='10' y='18' font-weight='bold' font-family='sans-serif' font-size='8' text-anchor='middle'%3EURL%3C/text%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Cpath d='M 4 5 L 16 5 l -4 -3 M 16 5 l -4 3' transform='rotate(-20 10 7)' stroke='white' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ctext x='10' y='18' fill='white' font-weight='bold' font-family='sans-serif' font-size='8' text-anchor='middle'%3EURL%3C/text%3E%3C/svg%3E");
 }
-div.trafgrapher button.b_zoom {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Cg stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='7' cy='7' r='5' fill='none'/%3E%3Cline x1='11' y1='11' x2='17' y2='17'/%3E%3C/g%3E%3C/svg%3E");
+div.trafgrapher button.b_zoom_out {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Cg stroke='white' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='7' cy='7' r='5' fill='none'/%3E%3Cline x1='11' y1='11' x2='17' y2='17'/%3E%3Cline x1='5' y1='7' x2='9' y2='7' stroke-width='1'/%3E%3C/g%3E%3C/svg%3E");
 }

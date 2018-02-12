@@ -8,7 +8,13 @@ optimize() {
 cd `dirname $0`
 for svg in *.svg; do
   name="${svg%.svg}"
-  echo "div.trafgrapher button.b_$name {"
+  if [ "$name" = "check" ]; then
+    echo "div.trafgrapher input[type='checkbox']:checked {"
+  elif [ "$name" = "select_down" ]; then
+    echo "div.trafgrapher div.selection select {"
+  else
+    echo "div.trafgrapher button.b_$name {"
+  fi
   echo "  background-image: url(\"data:image/svg+xml,`optimize $svg`\");"
   echo "}"
 done

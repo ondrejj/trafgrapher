@@ -5,11 +5,11 @@
       <polygon points="0,0 20,0 0,20" fill="white"/>
     </mask>
   </defs>
-  <g stroke="black" stroke-width="2">
+  <g stroke="white" stroke-width="2">
     <rect x="2" y="2" width="16" height="16" rx="4" ry="4"
       fill="none"/>
     <rect x="2" y="2" width="16" height="16" rx="4" ry="4"
-      fill="#222" mask="url(#half)"/>
+      fill="#aaa" mask="url(#half)"/>
     <line x1="17" y1="3" x2="3" y2="17"/>
   </g>
 </svg>

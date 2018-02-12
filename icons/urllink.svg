@@ -2,9 +2,9 @@
      width="20" height="20">
   <path d="M 4 5 L 16 5 l -4 -3 M 16 5 l -4 3"
         transform="rotate(-20 10 7)"
-        stroke="black" stroke-width="2" fill="none"
+        stroke="white" stroke-width="2" fill="none"
         stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="10" y="18"
+  <text x="10" y="18" fill="white"
         font-weight="bold" font-family="sans-serif" font-size="8"
         text-anchor="middle">URL</text>
 </svg>
