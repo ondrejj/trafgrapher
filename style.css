@@ -149,13 +149,13 @@ div.trafgrapher button.b_reload {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Cpath d='M 15 12 A 5 5 0 1 1 15 8 h -4 m 4 0 v -4' stroke='black' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 div.trafgrapher button.b_select_all {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Cg stroke='black' stroke-width='2'%3E%3Crect x='2' y='2' width='16' height='16' rx='4' ry='4' fill='%23222'/%3E%3C/g%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Crect x='2' y='2' width='16' height='16' rx='4' ry='4' stroke='black' stroke-width='2' fill='%23222'/%3E%3C/svg%3E");
 }
 div.trafgrapher button.b_select_invert {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Cdefs%3E%3Cmask id='half' x='0' y='0' width='20' height='20'%3E%3Cpolygon points='0,0 20,0 0,20' fill='white'/%3E%3C/mask%3E%3C/defs%3E%3Cg stroke='black' stroke-width='2'%3E%3Crect x='2' y='2' width='16' height='16' rx='4' ry='4' fill='none'/%3E%3Crect x='2' y='2' width='16' height='16' rx='4' ry='4' fill='%23222' mask='url(%23half)'/%3E%3Cline x1='17' y1='3' x2='3' y2='17'/%3E%3C/g%3E%3C/svg%3E");
 }
 div.trafgrapher button.b_select_none {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Cg stroke='black' stroke-width='2'%3E%3Crect x='2' y='2' width='16' height='16' rx='4' ry='4' fill='none'/%3E%3C/g%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Crect x='2' y='2' width='16' height='16' rx='4' ry='4' stroke='black' stroke-width='2' fill='none'/%3E%3C/svg%3E");
 }
 div.trafgrapher button.b_urllink {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Cpath d='M 4 5 L 16 5 l -4 -3 M 16 5 l -4 3' transform='rotate(-20 10 7)' stroke='black' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ctext x='10' y='18' font-weight='bold' font-family='sans-serif' font-size='8' text-anchor='middle'%3EURL%3C/text%3E%3C/svg%3E");
