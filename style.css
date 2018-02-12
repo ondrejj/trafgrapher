@@ -3,6 +3,13 @@ body {
   color: white;
 }
 
+a {
+  color: #F2FF00;
+}
+a:visited {
+  color: #FFA500;
+}
+
 div.trafgrapher div, div.trafgrapher h2 {
   text-align: center;
 }
