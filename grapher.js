@@ -54,7 +54,7 @@ function joinarrays(arr) {
 // Create array with deltas of two arrays.
 function arraydelta(nodes) {
   if (!nodes) return [];
-  if (nodes.length==0) return [];
+  if (nodes.length===0) return [];
   var deltas = [];
   nodes.sort(col0diff);
   var prev = nodes[0];
@@ -86,9 +86,9 @@ function to_ms(value) {
 
 // Convert unit to kilo, mega, giga or tera.
 function guessPrecision(ticksize) {
-  if (ticksize<0.01) return 3
-  else if (ticksize<0.1) return 2
-  else if (ticksize<1) return 1
+  if (ticksize<0.01) return 3;
+  else if (ticksize<0.1) return 2;
+  else if (ticksize<1) return 1;
   return 0;
 }
 function unit_si(val, axis, unit) {
@@ -134,15 +134,14 @@ function parsedatetime(d, t) {
   if (d.length<8) d = "20" + d;
   return Date.parse(
     d[0]+d[1]+d[2]+d[3]+"-" + d[4]+d[5]+"-" + d[6]+d[7]+"T" +
-    t[0]+t[1]+":" + t[2]+t[3]+":" + t[4]+t[5]
-  );
+    t[0]+t[1]+":" + t[2]+t[3]+":" + t[4]+t[5] );
 }
 
 // Decode strings
 function unbase(data) {
   if (data && data[0]=="~" && window.atob!==undefined)
     return window.atob(data.substr(1));
-  return data
+  return data;
 }
 
 // Color generator from flot
@@ -161,7 +160,7 @@ function gen_colors(neededColors) {
     // Reset the variation after every few cycles, or else
     // it will end up producing only white or black colors.
 
-    if (i % colorPoolSize == 0 && i) {
+    if (i % colorPoolSize === 0 && i) {
       if (variation >= 0) {
         if (variation < 0.5) {
           variation = -variation - 0.2;
@@ -174,9 +173,9 @@ function gen_colors(neededColors) {
 }
 
 // Dark theme
-function dark_theme() {
-  $('head')
-    .append($('<link rel="stylesheet" type="text/css" href="dark.css" />'));
+function light_theme() {
+  $('head').append(
+    $('<link rel="stylesheet" type="text/css" href="light.css" />'));
 }
 
 // Escape selector ID
@@ -220,7 +219,7 @@ Graph.prototype.find = function(id, selectors) {
 // Array sum & avg
 Graph.prototype.arraysum = function(arr) {
   var value = 0, last = null;
-  if (arr.length==0) return 0;
+  if (arr.length===0) return 0;
   for (var idx=arr.length-1; idx>=0; idx--) {
     var t = arr[idx][0], v = arr[idx][1];
     if (this.range_from<=t && t<this.range_to && v!==null && !isNaN(v)) {
@@ -233,7 +232,7 @@ Graph.prototype.arraysum = function(arr) {
 };
 Graph.prototype.arrayavg = function(arr) {
   var value = 0, count = 0, last = null;
-  if (arr.length==0) return 0;
+  if (arr.length===0) return 0;
   for (var idx=arr.length-1; idx>=0; idx--) {
     var t = arr[idx][0], v = arr[idx][1];
     if (this.range_from<=t && t<this.range_to && v!==null && !isNaN(v)) {
@@ -243,7 +242,7 @@ Graph.prototype.arrayavg = function(arr) {
       last = t;
     }
   }
-  if (count==0) return null;
+  if (count===0) return null;
   return value/count;
 };
 
@@ -252,9 +251,10 @@ Graph.prototype.filter_interval = function(data, unit, use_max) {
   var multiply = 1;
   if (unit=="b") multiply = 8; // bits
   var ret = [];
-  for (var j=0; j<data.length; j++)
+  for (var j=0; j<data.length; j++) {
     if (data[j][0]>=this.range_from && data[j][0]<this.range_to)
       ret.push([data[j][0], data[j][1]*multiply]);
+  }
   if (ret.length>2000) {
     // group data
     var min_t = ret[0][0], max_t = ret[ret.length-1][0];
@@ -272,12 +272,13 @@ Graph.prototype.filter_interval = function(data, unit, use_max) {
       }
     }
     ret = [];
-    for (var key in vcnt)
+    for (var key in vcnt) {
       if (use_max) {
         ret.push([key*gi, vmax[key]]);
       } else {
         ret.push([key*gi, vsum[key]/vcnt[key]]);
       }
+    }
   }
   return ret;
 };
@@ -317,7 +318,7 @@ Graph.prototype.get_color = function(label, n) {
     return info.color;
   }
   return this.palette[n];
-}
+};
 
 // Add callbacks for plot
 Graph.prototype.add_plot_callbacks = function(placeholder) {
@@ -330,8 +331,8 @@ Graph.prototype.add_plot_callbacks = function(placeholder) {
       if (!self.deltas[label]) return; // already not defined
       self.filter.find("li").css("border-color", "transparent");
       self.filter.find(
-        "li#li"+self.ID+label.escapeSelector()
-      ).css("border-color", "black");
+        "li#li"+self.ID+label.escapeSelector()).css(
+        "border-color", "black");
       // compute bytes
       var graph_type = item.series.label.gt,
           unit = self.get_unit(label);
@@ -343,18 +344,15 @@ Graph.prototype.add_plot_callbacks = function(placeholder) {
         console.log(unit);
         sum_value = unit_si(
           self.arraysum(self.deltas[label][graph_type]),
-          null, 'iB'
-        );
+          null, 'iB');
       } else if (unit.match(/\/h$/)) {
         sum_value = unit_si(
           self.arraysum(self.deltas[label][graph_type])/3600,
-          null, unit.split("/")[0]
-        );
+          null, unit.split("/")[0]);
       } else {
         sum_value = unit_si(
           self.arrayavg(self.deltas[label][graph_type]),
-          null, unit
-        );
+          null, unit);
       }
       self.find("value_one").val(value);
       self.find("value_sum").val(sum_value);
@@ -366,24 +364,23 @@ Graph.prototype.add_plot_callbacks = function(placeholder) {
         left: Math.min(item.pageX+5, window.innerWidth*0.8)
       };
       $("#tooltip").html(
-          description + ": " + value
-          + "<br/>"
-          + dt.toDateString()
-          + "<br/>"
-          + dt.toTimeString()
-       ).css(tooltip_position)
-        .show();
+          description + ": " + value +
+          "<br/>" +
+          dt.toDateString() +
+          "<br/>" +
+          dt.toTimeString()
+       ).css(tooltip_position).show();
       // display information from json file
       if (self.index_mode=="json" && self.info[label].info) {
         var table = ['<table>'], info = self.info[label].info,
             ftime = new Date(item.datapoint[0]).toLocaleString();
         table.push("<tr><td>Time</td><td>"+ftime+"</td></tr>");
-        for (var key in info)
+        for (var key in info) {
           if (key!="log")
             table.push(
-              "<tr><td>"+key+"</td><td>"
-              +info[key]+"</td></tr>"
-            );
+              "<tr><td>"+key+"</td><td>" +
+              info[key]+"</td></tr>" );
+        }
         table.push("</table>");
         self.find("info_table").html($(table.join('\n')));
       }
@@ -412,10 +409,12 @@ Graph.prototype.add_plot_callbacks = function(placeholder) {
       $("#tooltip").hide();
       checkbox.prop("checked", !checkbox.prop("checked") );
       if (self.groups) {
-        for (var srvi in self.groups)
-          for (var grpi in self.groups[srvi])
+        for (var srvi in self.groups) {
+          for (var grpi in self.groups[srvi]) {
             if (self.groups[srvi][grpi].name==label)
               self.groups[srvi][grpi].enabled = false;
+          }
+        }
         self.plot_all_graphs();
       } else {
         self.plot_graph();
@@ -438,28 +437,28 @@ Graph.prototype.add_plot_callbacks = function(placeholder) {
 Graph.prototype.select_all = function() {
   this.filter.find("input").prop("checked", true);
   this.plot_graph();
-}
+};
 Graph.prototype.select_none = function() {
   this.filter.find("input").prop("checked", false);
   this.plot_graph();
-}
+};
 Graph.prototype.select_inv = function() {
   this.filter.find("input").each(function() {
     var sel = $(this);
     sel.prop("checked", !sel.prop("checked"));
   });
   this.plot_graph();
-}
+};
 Graph.prototype.select_virt = function() {
   var self = this;
   this.filter.find("input").each(function() {
     var sel = $(this);
-    if (self.deltas[this.name]['info']
-        && self.deltas[this.name]['info']['ifType']=='propVirtual')
+    if (self.deltas[this.name]['info'] &&
+        self.deltas[this.name]['info']['ifType']=='propVirtual')
       sel.prop("checked", !sel.prop("checked"));
   });
   this.plot_graph();
-}
+};
 
 // Add menu callbacks for graph
 Graph.prototype.add_menu_callbacks = function() {
@@ -505,7 +504,7 @@ Graph.prototype.files_to_args = function(prefix, separator, suffix) {
     if (suffix) args += suffix;
   }
   return args;
-}
+};
 
 // Update URL link according to current choices
 Graph.prototype.urllink = function() {
@@ -523,8 +522,7 @@ Graph.prototype.urllink = function() {
                ";"+$("select#service option:selected").val());
   } else if (this.index_mode=="nagios_host") {
     url = "?"+this.files_to_args("n", ";",
-                ";"+$("select#host option:selected").val()
-              ).replace("::", ";");
+                ";"+$("select#host option:selected").val()).replace("::", ";");
   } else {
     return;
   }
@@ -551,8 +549,7 @@ Graph.prototype.urllink = function() {
     history.pushState(
       {"params": url},
       url,
-      window.location.href.split("?")[0] + url
-    );
+      window.location.href.split("?")[0] + url);
   } else {
     window.location = window.location.href.split("?")[0] + url;
   }
@@ -563,7 +560,7 @@ Graph.prototype.menu_selected = function(sel) {
   var self = this, inputs_all = this.filter.find("input");
   if (sel===undefined)
     sel = this.find("menu", "option:selected").val();
-  if (sel=="") {
+  if (sel==="") {
     return;
   } else if (sel=="all") {
     this.select_all();
@@ -697,9 +694,10 @@ Graph.prototype.update_checkboxes = function() {
     key = keys[keyid];
     idkey = this.ID+key;
     checked = "checked='checked'";
-    if (this.preselect_graphs.length>0)
+    if (this.preselect_graphs.length>0) {
       if ($.inArray(key, this.preselect_graphs)<0)
         checked = "";
+    }
     this.filter.append("<li id='li" + idkey +
       "'><table><tr>" +
       "<td><div class='box'>&nbsp;</div></td>" +
@@ -723,22 +721,22 @@ Graph.prototype.plot_all_graphs = function() {
       if (service_groups[service].hide===true) continue; // skip
       if (!this.groups[service]) continue;
       graph = $("#graph_"+service);
-      if (graph.length==0) {
+      if (graph.length===0) {
         graph = $(
           '<div id="graph_'+service+'" class="trafgrapher">' +
             service_groups[service].name +
             '<br/>' +
             '<div id="placeholder_'+service+'" class="graph200r"></div>' +
-          '</div>'
-        );
+          '</div>');
         this.placeholder.append(graph);
         placeholder = graph.find("div#placeholder_"+service);
         this.add_plot_callbacks(placeholder);
       }
       enabled_groups = [];
-      for (var grpi in this.groups[service])
+      for (var grpi in this.groups[service]) {
         if (this.groups[service][grpi].enabled)
           enabled_groups.push(this.groups[service][grpi].name);
+      }
       placeholder = graph.find("#placeholder_"+service);
       this.plot_graph(enabled_groups, placeholder);
     }
@@ -760,7 +758,7 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
   for (var n=0; n<checked_choices.length; n++) {
     name = checked_choices[n];
     unit = this.get_unit(name);
-    var color = this.get_color(name, n);
+    color = this.get_color(name, n);
     if (this.index_mode=="storage") {
       if (graph_type[0]=="x") {
         // storage read and write graph
@@ -788,7 +786,7 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
       for (var gt=0; gt<graph_type.length; gt++) {
         if (this.deltas[name][graph_type[gt]]===undefined)
           console.log("Undefined data: "+name+" "+graph_type[gt]);
-        if (this.deltas[name][graph_type[gt]].length==0)
+        if (this.deltas[name][graph_type[gt]].length===0)
           continue; // skip empty graph
         flots.push({
           label: {name: name, gt: graph_type[gt]},
@@ -796,8 +794,7 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
           data: this.filter_interval(
                   this.deltas[name][graph_type[gt]],
                   this.unit_type.find("option:selected").val(),
-                  graph_type[gt]==graph_type[gt].toUpperCase()
-                )
+                  graph_type[gt]==graph_type[gt].toUpperCase())
         });
       }
     }
@@ -815,18 +812,15 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
   });
   // set checkbox colors
   var series = this.plot.getData();
-  this.div.find("li div.box").css("background-color", "transparent"
-    ).css("border-color", "transparent");
+  this.div.find("li div.box").css(
+    "background-color", "transparent").css(
+    "border-color", "transparent");
   for (var i=0; i<series.length; i++) {
     this.div.find(
-      "li#li"+this.ID+series[i].label.name.escapeSelector()+" div"
-    ).css(
-      "background-color", series[i].color.toString()
-    ).css(
-      "border-color", "black"
-    ).css(
-      "color", "white"
-    );
+      "li#li"+this.ID+series[i].label.name.escapeSelector()+" div").css(
+      "background-color", series[i].color.toString()).css(
+      "border-color", "black").css(
+      "color", "white");
   }
   // clear last graph values
   this.find("value_one").val("");
@@ -915,7 +909,7 @@ Graph.prototype.parse_query_string = function() {
       prefix = sarg[0].replace(/[^\/]*\/$/, '');
     arr.push(sarg[0]);
     for (var i=1; i<sarg.length; i++) {
-      if (sarg[i].search("/")==0)
+      if (sarg[i].search("/")===0)
         arr.push(sarg[i]);
       else
         arr.push(prefix+sarg[i]);
@@ -940,10 +934,9 @@ Graph.prototype.parse_query_string = function() {
           arg1 = Math.floor(parseFloat(arg1));
         }
         var itag = this.interval.find("option[value='"+arg1+"']");
-        if (itag.length==0)
+        if (itag.length===0)
           this.interval.append(
-            '<option value="'+arg1+'">'+arg1+' hours</option>'
-          );
+            '<option value="'+arg1+'">'+arg1+' hours</option>');
         this.interval.val(arg1);
       } else if (arg[0]=="rf") {
         this.custom_range = true;
@@ -991,8 +984,7 @@ Progress = function(graph, loader) {
 Progress.prototype.echo = function() {
   if (this.files_to_load>0) {
     this.tag.html(this.files_to_load+
-      " files to load (<a href=\"#\">skip</a>)"
-    );
+      " files to load (<a href=\"#\">skip</a>)");
     this.loader_tag.show();
   }
 };
@@ -1064,7 +1056,7 @@ Loader.prototype.reload = function() {
 // File loaded, update counter, show graph if all files processed.
 Loader.prototype.file_loaded = function() {
   var counters = this.counters, deltas = this.graph.deltas;
-  if (this.progress.update()==0) { // last file loaded
+  if (this.progress.update()===0) { // last file loaded
     // if counters is empty, this is skipped
     for (var name in counters) {
       if (!deltas[name]) {
@@ -1166,17 +1158,17 @@ JSONLoader.prototype.load_index = function(url) {
     dataType: "json",
     cache: false
   }).done(function(data) {
-    var files = [];
+    var files = [], ethid;
     if (data.ifs) {
       for (var port_id in data.ifs) {
-        for (var i in excluded_interfaces)
+        for (var i in excluded_interfaces) {
           if (data.ifs[port_id].ifDescr.search(excluded_interfaces[i])>=0) {
             port_id = null;
             break;
           }
+        }
         if (port_id===null) continue;
-        var ethid = data.ip.replace(/[^a-z0-9]/gi, '_')
-                  + port_id.replace(".", "_");
+        ethid = data.ip.replace(/[^a-z0-9]/gi, '_')+port_id.replace(".", "_");
         function get_if_name(ifs) {
           if (ifs[port_id].ifAlias) {
             if (ifs[port_id].ifDescr.match(/^Vlan[0-9]+$/i)) {
@@ -1199,17 +1191,17 @@ JSONLoader.prototype.load_index = function(url) {
           'ip': data.ip,
           'info': data.ifs[port_id]
         });
-        if (preselect_graphs.length>0)
+        if (preselect_graphs.length>0) {
           if ($.inArray(port_id, preselect_graphs)>=0)
             self.graph.preselect_graphs.push(ethid);
+        }
       }
     }
     if (data.oids) {
       self.graph.unit_type.val("B");
       for (var oid in data.oids) {
         if (oid===null) continue;
-        var ethid = data.ip.replace(/[^a-z0-9]/gi, '_')
-                  + oid.replace(".", "_");
+        ethid = data.ip.replace(/[^a-z0-9]/gi, '_') + oid.replace(".", "_");
         files.push({
           'filename': urldir + data.oids[oid].log,
           'ethid': ethid,
@@ -1217,9 +1209,10 @@ JSONLoader.prototype.load_index = function(url) {
           'ip': data.ip,
           'info': data.oids[oid]
         });
-        if (preselect_graphs.length>0)
+        if (preselect_graphs.length>0) {
           if ($.inArray(oid, preselect_graphs)>=0)
             self.graph.preselect_graphs.push(ethid);
+        }
       }
     }
     self.progress.add(files.length, data.length);
@@ -1264,7 +1257,7 @@ MRTGLoader.prototype.load_index = function(url) {
     dataType: "text",
     cache: false
   }).done(function(data) {
-    var files = [];
+    var files = [], ethid;
     // don't load images from index.html
     var noimgdata = data.replace(/\ src=/gi, " nosrc=");
     $(noimgdata).find("td").each(function(tagi, taga) {
@@ -1279,14 +1272,15 @@ MRTGLoader.prototype.load_index = function(url) {
           switch_ip = name.substr(0, name_idx);
           name = name.substr(name_idx+2);
         }
-        for (var i in excluded_interfaces)
+        for (var i in excluded_interfaces) {
           if (name.search(excluded_interfaces[i])>=0)
             return;
+        }
         var file_prefix = url+fname,
             basename = file_prefix.substr(file_prefix.lastIndexOf('/')+1),
             port_id = basename.substr(basename.indexOf('_')+1);
-        var ethid = switch_ip.replace(/[^a-z0-9]/gi, '_')
-                  + port_id.replace(".", "_");
+        ethid = switch_ip.replace(/[^a-z0-9]/gi, '_') +
+                port_id.replace(".", "_");
         files.push({
           'filename': file_prefix+".log",
           'port_id': port_id,
@@ -1295,9 +1289,10 @@ MRTGLoader.prototype.load_index = function(url) {
           'ip': switch_ip,
           'html': file_prefix+".html"
         });
-        if (preselect_graphs.length>0)
+        if (preselect_graphs.length>0) {
           if ($.inArray(port_id, preselect_graphs)>=0)
             self.graph.preselect_graphs.push(basename);
+        }
       }
     });
     self.progress.add(files.length, data.length);
@@ -1333,11 +1328,9 @@ StorageLoader.prototype.load_storwize = function(filename) {
     for (var coll_id=0; coll_id<colls.length; coll_id++) {
       var coll = colls[coll_id];
       var timestamp = Date.parse(
-        coll.attributes["timestamp"].value.replace(" ", "T")
-      );
+        coll.attributes["timestamp"].value.replace(" ", "T"));
       var sizeunit = parseInt(
-        coll.attributes["sizeUnits"].value.replace("B", "")
-      );
+        coll.attributes["sizeUnits"].value.replace("B", ""));
       var dsks = coll.getElementsByTagName(self.tagsrc);
       for (var dsk_id=0; dsk_id<dsks.length; dsk_id++) {
         var dsk = dsks[dsk_id], value,
@@ -1379,7 +1372,7 @@ StorageLoader.prototype.load_unisphere = function(filename) {
       var row = rows[row_id], args = row.split(" "), rargs = args.slice(),
           hid, idx, key;
       rargs.reverse();
-      if (row.indexOf("Name   ")==0) {
+      if (row.indexOf("Name   ")===0) {
         if (rargs[1]!="LUN") {
           name = rargs[0];
           if (self.tagsrc=="vdsk") {
@@ -1395,7 +1388,7 @@ StorageLoader.prototype.load_unisphere = function(filename) {
         } else {
           name = "";
         }
-      } else if (row.indexOf("RAIDGroup ID:")==0) {
+      } else if (row.indexOf("RAIDGroup ID:")===0) {
         rg = rargs[0];
         if (self.tagsrc=="mdsk") {
           if (!counters[rg]) {
@@ -1404,62 +1397,61 @@ StorageLoader.prototype.load_unisphere = function(filename) {
               counters[rg][self.data_items[key]] = [];
           }
         }
-      } else if (row.indexOf("Statistics logging current time:")==0) {
+      } else if (row.indexOf("Statistics logging current time:")===0) {
         var t = rargs[0], d = rargs[1];
         timestamp = Date.parse(
-          "20"+d[6]+d[7]+"-"+d[0]+d[1]+"-"+d[3]+d[4]+"T"+t
-        );
+          "20"+d[6]+d[7]+"-"+d[0]+d[1]+"-"+d[3]+d[4]+"T"+t);
       }
-      if (name!="") {
+      if (name!=="") {
         if (self.tagsrc=="vdsk") {
-          if (row.indexOf("Blocks Read")==0) {
+          if (row.indexOf("Blocks Read")===0) {
             idx = args[2];
             if (!counters[name].rb[idx]) counters[name].rb[idx] = [];
             counters[name].rb[idx].push(
               [timestamp, parseInt(args[14])*sizeunit]);
-          } else if (row.indexOf("Blocks Written")==0) {
+          } else if (row.indexOf("Blocks Written")===0) {
             idx = args[2];
             if (!counters[name].wb[idx]) counters[name].wb[idx] = [];
             counters[name].wb[idx].push(
               [timestamp, parseInt(args[11])*sizeunit]);
-          } else if (row.indexOf("Read Histogram[")==0) {
+          } else if (row.indexOf("Read Histogram[")===0) {
             hid = args[1][10];
             if (!counters[name].ro[hid]) counters[name].ro[hid] = [];
             counters[name].ro[hid].push([timestamp, parseInt(args[2])]);
-          } else if (row.indexOf("Write Histogram[")==0) {
+          } else if (row.indexOf("Write Histogram[")===0) {
             hid = args[1][10];
             if (!counters[name].wo[hid]) counters[name].wo[hid] = [];
             counters[name].wo[hid].push([timestamp, parseInt(args[2])]);
-          } else if (row.indexOf("Average Read Time:")==0) {
+          } else if (row.indexOf("Average Read Time:")===0) {
             if (!counters[name].rl.one) counters[name].rl.one = [];
             counters[name].rl.one.push([timestamp, parseInt(rargs[0])]);
-          } else if (row.indexOf("Average Write Time:")==0) {
+          } else if (row.indexOf("Average Write Time:")===0) {
             if (!counters[name].wl.one) counters[name].wl.one = [];
             counters[name].wl.one.push([timestamp, parseInt(rargs[0])]);
           }
         } else if (self.tagsrc=="mdsk") {
-          if (row.indexOf("Blocks Read")==0) {
+          if (row.indexOf("Blocks Read")===0) {
             idx = name+args[2];
             if (!counters[rg].rb[idx]) counters[rg].rb[idx] = [];
             counters[rg].rb[idx].push(
               [timestamp, parseInt(args[14])*sizeunit]);
-          } else if (row.indexOf("Blocks Written")==0) {
+          } else if (row.indexOf("Blocks Written")===0) {
             idx = name+args[2];
             if (!counters[rg].wb[idx]) counters[rg].wb[idx] = [];
             counters[rg].wb[idx].push(
               [timestamp, parseInt(args[11])*sizeunit]);
-          } else if (row.indexOf("Read Histogram[")==0) {
+          } else if (row.indexOf("Read Histogram[")===0) {
             hid = name+args[1][10];
             if (!counters[rg].ro[hid]) counters[rg].ro[hid] = [];
             counters[rg].ro[hid].push([timestamp, parseInt(args[2])]);
-          } else if (row.indexOf("Write Histogram[")==0) {
+          } else if (row.indexOf("Write Histogram[")===0) {
             hid = name+args[1][10];
             if (!counters[rg].wo[hid]) counters[rg].wo[hid] = [];
             counters[rg].wo[hid].push([timestamp, parseInt(args[2])]);
-          } else if (row.indexOf("Average Read Time:")==0) {
+          } else if (row.indexOf("Average Read Time:")===0) {
             if (!counters[rg].rl[name]) counters[rg].rl[name] = [];
             counters[rg].rl[name].push([timestamp, parseInt(rargs[0])]);
-          } else if (row.indexOf("Average Write Time:")==0) {
+          } else if (row.indexOf("Average Write Time:")===0) {
             if (!counters[rg].wl[name]) counters[rg].wl[name] = [];
             counters[rg].wl[name].push([timestamp, parseInt(rargs[0])]);
           }
@@ -1489,7 +1481,7 @@ StorageLoader.prototype.load_compellent = function(filename) {
     }
     var sizeunit = 1024;
     for (var row_id=0; row_id<rows.length; row_id++) {
-      if (rows[row_id]=="") continue;
+      if (rows[row_id]==="") continue;
       // Columns: Cpu,InstanceId,InstanceName,IoPending,Memory,
       //   ObjectIndex,ObjectType,PlatformTime,
       //   ReadIos-8,ReadKBs-9,ReadLatency-10,
@@ -1562,7 +1554,7 @@ StorageLoader.prototype.load_index = function(url) {
         href = tags[tagi];
       if (href[href.length-1]=="/") continue;
       // Storwize
-      if (href.indexOf("N"+self.tagsrc[0]+"_stats_")==0) {
+      if (href.indexOf("N"+self.tagsrc[0]+"_stats_")===0) {
         hrefa = href.split("_");
         d = hrefa[3];
         t = hrefa[4];
@@ -1570,7 +1562,7 @@ StorageLoader.prototype.load_index = function(url) {
           files.push(url+href);
       }
       // Unisphere
-      if (href.indexOf("Uni_")==0) {
+      if (href.indexOf("Uni_")===0) {
         hrefa = href.split("_");
         d = hrefa[hrefa.length-2];
         t = hrefa[hrefa.length-1];
@@ -1578,7 +1570,7 @@ StorageLoader.prototype.load_index = function(url) {
           files.push(url+href);
       }
       // Compellent
-      if (href.indexOf("Cmpl")==0) {
+      if (href.indexOf("Cmpl")===0) {
         if (self.tagsrc=="vdsk" && href[4]!="V") continue;
         if (self.tagsrc=="mdsk" && href[4]!="P") continue;
         if (self.tagsrc=="disk" && href[4]!="D") continue;
@@ -1591,11 +1583,11 @@ StorageLoader.prototype.load_index = function(url) {
     }
     self.progress.add(files.length, data.length);
     for (var fni=0; fni<files.length; fni++) {
-      if (files[fni].indexOf(url+"N")==0) {
+      if (files[fni].indexOf(url+"N")===0) {
         self.load_storwize(files[fni]);
-      } else if (files[fni].indexOf(url+"U")==0) {
+      } else if (files[fni].indexOf(url+"U")===0) {
         self.load_unisphere(files[fni]);
-      } else if (files[fni].indexOf(url+"C")==0) {
+      } else if (files[fni].indexOf(url+"C")===0) {
         self.load_compellent(files[fni]);
       }
     }
@@ -1716,8 +1708,7 @@ service_groups = {
   disk_usage: {
     name: "Disk usage bytes",
     search: /(disk_|fs_[A-Z]:)/i,
-    unit: "B",
-    //hide: true,
+    unit: "B"
   },
   users: {
     name: "Users",
@@ -1946,9 +1937,8 @@ NagiosLoader.prototype.load_index = function(url) {
         $("select#service").val(preselect);
     } else if (service_groups[preselect]!==undefined) {
       $("select#service").append(
-        '<option value="'+preselect+'" selected="selected">'
-        +preselect+'</option>'
-      );
+        '<option value="'+preselect+'" selected="selected">' +
+        preselect+'</option>');
     }
   }
   $.ajax({
@@ -1976,14 +1966,13 @@ NagiosLoader.prototype.load_index = function(url) {
         host = "ALL";
       } else {
         // add host
-        if (hosts.find('option[value="'+host+'"]').length==0) {
+        if (hosts.find('option[value="'+host+'"]').length===0) {
           if (host==preselect)
             selected = ' selected="selected"';
           else
             selected = '';
           hosts.append(
-            '<option value="'+host+'"'+selected+'>'+host+'</option>'
-          );
+            '<option value="'+host+'"'+selected+'>'+host+'</option>');
         }
       }
       // push data
@@ -2006,8 +1995,7 @@ NagiosLoader.prototype.load_index = function(url) {
       self.progress.add(files["ALL"][service].length);
       for (fni=0; fni<files["ALL"][service].length; fni++)
         self.graph.loaders.push(
-          self.load_data(files["ALL"][service][fni], service)
-        );
+          self.load_data(files["ALL"][service][fni], service));
     } else {
       host = hosts.find('option:selected').val();
       for (service in files[host])
@@ -2017,8 +2005,7 @@ NagiosLoader.prototype.load_index = function(url) {
         self.graph.groups[service] = [];
         for (fni=0; fni<files[host][service].length; fni++) {
           self.graph.loaders.push(
-            self.load_data(files[host][service][fni], service)
-          );
+            self.load_data(files[host][service][fni], service));
         }
       }
     }
@@ -2035,8 +2022,8 @@ function callgraphs(fx) {
 }
 
 $(function() {
-  $(".footer a")
-    .text($(".footer a").text().replace("#.#", trafgrapher_version));
+  $(".footer a").text(
+    $(".footer a").text().replace("#.#", trafgrapher_version));
   graphs = [];
   $("div[id^=graph]").each(function() {
     var graph = new Graph($(this).prop("id"));
