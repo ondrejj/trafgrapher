@@ -341,7 +341,6 @@ Graph.prototype.add_plot_callbacks = function(placeholder) {
           switchname = self.info[label].ip,
           dt = new Date(item.datapoint[0]);
       if (unit.match(/i[bB]\/s$/)) { // bits per second
-        console.log(unit);
         sum_value = unit_si(
           self.arraysum(self.deltas[label][graph_type]),
           null, 'iB');
@@ -808,6 +807,7 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
     },
     legend: { show: false },
     grid: { hoverable: true, clickable: true },
+    //series: { stack: true, lines: { show: true, fill: true } },
     selection: { mode: "x" }
   });
   // set checkbox colors
@@ -1631,7 +1631,7 @@ service_groups = {
   },
   load: {
     name: "Load",
-    search: /(load\/load|CPU.*utilization\/util)/i,
+    search: /(load\/load|CPU.*utilization\/)/i,
     unit: ""
   },
   swap: {
