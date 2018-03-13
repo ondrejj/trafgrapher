@@ -3,7 +3,7 @@
 '''
 TrafGrapher collector
 
-(c) 2015-2017 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
+(c) 2015-2018 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
 
 Licensed under the MIT license.
 
@@ -631,10 +631,10 @@ class grouper(dict):
   one_day = 24*3600
   compress_intervals = {
     600: 1,
-    3*one_day: 300,
-    14*one_day: 900, #1800,
-    62*one_day: 3600, #7200,
-    int(4*365.25*one_day): one_day
+    3*one_day: 300, # 5 min
+    14*one_day: 900, # 15 min
+    62*one_day: 1800, # 1/2 hours
+    int(4*365.25*one_day): one_day/4 # 1/4 day
   }
   def __getitem__(self, key):
       if not key in self:
