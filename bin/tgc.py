@@ -10,7 +10,7 @@ Licensed under the MIT license.
 Usage: tgc.py [--mkcfg|-c [community@]IP_or_hostname] \\
 		[--write|-w index.json] [--mkdir|-d] [--verbose|-v] \\
 		[--filter ifOperStatus|ifAdminStatus] \\
-		[--id ifName] [--rename] [--compress|-z] [--check]
+		[--id ifName] [--rename] [--backup] [--compress|-z] [--check]
        tgc.py [--verbose|-v] [community@]config.json \\
 		[--filter-time=timestamp|datetime] \\
 		[--filter-value=value=>value[kMGTP]]
@@ -36,6 +36,7 @@ if sys.version_info[0]>2: # python3
 
 VERBOSE = False
 QUIET = False
+BACKUP = False
 
 def pp(x):
     return x.prettyPrint()
@@ -757,6 +758,8 @@ class logfile:
             % tuple([t]+[self.store_value(x) for x in self.deltas[t]])
           )
         self.f.close()
+        if BACKUP:
+          os.rename(self.filename, self.filename+"~")
         os.rename(self.filename+'.tmp', self.filename)
         old_f.close() # close old file after rename
       else:
@@ -1316,6 +1319,8 @@ if __name__ == "__main__":
     VERBOSE = True
   elif "--quiet" in opts or "-q" in opts:
     QUIET = True
+  if "--backup" in opts:
+    BACKUP = True
   if not files:
     print(__doc__)
     sys.exit()
