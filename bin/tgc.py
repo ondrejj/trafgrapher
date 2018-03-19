@@ -857,7 +857,7 @@ class logfile:
         value = self.unit_si(filter[1:])
         for key in self.deltas.keys():
           for vx in self.deltas[key]:
-            if vx>value:
+            if vx is not None and vx>value:
               print("Filtered value: %s - %s" % (from_ts(key), vx))
               del self.deltas[key]
               break
@@ -865,7 +865,7 @@ class logfile:
         value = self.unit_si(filter[1:])
         for key in self.deltas.keys():
           for vx in self.deltas[key]:
-            if vx<value:
+            if vx is not None and vx<value:
               print("Filtered value: %s - %s" % (from_ts(key), vx))
               del self.deltas[key]
               break
