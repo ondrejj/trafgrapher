@@ -1205,6 +1205,7 @@ JSONLoader.prototype.load_index = function(url) {
         files.push({
           'filename': urldir + data.oids[oid].log,
           'ethid': ethid,
+          'port_id': oid,
           'name': data.oids[oid].description || data.oids[oid].name,
           'ip': data.ip,
           'info': data.oids[oid]
@@ -1469,16 +1470,27 @@ StorageLoader.prototype.load_compellent = function(filename) {
     url: filename,
     dataType: "xml"
   }).done(function(data) {
-    var rows, l2 = data.getElementsByTagName("return")[0].innerHTML;
+    var hdr_cols, rows, l2 = data.getElementsByTagName("return")[0].innerHTML;
     if (l2===undefined) {
       // IE has no innerHTML for this element
-      l2 = $($(data.getElementsByTagName("return")).text()).find("data").text();
-      rows = l2.split(":");
+      l2 = $($(data.getElementsByTagName("return")).text());
+      hdr_cols = l2.find("header").text().split(",");
+      rows = l2.find("data").text().split(":");
     } else {
       // HTML processing is very slow in Chrome, replaced by regular expression
       //var rows = $($('<div/>').html(l2).text()).find("Data").text().split(":");
-      rows = l2.split(/&lt;\/?Data&gt;/)[1].split(":");
+      try {
+        hdr_cols = l2.split(/&lt;\/?Header&gt;/)[1].split(",");
+        rows = l2.split(/&lt;\/?Data&gt;/)[1].split(":");
+      } catch(err) {
+        console.log("Failed to load:", filename);
+        self.file_loaded();
+        return err;
+      }
     }
+    // index headers
+    for (var i in hdr_cols)
+      hdr_cols[hdr_cols[i]] = i;
     var sizeunit = 1024;
     for (var row_id=0; row_id<rows.length; row_id++) {
       if (rows[row_id]==="") continue;
@@ -1488,9 +1500,9 @@ StorageLoader.prototype.load_compellent = function(filename) {
       //   ScName,ScObjectType,ScSerialNumber,
       //   WriteIos-14,WriteKBs-15,WriteLatency-16
       var cols = rows[row_id].split(",");
-      var name = cols[2].replace("Disk ", "");
-      var timestamp = cols[7]+"000";
-      var ctrl = cols[13]; // controller or SC_serial?
+      var name = cols[hdr_cols.InstanceName].replace("Disk ", "");
+      var timestamp = cols[hdr_cols.PlatformTime]+"000";
+      var ctrl = cols[hdr_cols.ScSerialNumber]; // controller or SC_serial?
       if (name=="Unknown") continue;
       if (!counters[name]) {
         counters[name] = {};
@@ -1503,27 +1515,27 @@ StorageLoader.prototype.load_compellent = function(filename) {
       // read IO
       if (!counters[name].ro[ctrl]) counters[name].ro[ctrl] = [];
       counters[name].ro[ctrl].push(
-        [timestamp, parseInt(cols[8])]);
+        [timestamp, parseInt(cols[hdr_cols.ReadIos])]);
       // read kB
       if (!counters[name].rb[ctrl]) counters[name].rb[ctrl] = [];
       counters[name].rb[ctrl].push(
-        [timestamp, parseInt(cols[9])*sizeunit]);
+        [timestamp, parseInt(cols[hdr_cols.ReadKBs])*sizeunit]);
       // read latency
       if (!counters[name].rl[ctrl]) counters[name].rl[ctrl] = [];
       counters[name].rl[ctrl].push(
-        [timestamp, parseInt(cols[10])]);
+        [timestamp, parseInt(cols[hdr_cols.ReadLatency])]);
       // write IO
       if (!counters[name].wo[ctrl]) counters[name].wo[ctrl] = [];
       counters[name].wo[ctrl].push(
-        [timestamp, parseInt(cols[14])]);
+        [timestamp, parseInt(cols[hdr_cols.WriteIos])]);
       // write kB
       if (!counters[name].wb[ctrl]) counters[name].wb[ctrl] = [];
       counters[name].wb[ctrl].push(
-        [timestamp, parseInt(cols[15])*sizeunit]);
+        [timestamp, parseInt(cols[hdr_cols.WriteKBs])*sizeunit]);
       // write latency
       if (!counters[name].wl[ctrl]) counters[name].wl[ctrl] = [];
       counters[name].wl[ctrl].push(
-        [timestamp, parseInt(cols[16])]);
+        [timestamp, parseInt(cols[hdr_cols.WriteLatency])]);
     }
     self.file_loaded();
   });
