@@ -101,6 +101,11 @@ function unit_si(val, axis, unit) {
     aval = aval/1000;
     unit = "s";
   }
+  if (unit.indexOf("³")>=0) {
+    ki = 1000*1000*1000;
+  } else if (unit.indexOf("²")>=0) {
+    ki = 1000*1000;
+  }
   if (unit=="s") {
     if (aval<0.001) {
       if (axis && axis.tickSize)
