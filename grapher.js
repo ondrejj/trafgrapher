@@ -498,12 +498,12 @@ Graph.prototype.add_menu_callbacks = function() {
 };
 
 // Create link args for index files
-Graph.prototype.files_to_args = function(prefix, separator, suffix) {
+Graph.prototype.files_to_args = function(prefix, suffix) {
   var args = "", fn;
   for (var i=0; i<this.index_files.length; i++) {
     if (args!=="") args += "&";
     fn = this.index_files[i];
-    if (separator) fn = fn.split(separator)[0];
+    fn = fn.split(/[:;]/)[0];
     args += prefix + "=" + fn;
     if (suffix) args += suffix;
   }
@@ -516,16 +516,16 @@ Graph.prototype.urllink = function() {
       inputs_all = this.filter.find("input"),
       inputs_checked = this.filter.find("input:checked");
   if (this.index_mode=="json") {
-    url = "?"+this.files_to_args("j", ";");
+    url = "?"+this.files_to_args("j");
   } else if (this.index_mode=="mrtg") {
-    url = "?"+this.files_to_args("m", ";");
+    url = "?"+this.files_to_args("m");
   } else if (this.index_mode=="storage") {
-    url = "?"+this.files_to_args("s", ";");
+    url = "?"+this.files_to_args("s");
   } else if (this.index_mode=="nagios_service") {
-    url = "?"+this.files_to_args("n", ";",
+    url = "?"+this.files_to_args("n",
                ";"+$("select#service option:selected").val());
   } else if (this.index_mode=="nagios_host") {
-    url = "?"+this.files_to_args("n", ";",
+    url = "?"+this.files_to_args("n",
                 ";"+$("select#host option:selected").val()).replace("::", ";");
   } else {
     return;
@@ -579,9 +579,9 @@ Graph.prototype.menu_selected = function(sel) {
   } else if (sel=="reload") {
     this.refresh_graph();
   } else if (sel=="service_graph") {
-    window.location = "nagios-service.html?"+this.files_to_args("n", ";");
+    window.location = "nagios-service.html?"+this.files_to_args("n");
   } else if (sel=="host_graph") {
-    window.location = "nagios-host.html?"+this.files_to_args("n", ";");
+    window.location = "nagios-host.html?"+this.files_to_args("n");
   } else if (sel=="urllink") {
     this.urllink();
   }
