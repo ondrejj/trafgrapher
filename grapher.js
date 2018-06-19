@@ -590,6 +590,10 @@ Graph.prototype.menu_selected = function(sel) {
 
 // Keyboard events
 Graph.prototype.keyevent = function(event) {
+  if (event.ctrlKey || event.altKey) {
+    // ignore keyboard keys with alt | ctrl
+    return;
+  }
   switch(event.which) {
     case 'X'.charCodeAt(0):
       this.select_inv();
@@ -676,10 +680,8 @@ Graph.prototype.keyevent = function(event) {
       }
       break;
   }
-  if (!event.ctrlKey) {
-    if (65<=event.which<=90 || 97<=event.which<=122) {
-      event.preventDefault();
-    }
+  if (65<=event.which<=90 || 97<=event.which<=122) {
+    event.preventDefault();
   }
 };
 
