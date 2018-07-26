@@ -1239,9 +1239,17 @@ def process_configs(files):
           ps = proc_net_dev("rx", cfg["net_dev_filename"])
           pd = proc_net_dev("tx", cfg["net_dev_filename"])
         elif cfg["cmd_type"] == "files":
+          max_age = int(cfg.get("max_age", 0))
           for cmd_name, cmd in cfg["ifs"].items():
             try:
               if "file" in cmd:
+                if max_age>0:
+                  file_age = time.time() - \
+                    os.stat(os.path.join(prefix, cmd["file"])).st_mtime
+                  if file_age>max_age:
+                    print("Data file %s older than %d seconds."
+                          % (cmd["file"], file_age))
+                    continue
                 fc = open(os.path.join(prefix, cmd["file"])
                          ).read().strip()
                 if fc:
@@ -1254,6 +1262,13 @@ def process_configs(files):
                                   ).read().strip())
                   lf.update(p)
               elif "file2" in cmd:
+                if max_age>0:
+                  file_age = time.time() - \
+                    os.stat(os.path.join(prefix, cmd["file"])).st_mtime
+                  if file_age>max_age:
+                    print("Data file %s older than %d seconds."
+                          % (cmd["file"], file_age))
+                    continue
                 fc = open(os.path.join(prefix, cmd["file2"])
                          ).read().strip().split()
                 if fc:
