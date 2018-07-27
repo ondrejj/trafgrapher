@@ -12,6 +12,7 @@ favorite browser using javascript.
 
 * pure html/javascript/css - no need for server scripting
 * display multiple graphs at once (also multiple routers)
+* can handle integer or floating point, positive or negative values
 * combine and compare selected interfaces
 * custom time ranges
 * display total of transfered bytes for selected time range
