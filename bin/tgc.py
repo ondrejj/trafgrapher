@@ -646,7 +646,11 @@ class grouper(dict):
       for key, values in dict.items(self):
         vals = []
         for id, func in enumerate(fx):
-          not_none = [x[id] for x in values if x[id] is not None]
+          try:
+            not_none = [x[id] for x in values if x[id] is not None]
+          except IndexError:
+            print("Wrong data from log file: %s" % str(x))
+            continue
           if not not_none:
             vals.append(None)
           elif func=="avg":
