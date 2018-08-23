@@ -650,6 +650,8 @@ class grouper(dict):
             not_none = [x[id] for x in values if x[id] is not None]
           except IndexError:
             print("Wrong data from log file: %s" % str(x))
+            # clear current vals and ignore whole row
+            vals = []
             continue
           if not not_none:
             vals.append(None)
@@ -657,7 +659,8 @@ class grouper(dict):
             vals.append(sum(not_none)/len(not_none)) # avg
           else:
             vals.append(func(not_none))
-        ret.append((key, vals))
+        if vals:
+          ret.append((key, vals))
       return ret
   def load(self, deltas, start=None):
       if start is None:
