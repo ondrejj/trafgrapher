@@ -1,6 +1,6 @@
 Name:           trafgrapher
 Version:        3.0
-Release:        0.beta15%{?dist}
+Release:        0.beta20%{?dist}
 Summary:        Collect and display network/disk/storage transfers.
 
 License:        MIT
@@ -9,9 +9,9 @@ Source0:        http://www.salstar.sk/pub/trafgrapher/trafgrapher-%{version}.tgz
 Source1:	http://www.flotcharts.org/downloads/flot-0.8.3.tar.gz
 BuildArch:      noarch
 
-BuildRequires:  js-jquery1
+BuildRequires:  js-jquery
 
-Requires:       js-jquery1
+Requires:       js-jquery
 #Requires:       nodejs-flot
 
 %description
@@ -31,7 +31,7 @@ mv *.css *.html *.js web/
 tar xvzf %{SOURCE1} -C web --exclude '._*'
 rm -rf web/flot/examples
 rm web/flot/jquery.js web/flot/jquery.min.js
-ln -s /usr/share/javascript/jquery/1/* web/flot/
+ln -s /usr/share/javascript/jquery/latest/* web/flot/
 
 
 %install
