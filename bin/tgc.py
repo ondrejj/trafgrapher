@@ -740,13 +740,17 @@ class logfile:
         return "N"
       return value
   def load(self):
+      max_time = time.time() + 3600*24 # anything beyond 1 day from now
       for row in self.f.readlines():
         row = row.rstrip()
         if row:
           row_split = row.split(" ", 4)
           try:
-            self.deltas[long(row_split[0])] \
-              = tuple(self.data_type(x) for x in row_split[1:])
+            t = long(row_split[0])
+            if t>max_time:
+              print("Time from future ignored: %s: %d" % (self.filename, t))
+              continue
+            self.deltas[t] = tuple(self.data_type(x) for x in row_split[1:])
           except ValueError as err:
             print("Error loading logfile: %s" % err)
             print("Ignoring row: '%s'" % row)
