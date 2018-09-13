@@ -355,21 +355,24 @@ def ip2host(ip):
     except socket.gaierror:
       return ip
 
+def safe_int(value):
+    return int(value or 0)
+
 oids_info = dict(
   ifIndex=str,
   ifDescr=str,
   ifName=str,
   ifAlias=ustr,
   ifType=iftype,
-  ifMtu=int,
+  ifMtu=safe_int,
   ifSpeed=ifspeed,
   ifHighSpeed=ifhighspeed,
   ifPhysAddress=macaddr
 )
 
 oids_status = dict(
-  ifAdminStatus=int,
-  ifOperStatus=int,
+  ifAdminStatus=safe_int,
+  ifOperStatus=safe_int,
   #ifConnectorPresent=bool,
 )
 
