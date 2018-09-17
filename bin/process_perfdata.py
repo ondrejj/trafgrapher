@@ -114,14 +114,19 @@ class Logfiles:
       # read current file
       in_f = open(self.filename, "rt")
       old_header = in_f.readline()
+      max_time = time.time() + 3600*24 # anything beyond 1 day from now
       data = {}
       for row in in_f.readlines():
         rowa = row.strip("\0 \r\n").split()
-        if len(rowa)>1:
-          data[int(rowa[0])] = float(rowa[1])
-        else:
+        if len(rowa)<2:
           # ignore incomplete rows
           print("Load error:", self.filename, row)
+        else:
+          t = int(rowa[0])
+          if t>max_time:
+            print("Time from future ignored: %s: %d" % (self.filename, t))
+          else:
+            data[t] = float(rowa[1])
       in_f.close()
       # compress data
       grp = grouper()
