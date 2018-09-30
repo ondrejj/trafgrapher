@@ -525,8 +525,8 @@ Graph.prototype.urllink = function() {
     url = "?"+this.files_to_args("n",
                ";"+$("select#service option:selected").val());
   } else if (this.index_mode=="nagios_host") {
-    url = "?"+this.files_to_args("n",
-                ";"+$("select#host option:selected").val()).replace("::", ";");
+    var host = $("select#host option:selected").val();
+    url = "?"+this.files_to_args("n", ";"+host).replace("::", ";");
   } else {
     return;
   }
@@ -863,10 +863,11 @@ Graph.prototype.refresh_graph = function() {
   } else if (this.index_mode=="storage") {
     loader = new StorageLoader(this, this.index_files);
   } else if (this.index_mode=="nagios_service" ||
-             this.index_mode=="nagios_host") {
+             this.index_mode=="nagios_host" ||
+             this.index_mode=="sagator") {
     loader = new NagiosLoader(this, this.index_files);
   } else {
-    this.error("No files to load.");
+    console.log("No files to load.");
   }
   if (loader) loader.reload();
 };
@@ -905,6 +906,11 @@ Graph.prototype.select_devices = function() {
     else
       self.index_mode = "nagios_service";
     self.index_files.push($(this).val());
+  });
+  this.div.find("[name^=sagator_file]").each(function() {
+    self.index_mode = "sagator";
+    self.index_files.push($(this).val());
+    console.log($(this).val());
   });
 };
 
@@ -1981,6 +1987,10 @@ NagiosLoader.prototype.load_index = function(url) {
       unrow = row.split("/").map(unbase).join("/");
       urlrow = url+escape(row);
       host = row.split("/")[1];
+      if (self.graph.index_mode=="sagator") {
+        unrow = '/sagator'+unrow;
+        host = 'sagator';
+      }
       if (service) {
         host = "ALL";
       } else {
@@ -2016,7 +2026,11 @@ NagiosLoader.prototype.load_index = function(url) {
         self.graph.loaders.push(
           self.load_data(files["ALL"][service][fni], service));
     } else {
-      host = hosts.find('option:selected').val();
+      if (self.graph.index_mode=="sagator") {
+        host = 'sagator';
+      } else {
+        host = hosts.find('option:selected').val();
+      }
       for (service in files[host])
         self.progress.add(files[host][service].length);
       self.graph.groups = {};

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <title>TrafGrapher</title>
+  <link href="style.css" rel="stylesheet" type="text/css" />
+  <script src="flot/jquery.min.js"></script>
+  <script src="flot/jquery.flot.min.js"></script>
+  <script src="flot/jquery.flot.time.min.js"></script>
+  <script src="flot/jquery.flot.selection.min.js"></script>
+  <!--[if lte IE 8]><script language="javascript" src="flot/excanvas.min.js"></script><![endif]-->
+  <script src="grapher.js"></script>
+</head>
+<body>
+  <div id="graph1" class="trafgrapher">
+    <div class="selection">
+      <input type="hidden" name="sagator_file" value="/sagator/tg"/>
+      <select id="interval">
+        <option value="4">4 hours [4]</option>
+        <option value="8">8 hours [8]</option>
+        <option value="24" selected="selected">1 day [1]</option>
+        <option value="72">3 days [3]</option>
+        <option value="168">1 week [7]</option>
+        <option value="744">1 month [5]</option>
+        <option value="8766">1 year [9]</option>
+        <option value="17532">2 years [2]</option>
+        <option value="26298">3 years [0]</option>
+      </select>
+      <button class="b_reload" id="b_reload" title="Reload [R]">&nbsp;</button>
+      <button class="b_zoom_out" id="b_zoom_out" title="Zoom out [Z]">&nbsp;</button>
+      <button class="b_urllink" id="b_urllink" id="b_urllink" title="URL link">&nbsp;</button>
+      <input type="text" value="" size="9" id="value_one" class="right"/>
+      <input type="text" value="" size="9" id="value_sum" class="right"/>
+      <br/>
+      <input type="text" value="" size="30" id="description"/>
+    </div>
+    <div id="loader" class="loader">
+      <div id="error" class="error"></div>
+      <h1>Loading...</h1>
+      <h2 id="progress">&nbsp;</h2>
+    </div>
+    <div id="placeholder">
+    </div>
+    <div class="footer">
+      <a href="http://www.salstar.sk/trafgrapher/">TrafGrapher v#.#</a>
+    </div>
+  </div>
+  <div id='tooltip' class='tooltip'></div>
+</body>
+</html>
