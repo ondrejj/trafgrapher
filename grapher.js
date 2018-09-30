@@ -960,8 +960,10 @@ Graph.prototype.parse_query_string = function() {
       } else if (arg[0]=="n") {
         if ($("select#host").length>0)
           this.index_mode = "nagios_host";
-        else
+        else if ($("select#service").length>0)
           this.index_mode = "nagios_service";
+        else
+          this.index_mode = "sagator";
         split_arg(arg[1], this.index_files);
       } else if (arg[0]=="s") {
         this.index_mode = "storage";
