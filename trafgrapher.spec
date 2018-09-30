@@ -1,6 +1,6 @@
 Name:           trafgrapher
 Version:        3.0
-Release:        0.beta23%{?dist}
+Release:        0.beta24%{?dist}
 Summary:        Collect and display network/disk/storage transfers.
 
 License:        MIT
@@ -9,10 +9,11 @@ Source0:        http://www.salstar.sk/pub/trafgrapher/trafgrapher-%{version}.tgz
 Source1:	http://www.flotcharts.org/downloads/flot-0.8.3.tar.gz
 BuildArch:      noarch
 
+# use prebuilt jquery for EPEL-6
+%if 0%{?rhel} != 6
 BuildRequires:  js-jquery
-
 Requires:       js-jquery
-#Requires:       nodejs-flot
+%endif
 
 %description
 TrafGrapher is an javascript script to collect and display data.
@@ -30,8 +31,10 @@ ln -s network.html index.html
 mv *.css *.html *.js web/
 tar xvzf %{SOURCE1} -C web --exclude '._*'
 rm -rf web/flot/examples
-rm web/flot/jquery.js web/flot/jquery.min.js
-ln -s /usr/share/javascript/jquery/latest/* web/flot/
+if [ -d /usr/share/javascript/jquery/latest ]; then
+  rm web/flot/jquery.js web/flot/jquery.min.js
+  ln -s /usr/share/javascript/jquery/latest/* web/flot/
+fi
 
 
 %install
