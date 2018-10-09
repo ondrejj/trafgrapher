@@ -727,10 +727,15 @@ Graph.prototype.plot_all_graphs = function() {
       if (service_groups[service].hide===true) continue; // skip
       if (!this.groups[service]) continue;
       graph = $("#graph_"+service);
+      var urllink = '';
+      if (filter_services.length==0) {
+        urllink = ' <a href="'+window.location+'&filter='+service+
+                  '">&UpperRightArrow;</a>';
+      }
       if (graph.length===0) {
         graph = $(
           '<div id="graph_'+service+'" class="trafgrapher">' +
-            service_groups[service].name +
+            service_groups[service].name + urllink +
             '<br/>' +
             '<div id="placeholder_'+service+'" class="graph200r"></div>' +
           '</div>');
@@ -915,6 +920,7 @@ Graph.prototype.select_devices = function() {
 };
 
 Graph.prototype.parse_query_string = function() {
+  filter_services = [];
   function split_arg(arg, arr) {
     var sarg = arg.split(",");
     var prefix = "";
@@ -974,6 +980,8 @@ Graph.prototype.parse_query_string = function() {
       } else if (arg[0]=="m") {
         this.index_mode = "mrtg";
         split_arg(arg[1], this.index_files);
+      } else if (arg[0]=="filter") {
+        filter_services = arg[1].split(';');
       } else {
         alert("Unknown argument: "+arg[0]+"="+arg[1]);
         break;
@@ -1500,7 +1508,7 @@ StorageLoader.prototype.load_compellent = function(filename) {
       } catch(err) {
         console.log("Failed to load:", filename);
         self.file_loaded();
-        return err;
+        return;
       }
     }
     // index headers
@@ -1972,7 +1980,7 @@ NagiosLoader.prototype.load_index = function(url) {
     url: url+"/",
     cache: false
   }).done(function(data) {
-    var rows = data.split("\n"), row, urlrow, derow, selected, fni,
+    var rows = data.split("\n"), row, urlrow, derow, unrow, selected, fni,
         current_datetime = new Date(),
         service = $("select#service option:selected").val(),
         hosts = $("select#host"), host, files = {};
@@ -2023,20 +2031,22 @@ NagiosLoader.prototype.load_index = function(url) {
         self.graph.unit_type.val("B");
     }
     if (service) {
-      self.progress.add(files["ALL"][service].length);
-      for (fni=0; fni<files["ALL"][service].length; fni++)
+      self.progress.add(files[host][service].length);
+      for (fni=0; fni<files[host][service].length; fni++)
         self.graph.loaders.push(
-          self.load_data(files["ALL"][service][fni], service));
+          self.load_data(files[host][service][fni], service));
     } else {
       if (self.graph.index_mode=="sagator") {
         host = 'sagator';
       } else {
         host = hosts.find('option:selected').val();
       }
-      for (service in files[host])
-        self.progress.add(files[host][service].length);
       self.graph.groups = {};
       for (service in files[host]) {
+        // ignore filtered services
+        if (filter_services.length>0 && filter_services.indexOf(service)<0)
+          continue;
+        self.progress.add(files[host][service].length);
         self.graph.groups[service] = [];
         for (fni=0; fni<files[host][service].length; fni++) {
           self.graph.loaders.push(

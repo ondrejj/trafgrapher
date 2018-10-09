@@ -3,10 +3,11 @@ body {
   color: white;
 }
 
-a {
+div.trafgrapher a {
+  text-decoration: none;
   color: #F2FF00;
 }
-a:visited {
+div.trafgrapher a:visited {
   color: #FFA500;
 }
 
