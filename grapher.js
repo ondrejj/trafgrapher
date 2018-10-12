@@ -434,6 +434,7 @@ Graph.prototype.add_plot_callbacks = function(placeholder) {
     self.range_to = ranges.xaxis.to;
     self.plot.clearSelection();
     self.plot_all_graphs();
+    self.urllink();
   });
 };
 
@@ -441,10 +442,12 @@ Graph.prototype.add_plot_callbacks = function(placeholder) {
 Graph.prototype.select_all = function() {
   this.filter.find("input").prop("checked", true);
   this.plot_graph();
+  this.urllink();
 };
 Graph.prototype.select_none = function() {
   this.filter.find("input").prop("checked", false);
   this.plot_graph();
+  this.urllink();
 };
 Graph.prototype.select_inv = function() {
   this.filter.find("input").each(function() {
@@ -452,6 +455,7 @@ Graph.prototype.select_inv = function() {
     sel.prop("checked", !sel.prop("checked"));
   });
   this.plot_graph();
+  this.urllink();
 };
 Graph.prototype.select_virt = function() {
   var self = this;
@@ -462,21 +466,30 @@ Graph.prototype.select_virt = function() {
       sel.prop("checked", !sel.prop("checked"));
   });
   this.plot_graph();
+  this.urllink();
 };
 
 // Add menu callbacks for graph
 Graph.prototype.add_menu_callbacks = function() {
   var self = this;
   // buttons and selectors
-  this.interval.change(function() { self.refresh_range(); });
-  this.graph_source.change(function() { self.change_source(); });
+  this.interval.change(function() {
+    self.refresh_range();
+    self.urllink();
+  });
+  this.graph_source.change(function() {
+    self.change_source();
+    self.urllink();
+  });
   $("select#service").change(function() {
     self.filter.empty(); // checkbox names are different
     self.refresh_graph();
+    self.urllink();
   });
   $("select#host").change(function() {
     self.filter.empty(); // checkbox names are different
     self.refresh_graph();
+    self.urllink();
   });
   this.find("menu").change(function() { self.menu_selected(); }).val("");
   this.find("toggle_info").click(function() {
@@ -511,7 +524,7 @@ Graph.prototype.files_to_args = function(prefix, suffix) {
 };
 
 // Update URL link according to current choices
-Graph.prototype.urllink = function() {
+Graph.prototype.urllink = function(force) {
   var self = this, ports = [], url,
       inputs_all = this.filter.find("input"),
       inputs_checked = this.filter.find("input:checked");
@@ -534,7 +547,8 @@ Graph.prototype.urllink = function() {
     inputs_checked.each(function() {
       if (self.index_mode=="storage" ||
           self.index_mode=="nagios_service" ||
-          self.index_mode=="nagios_host") {
+          self.index_mode=="nagios_host" ||
+          self.index_mode=="sagator") {
         ports.push(this.name);
       } else {
         ports.push(self.info[this.name]["port_id"]);
@@ -549,13 +563,14 @@ Graph.prototype.urllink = function() {
   if (this.custom_range) {
     url += "&rf=" + this.range_from + "&rt=" + this.range_to;
   }
-  if (history.pushState) {
-    history.pushState(
+  current_url = current_url.split("?")[0] + url;
+  if (history.replaceState) {
+    history.replaceState(
       {"params": url},
       url,
-      window.location.href.split("?")[0] + url);
-  } else {
-    window.location = window.location.href.split("?")[0] + url;
+      current_url);
+  } else if (force===true) {
+    window.location = current_url;
   }
 };
 
@@ -583,7 +598,7 @@ Graph.prototype.menu_selected = function(sel) {
   } else if (sel=="host_graph") {
     window.location = "nagios-host.html?"+this.files_to_args("n");
   } else if (sel=="urllink") {
-    this.urllink();
+    this.urllink(true);
   }
   this.find("menu").val("");
 };
@@ -729,7 +744,7 @@ Graph.prototype.plot_all_graphs = function() {
       graph = $("#graph_"+service);
       var urllink = '';
       if (filter_services.length==0) {
-        urllink = ' <a href="'+window.location+'&filter='+service+
+        urllink = ' <a href="'+current_url+'&filter='+service+
                   '">&UpperRightArrow;</a>';
       }
       if (graph.length===0) {
@@ -887,6 +902,7 @@ Graph.prototype.zoom_out = function() {
   // Reset zoom
   this.reset_range();
   this.plot_all_graphs();
+  this.urllink();
 };
 
 Graph.prototype.select_devices = function() {
@@ -2067,6 +2083,7 @@ function callgraphs(fx) {
 }
 
 $(function() {
+  current_url = window.location.href;
   $(".footer a").text(
     $(".footer a").text().replace("#.#", trafgrapher_version));
   graphs = [];
