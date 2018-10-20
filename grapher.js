@@ -512,13 +512,33 @@ Graph.prototype.add_menu_callbacks = function() {
 
 // Create link args for index files
 Graph.prototype.files_to_args = function(prefix, suffix) {
-  var args = "", fn;
+  var self = this, args = "", fn,
+      inputs_all = this.filter.find("input"),
+      inputs_checked = this.filter.find("input:checked");
   for (var i=0; i<this.index_files.length; i++) {
     if (args!=="") args += "&";
     fn = this.index_files[i];
     fn = fn.split(/[:;]/)[0];
     args += prefix + "=" + fn;
     if (suffix) args += suffix;
+    // add list of checked boxes
+    var ports = [];
+    if (inputs_checked.length<inputs_all.length) {
+      inputs_checked.each(function() {
+        if (self.index_mode=="storage" ||
+            self.index_mode=="nagios_service" ||
+            self.index_mode=="nagios_host" ||
+            self.index_mode=="sagator") {
+          ports.push(this.name);
+        } else {
+          if (self.info[this.name].index == self.index_files[i]) {
+            ports.push(self.info[this.name]["port_id"]);
+          }
+        }
+      });
+      if (ports.length>0)
+        args += ";" + ports.join(";");
+    }
   }
   return args;
 };
@@ -542,20 +562,6 @@ Graph.prototype.urllink = function(force) {
     url = "?"+this.files_to_args("n", ";"+host).replace("::", ";");
   } else {
     return;
-  }
-  if (inputs_checked.length<inputs_all.length) {
-    inputs_checked.each(function() {
-      if (self.index_mode=="storage" ||
-          self.index_mode=="nagios_service" ||
-          self.index_mode=="nagios_host" ||
-          self.index_mode=="sagator") {
-        ports.push(this.name);
-      } else {
-        ports.push(self.info[this.name]["port_id"]);
-      }
-    });
-    if (ports.length>0)
-      url += ";" + ports.join(";");
   }
   url += "&i=" + this.interval.val() + "h";
   if (this.unit_type.val())
@@ -1223,6 +1229,7 @@ JSONLoader.prototype.load_index = function(url) {
           return data.ifs[port_id].ifDescr;
         }
         files.push({
+          'index': url,
           'filename': urldir + data.ifs[port_id].log,
           'port_id': port_id,
           'ethid': ethid,
@@ -1242,6 +1249,7 @@ JSONLoader.prototype.load_index = function(url) {
         if (oid===null) continue;
         ethid = data.ip.replace(/[^a-z0-9]/gi, '_') + oid.replace(".", "_");
         files.push({
+          'index': url,
           'filename': urldir + data.oids[oid].log,
           'ethid': ethid,
           'port_id': oid,
@@ -1322,6 +1330,7 @@ MRTGLoader.prototype.load_index = function(url) {
         ethid = switch_ip.replace(/[^a-z0-9]/gi, '_') +
                 port_id.replace(".", "_");
         files.push({
+          'index': url,
           'filename': file_prefix+".log",
           'port_id': port_id,
           'ethid': basename,
