@@ -569,6 +569,9 @@ Graph.prototype.urllink = function(force) {
   if (this.custom_range) {
     url += "&rf=" + this.range_from + "&rt=" + this.range_to;
   }
+  if (filter_services.length>0) {
+    url += "&filter=" + filter_services.join(';');
+  }
   current_url = current_url.split("?")[0] + url;
   if (history.replaceState) {
     history.replaceState(
