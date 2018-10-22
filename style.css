@@ -162,6 +162,14 @@ div.trafgrapher input[type="checkbox"] {
   min-width: auto;
   padding: 0;
 }
+div.noscroll {
+  position: fixed;
+  top: 0;
+  width: 100%;
+  z-index: 10;
+  padding-bottom: 2pt;
+  background-color: black;
+}
 
 /* generated images */
 div.trafgrapher input[type="checkbox"]:checked {

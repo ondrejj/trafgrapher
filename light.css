@@ -3,6 +3,10 @@ body {
   color: black;
 }
 
+div.noscroll {
+  background-color: white;
+}
+
 div.tooltip {
   border: 1px solid #999;
   background-color: #eee;

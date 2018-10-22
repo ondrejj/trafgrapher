@@ -747,6 +747,11 @@ Graph.prototype.update_checkboxes = function() {
 Graph.prototype.plot_all_graphs = function() {
   var graph, enabled_groups, placeholder;
   if (this.groups) {
+    // make menu fixed (always visisble)
+    var selection = $("div.selection");
+    selection.addClass("noscroll");
+    $("div#placeholder").css("margin-top", selection.outerHeight());
+
     for (var service in service_groups) {
       if (service_groups[service].hide===true) continue; // skip
       if (!this.groups[service]) continue;
@@ -2074,9 +2079,12 @@ NagiosLoader.prototype.load_index = function(url) {
         // ignore filtered services
         if (filter_services.length>0 && filter_services.indexOf(service)<0)
           continue;
-        self.progress.add(files[host][service].length);
         self.graph.groups[service] = [];
         for (fni=0; fni<files[host][service].length; fni++) {
+          var fname = files[host][service][fni].split('/').pop();
+          if (preselect_graphs.length>0 && preselect_graphs.indexOf(fname)<0)
+            continue;
+          self.progress.add(1);
           self.graph.loaders.push(
             self.load_data(files[host][service][fni], service));
         }
