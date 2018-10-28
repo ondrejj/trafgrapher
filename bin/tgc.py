@@ -668,10 +668,10 @@ class grouper(dict):
   def load(self, deltas, start=None):
       if start is None:
         start = max(deltas.keys())
-      intervals = self.compress_intervals.items()
+      intervals = list(self.compress_intervals.items())
       limit = None
       for t in sorted(deltas, reverse=True):
-        if start-t>=limit:
+        if limit is None or start-t>=limit:
           if intervals:
             limit, range = intervals.pop(0)
           else:
