@@ -575,13 +575,16 @@ Graph.prototype.urllink = function(force) {
     url += "&filter=" + filter_services.join(';');
   }
   current_url = current_url.split("?")[0] + url;
-  if (history.replaceState) {
-    history.replaceState(
-      {"params": url},
-      url,
-      current_url);
-  } else if (force===true) {
-    window.location = current_url;
+  if ($("#b_urllink")) {
+    // change URL only if urllink button present
+    if (history.replaceState) {
+      history.replaceState(
+        {"params": url},
+        url,
+        current_url);
+    } else if (force===true) {
+      window.location = current_url;
+    }
   }
 };
 
