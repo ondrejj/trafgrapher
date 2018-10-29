@@ -575,7 +575,7 @@ Graph.prototype.urllink = function(force) {
     url += "&filter=" + filter_services.join(';');
   }
   current_url = current_url.split("?")[0] + url;
-  if ($("#b_urllink")) {
+  if ($("#b_urllink").length>0) {
     // change URL only if urllink button present
     if (history.replaceState) {
       history.replaceState(
