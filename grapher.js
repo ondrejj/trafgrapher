@@ -421,10 +421,9 @@ Graph.prototype.add_plot_callbacks = function(placeholder) {
               self.groups[srvi][grpi].enabled = false;
           }
         }
-        self.plot_all_graphs();
-      } else {
-        self.plot_graph();
       }
+      self.plot_all_graphs();
+      self.urllink();
     }
   });
   // selection
@@ -442,8 +441,17 @@ Graph.prototype.add_plot_callbacks = function(placeholder) {
 
 // Menu functions
 Graph.prototype.select_all = function() {
-  this.filter.find("input").prop("checked", true);
-  this.plot_graph();
+  if (this.groups) {
+    // nagios host graph
+    for (var srvi in this.groups) {
+      for (var grpi in this.groups[srvi]) {
+        this.groups[srvi][grpi].enabled = true;
+      }
+    }
+  } else {
+    this.filter.find("input").prop("checked", true);
+  }
+  this.plot_all_graphs();
   this.urllink();
 };
 Graph.prototype.select_none = function() {
@@ -524,7 +532,7 @@ Graph.prototype.files_to_args = function(prefix, suffix) {
     args += prefix + "=" + fn;
     if (suffix) args += suffix;
     // add list of checked boxes
-    var ports = [];
+    var ports = [], index_file;
     if (inputs_checked.length<inputs_all.length) {
       inputs_checked.each(function() {
         if (self.index_mode=="storage" ||
@@ -533,7 +541,8 @@ Graph.prototype.files_to_args = function(prefix, suffix) {
             self.index_mode=="sagator") {
           ports.push(this.name);
         } else {
-          if (self.info[this.name].index == self.index_files[i]) {
+          index_file = self.index_files[i].split(";")[0];
+          if (self.info[this.name].index == index_file) {
             ports.push(self.info[this.name]["port_id"]);
           }
         }
@@ -562,6 +571,18 @@ Graph.prototype.urllink = function(force) {
   } else if (this.index_mode=="nagios_host") {
     var host = $("select#host option:selected").val();
     url = "?"+this.files_to_args("n", ";"+host).replace("::", ";");
+    if (self.groups) {
+      var enabled_services = [], all_services = 0;
+      for (var srvi in self.groups) {
+        for (var grpi in self.groups[srvi]) {
+          all_services += 1;
+          if (self.groups[srvi][grpi].enabled)
+            enabled_services.push(self.groups[srvi][grpi].name);
+        }
+      }
+      if (enabled_services.length<all_services)
+        url += ';' + enabled_services.join(";");
+    }
   } else {
     return;
   }
@@ -743,9 +764,18 @@ Graph.prototype.update_checkboxes = function() {
   }
   self.preselect_graphs = []; // clear after apply
   // Add actions.
-  this.filter.find("input").click(function() { self.plot_graph(); });
-  this.graph_type.change(function() { self.plot_graph(); });
-  this.unit_type.change(function() { self.plot_graph(); });
+  this.filter.find("input").click(function() {
+    self.plot_graph();
+    self.urllink();
+  });
+  this.graph_type.change(function() {
+    self.plot_graph();
+    self.urllink();
+  });
+  this.unit_type.change(function() {
+    self.plot_graph();
+    self.urllink();
+  });
 };
 
 // Plot current graph.
@@ -1131,11 +1161,10 @@ Loader.prototype.file_loaded = function() {
     }
     if (this.graph.groups) {
       this.graph.placeholder.empty(); // remove old graphs
-      this.graph.plot_all_graphs();
     } else {
       this.graph.update_checkboxes();
-      this.graph.plot_graph();
     }
+    this.graph.plot_all_graphs();
   }
 };
 
@@ -1913,6 +1942,10 @@ NagiosLoader.prototype.load_data = function(filename, service) {
     var value, cols, rows = data.split("\n"), rowi, hdr = rows[0].split("\t"),
         rw, name, desc, service_group, lunit = hdr[3], multiplier = 1,
         warn=null, crit=null, min=null, max=null;
+    function is_enabled(name) {
+      return self.graph.preselect_graphs.length==0 ||
+             self.graph.preselect_graphs.indexOf(name)>=0;
+    }
     if (service_groups[service])
       service_group = service_groups[service];
     else
@@ -1932,7 +1965,7 @@ NagiosLoader.prototype.load_data = function(filename, service) {
       name += service_group.name_suffix;
     // add group
     if (service!==undefined && self.graph.groups)
-      self.graph.groups[service].push({name: name, enabled: true});
+      self.graph.groups[service].push({name: name, enabled: is_enabled(name)});
     // create info
     if (!self.graph.info[name])
       self.graph.info[name] = {name: desc, unit: lunit};
@@ -2087,8 +2120,12 @@ NagiosLoader.prototype.load_index = function(url) {
         self.graph.groups[service] = [];
         for (fni=0; fni<files[host][service].length; fni++) {
           var fname = files[host][service][fni].split('/').pop();
-          if (preselect_graphs.length>0 && preselect_graphs.indexOf(fname)<0)
-            continue;
+          if (preselect_graphs.length>0) {
+            if (self.graph.index_mode=="nagios_service") {
+              if (preselect_graphs.indexOf(fname)<0)
+                continue;
+            }
+          }
           self.progress.add(1);
           self.graph.loaders.push(
             self.load_data(files[host][service][fni], service));
