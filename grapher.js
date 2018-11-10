@@ -1780,21 +1780,21 @@ service_groups = {
   },
   disk_bytes: {
     name: "Disk bytes",
-    search: /(diskio_.|Disk.*IO.*SUMMARY)\/(read|write)/i,
+    search: /(diskio_.\/(read|write)|Disk.*IO.*SUMMARY\/(read|write|disk_read_throughput|disk_write_throughput))/i,
     join_by: /(read|write)/,
-    reversed: /^write/,
+    reversed: /write/,
     unit: "B/s"
   },
   disk_blocks: {
     name: "Disk IO blocks",
-    search: /diskio_.\/(ioread|iowrite)/i,
+    search: /(diskio_.|Disk.*IO.*SUMMARY)\/(ioread|iowrite|disk_read_ios|disk_write_ios)/i,
     join_by: /(read|write)/, // do not use ioread/iowrite
-    reversed: /^iowrite/,
+    reversed: /^(iowrite|disk_write_ios)/,
     unit: "io/s"
   },
   diskio_queue: {
     name: "Disk queue",
-    search: /diskio_.\/queue/i,
+    search: /(diskio_.|Disk.*IO.*SUMMARY)\/(queue|disk_read_ql|disk_write_ql)/i,
     unit: "/s"
   },
   disk_usage_percent: {
@@ -1984,10 +1984,12 @@ NagiosLoader.prototype.load_data = function(filename, service) {
       min = parseFloat(hdr[6])*multiplier;
       max = parseFloat(hdr[7])*multiplier;
     }
+    rw = "o";
+    if (service_group.reversed && hdr[2].search(service_group.reversed)>=0)
+      rw = "i";
+    if (!self.graph.deltas[name])
+      self.graph.deltas[name] = {i: [], j: [], o: []};
     if (hdr[3]=="c") { // counters
-      rw = "o";
-      if (service_group.reversed && hdr[2].search(service_group.reversed)>=0)
-        rw = "i";
       // create counters
       var counters = []; // use local counters
       for (rowi=1; rowi<rows.length; rowi++) {
@@ -1999,18 +2001,9 @@ NagiosLoader.prototype.load_data = function(filename, service) {
         counters.push([to_ms(cols[0]), value]);
       }
       // compute deltas
-      if (!self.graph.deltas[name])
-        self.graph.deltas[name] = {i: [], j: [], o: []};
       self.graph.deltas[name][rw] = arraydelta(counters);
-      if (rw=="i")
-        self.graph.deltas[name].j = arrayinverse(self.graph.deltas[name].i);
     } else {
-      rw = "o";
-      if (service_group.reversed && hdr[2].search(service_group.reversed)>=0)
-        rw = "i";
       // create deltas
-      if (!self.graph.deltas[name])
-        self.graph.deltas[name] = {i: [], j: [], o: []};
       for (rowi=1; rowi<rows.length; rowi++) {
         if (!rows[rowi]) continue; // skip empty line
         cols = rows[rowi].split(" ");
@@ -2020,9 +2013,9 @@ NagiosLoader.prototype.load_data = function(filename, service) {
         self.graph.deltas[name][rw].push([to_ms(cols[0]), value]);
       }
       self.graph.deltas[name][rw].sort(col0diff);
-      if (rw=="i")
-        self.graph.deltas[name].j = arrayinverse(self.graph.deltas[name].i);
     }
+    if (rw=="i")
+      self.graph.deltas[name].j = arrayinverse(self.graph.deltas[name].i);
     self.file_loaded();
   }).fail(function(jqXHR, textStatus, error) {
     self.progress.loading_error(filename, error);
