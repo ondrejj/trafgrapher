@@ -108,6 +108,14 @@ function unit_si(val, axis, unit) {
       ki = 1000*1000;
     }
   }
+  // do not display double extensions (kMB)
+  if (unit=="kB" || unit=="kb") {
+    unit = unit[1];
+    aval = aval * ki;
+  } else if (unit=="MB" || unit=="Mb") {
+    unit = unit[1];
+    aval = aval * ki * ki;
+  }
   if (unit=="s") {
     if (aval<0.001) {
       if (axis && axis.tickSize)
@@ -1799,7 +1807,7 @@ service_groups = {
   },
   disk_usage_percent: {
     name: "Disk usage %",
-    search: /(disk_|fs_[A-Z]:)/i,
+    search: /(disk_|fs_[A-Z]:\/\/[A-Z]:)/i,
     unit: "%",
     convert: function(value, warn, crit, min, max) {
       return value*100/max;
@@ -1809,8 +1817,15 @@ service_groups = {
   },
   disk_usage: {
     name: "Disk usage bytes",
-    search: /(disk_|fs_[A-Z]:)/i,
+    search: /(disk_|fs_[A-Z]:\/\/[A-Z]:)/i,
     unit: "B"
+  },
+  disk_usage_other: {
+    // other data from check_mk
+    name: "Disk usage other",
+    search: /fs_[A-Z]:\/\/(fs_size|growth|trend)/,
+    unit: "",
+    hide: true
   },
   users: {
     name: "Users",
