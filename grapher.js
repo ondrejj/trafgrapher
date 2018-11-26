@@ -109,10 +109,10 @@ function unit_si(val, axis, unit) {
     }
   }
   // do not display double extensions (kMB)
-  if (unit=="kB" || unit=="kb") {
+  if (unit=="kB" || unit=="kb" || unit=="kW") {
     unit = unit[1];
     aval = aval * ki;
-  } else if (unit=="MB" || unit=="Mb") {
+  } else if (unit=="MB" || unit=="Mb" || unit=="MW") {
     unit = unit[1];
     aval = aval * ki * ki;
   }
