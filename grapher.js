@@ -354,22 +354,26 @@ Graph.prototype.add_plot_callbacks = function(placeholder) {
       var value = unit_si(item.datapoint[1], 3, unit),
           description = self.info[label].name,
           switchname = self.info[label].ip,
-          dt = new Date(item.datapoint[0]);
+          dt = new Date(item.datapoint[0]),
+          sum_value, sum_text;
       if (unit.match(/i[bB]\/s$/)) { // bits per second
-        sum_value = unit_si(
-          self.arraysum(self.deltas[label][graph_type]),
-          null, 'iB');
+        sum_value = self.arraysum(self.deltas[label][graph_type]);
+        sum_text = unit_si(sum_value, null, 'iB');
       } else if (unit.match(/\/h$/)) {
-        sum_value = unit_si(
-          self.arraysum(self.deltas[label][graph_type])/3600,
-          null, unit.split("/")[0]);
+        sum_value = self.arraysum(self.deltas[label][graph_type])/3600;
+        sum_text = unit_si(sum_value, null, unit.split("/")[0]);
       } else {
-        sum_value = unit_si(
-          self.arrayavg(self.deltas[label][graph_type]),
-          null, unit);
+        sum_value = self.arrayavg(self.deltas[label][graph_type]);
+        sum_text = unit_si(sum_value, null, unit);
       }
       self.find("value_one").val(value);
-      self.find("value_sum").val(sum_value);
+      self.find("value_sum").val(sum_text);
+      if (self.info[label].info.price) {
+        var data = item.series.data,
+            hours = (data[data.length-1][0] - data[0][0]) / 3600000,
+            price = self.info[label].info.price * Math.abs(sum_value) * hours;
+        self.find("value_price").val(price.toFixed(4)+" €");
+      }
       self.find("description").val(description);
       self.find("switchname").val(switchname);
       // show tooltip
@@ -909,6 +913,7 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
   // clear last graph values
   this.find("value_one").val("");
   this.find("value_sum").val("");
+  this.find("value_price").val("");
   this.find("description").val("");
   this.find("switchname").val("");
   this.find("info_table").empty();

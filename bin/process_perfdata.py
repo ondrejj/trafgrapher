@@ -199,5 +199,5 @@ if __name__ == "__main__":
             logfile = Logfiles(hostname, service_name, label)
             logfile.update(int(service_time), values.split(";"))
           except Exception as err:
-            print("Error processing data [%s]: %s" % (data, err.args[0]))
+            print("Error processing data [%s]: %s" % (data, err))
     os.unlink(sys.argv[1])
