@@ -1,6 +1,6 @@
 /*
   TrafGrapher
-  (c) 2015-2018 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
+  (c) 2015-2019 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
   Licensed under the MIT license.
 */
 
