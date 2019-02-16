@@ -4,7 +4,7 @@
   Licensed under the MIT license.
 */
 
-var trafgrapher_version = '3.0',
+var trafgrapher_version = '3.0.1',
     one_hour = 3600000,
     last_reload = null,
     degreeC = "℃";
@@ -368,7 +368,7 @@ Graph.prototype.add_plot_callbacks = function(placeholder) {
       }
       self.find("value_one").val(value);
       self.find("value_sum").val(sum_text);
-      if (self.info[label].info.price) {
+      if (self.info[label].info && self.info[label].info.price) {
         var data = item.series.data,
             hours = (data[data.length-1][0] - data[0][0]) / 3600000,
             price = self.info[label].info.price * Math.abs(sum_value) * hours;
@@ -1779,14 +1779,14 @@ service_groups = {
   },
   eth_io: {
     name: "Ethernet [bits]",
-    search: /(eth.+\/[rt]x_bytes|Interface [0-9]+\/(in|out)$)/i,
+    search: /((eth|tun).+\/[rt]x_bytes|Interface [0-9]+\/(in|out)$)/i,
     join_by: /^(rx_|tx_|in|out)/,
     reversed: /^(rx|in)/,
     unit: "b/s"
   },
   eth_stat: {
     name: "Ethernet packets",
-    search: /(eth.+|Interface [0-9]+)\/./i,
+    search: /((eth|tun).+|Interface [0-9]+)\/./i,
     join_by: /^(rx|tx|in|out)_/,
     reversed: /^(rx|in)/,
     unit: "/s"
