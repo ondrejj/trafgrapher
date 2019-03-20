@@ -72,7 +72,7 @@ class Logfiles:
   def escape(self, fn):
       if self.re_plain.search(fn):
         return fn
-      return '~'+fn.encode("base64").strip()
+      return '~'+fn.encode("base64").strip().replace("\n", "")
   def escape_old(self, fn):
       ret = ''
       for x in fn:
