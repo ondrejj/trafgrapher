@@ -1763,7 +1763,7 @@ service_groups = {
   },
   mem_total: {
     name: "Memory total",
-    search: /mem\/Total/i,
+    search: /mem.*\/.*Total/i,
     unit: "B",
     hide: true
   },
@@ -1812,7 +1812,7 @@ service_groups = {
   },
   disk_usage_percent: {
     name: "Disk usage %",
-    search: /(disk_|fs_[A-Z]:\/\/[A-Z]:)/i,
+    search: /(disk_|fs_[A-Z]:\/)/i,
     unit: "%",
     convert: function(value, warn, crit, min, max) {
       return value*100/max;
@@ -1822,7 +1822,7 @@ service_groups = {
   },
   disk_usage: {
     name: "Disk usage bytes",
-    search: /(disk_|fs_[A-Z]:\/\/[A-Z]:)/i,
+    search: /(disk_|fs_[A-Z]:\/)/i,
     unit: "B"
   },
   disk_usage_other: {
