@@ -1189,11 +1189,11 @@ def process_configs(files):
     filter_time = filter_value = ""
     if "--filter-time" in opts:
       filter_time = opts["--filter-time"]
-      if ':' in filter:
+      if ':' in filter_time:
         # convert date and time format to timestamps
-        filter = ",".join([
+        filter_time = ",".join([
           "%d" % time.mktime(time.strptime(x, "%Y-%m-%d %H:%M:%S"))
-          for x in filter.split(",")
+          for x in filter_time.split(",")
         ])
     if "--filter-value" in opts:
       filter_value = opts["--filter-value"]
