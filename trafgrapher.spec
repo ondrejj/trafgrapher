@@ -1,5 +1,12 @@
+# use python3 for Fedora
+%if 0%{?fedora} || 0%{?rhel} > 7
+%define PYTHON %{_bindir}/python3
+%else
+%define PYTHON %{_bindir}/python2
+%endif
+
 Name:           trafgrapher
-Version:        3.0.2
+Version:        3.0.3
 Release:        1%{?dist}
 Summary:        Collect and display network/disk/storage transfers.
 
@@ -35,6 +42,8 @@ if [ -d /usr/share/javascript/jquery/latest ]; then
   rm web/flot/jquery.js web/flot/jquery.min.js
   ln -s /usr/share/javascript/jquery/latest/* web/flot/
 fi
+# update python version
+sed -i 's|#!/usr/bin/python[23]|#!%{PYTHON}|' bin/*.py
 
 
 %install
