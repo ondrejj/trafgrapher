@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
 
 '''
 Download statistics from DELL Compellent array.
@@ -10,9 +10,9 @@ Usage: compellent.py https://storage_ip username /path/password_file \\
 ObjTypes: Volume, Disk, ServerHba, Controller, ControllerPort
 '''
 
-import sys, urllib2, ssl, os, uuid, socket
+import sys, urllib.request, ssl, os, uuid, socket, base64
 
-soap_ping_template = '''\
+soap_ping_template = b'''\
 <?xml version="1.0" ?>
 <S:Envelope xmlns:S="http://schemas.xmlsoap.org/soap/envelope/">
   <S:Body>
@@ -21,7 +21,7 @@ soap_ping_template = '''\
 </S:Envelope>
 '''
 
-soap_apicommand_template = '''\
+soap_apicommand_template = b'''\
 <?xml version="1.0" ?>
 <S:Envelope xmlns:S="http://schemas.xmlsoap.org/soap/envelope/">
   <S:Body>
@@ -32,7 +32,7 @@ soap_apicommand_template = '''\
 </S:Envelope>
 '''
 
-login_template = '''\
+login_template = b'''\
 <compapi>
   <ApiMethod>
     <CommandType>Method</CommandType>
@@ -54,7 +54,7 @@ login_template = '''\
 </compapi>
 '''
 
-volume_template = soap_apicommand_template % '''\
+volume_template = soap_apicommand_template % b'''\
 <compapi>
   <ApiConnection>
     <SessionKey>%s</SessionKey>
@@ -89,12 +89,14 @@ DEBUG = False
 class compellent_class():
   def __init__(self, url, login, password):
       # login
-      self.auth = "Basic " + ((login+":"+password).encode('base64').strip())
-      req = urllib2.Request(url, soap_ping_template, headers=dict(
+      self.auth = b"Basic " + (
+        base64.b64encode((login+":"+password).encode()
+        ).strip())
+      req = urllib.request.Request(url, soap_ping_template, headers=dict(
         Authorization = self.auth,
-        SOAPAction = '"http://WebServer.WebServices.compellent.com/CompellentAPIServicesIntf/PingRequest"'
+        SOAPAction = b'"http://WebServer.WebServices.compellent.com/CompellentAPIServicesIntf/PingRequest"'
       ))
-      query = urllib2.urlopen(req, context=ctx)
+      query = urllib.request.urlopen(req, context=ctx)
       self.cookie = query.headers['set-cookie']
       self.session = self.cookie.split('|')[-1].split(';')[0]
       if DEBUG:
@@ -105,33 +107,34 @@ class compellent_class():
 
   def login2(self, login, password):
       #tk = uuid.uuid4()
-      tk = "472ACB4D-D355-49eb-A26E-008F4DD119B4"
-      apicmd = login_template % (tk, login, password, socket.gethostname())
-      req = urllib2.Request(url, soap_apicommand_template % apicmd,
+      tk = b"472ACB4D-D355-49eb-A26E-008F4DD119B4"
+      apicmd = login_template % (tk, login.encode(), password.encode(),
+                 socket.gethostname().encode())
+      req = urllib.request.Request(url, soap_apicommand_template % apicmd,
         headers = {
           "Cookie": self.cookie,
-          "SOAPAction": '"http://WebServer.WebServices.compellent.com/CompellentAPIServicesIntf/ApiCommandRequest"'
+          "SOAPAction": b'"http://WebServer.WebServices.compellent.com/CompellentAPIServicesIntf/ApiCommandRequest"'
         }
       )
-      reply = urllib2.urlopen(req, context=ctx).read()
+      reply = urllib.request.urlopen(req, context=ctx).read()
       if DEBUG:
-        print("HEADERS:\n" + str(req.headers))
-        print("REQ:\n" + req.data)
-        print("REPLY:\n" + reply)
+        print("HEADERS:\n", str(req.headers))
+        print("REQ:\n", req.data)
+        print("REPLY:\n", reply)
 
   def get(self, template, *data):
       # get IO data
-      req = urllib2.Request(url, template % tuple([self.session]+list(data)),
+      req = urllib.request.Request(url, template % tuple([self.session.encode()]+list(data)),
         headers = {
           "Cookie": self.cookie,
           "SOAPAction": '"http://WebServer.WebServices.compellent.com/CompellentAPIServicesIntf/ApiCommandRequest"'
         }
       )
-      reply = urllib2.urlopen(req, context=ctx).read()
+      reply = urllib.request.urlopen(req, context=ctx).read()
       if DEBUG:
-        print("HEADERS:\n" + str(req.headers))
-        print("REQ:\n" + req.data)
-        print("REPLY:\n" + reply)
+        print("HEADERS:\n", str(req.headers))
+        print("REQ:\n", req.data)
+        print("REPLY:\n", reply)
       return reply
 
 if __name__ == "__main__":
@@ -149,9 +152,9 @@ if __name__ == "__main__":
     compellent = compellent_class(url, login, password)
     for objtype in sys.argv[5:]:
       if ":" in objtype:
-        objtype, filename = objtype.split(":", 1)
-        open(filename, "wt").write(
-          compellent.get(volume_template, serial, objtype)
+        objtype, filename = objtype.encode().split(b":", 1)
+        open(filename, "wb").write(
+          compellent.get(volume_template, serial.encode(), objtype)
         )
       else:
-        print(compellent.get(volume_template, serial, objtype))
+        print(compellent.get(volume_template, serial.encode(), objtype))

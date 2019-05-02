@@ -1,9 +1,9 @@
-#!/usr/bin/python -S
+#!/usr/bin/python3 -S
 
 '''
 Process nagios performance data for TrafGrapher
 
-(c) 2016-2017 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
+(c) 2016-2019 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
 
 Licensed under the MIT license.
 
@@ -17,7 +17,7 @@ export NAGIOS_TIMET=1457008744
 ./process_perfdata.py
 '''
 
-import sys, re, os, fcntl, time
+import sys, re, os, fcntl, time, base64
 
 prefix = os.environ.get("NAGIOS_PERF_LOG_DIR", "/var/log/nagios/perf")
 
@@ -47,10 +47,10 @@ class grouper(dict):
           start = max(deltas.keys())
         else:
           start = time.time()
-      intervals = self.compress_intervals.items()
+      intervals = list(self.compress_intervals.items())
       limit = None
       for t in sorted(deltas, reverse=True):
-        if start-t>=limit:
+        if limit is None or start-t>=limit:
           if intervals:
             limit, interval_range = intervals.pop(0)
           else:
@@ -72,7 +72,9 @@ class Logfiles:
   def escape(self, fn):
       if self.re_plain.search(fn):
         return fn
-      return '~'+fn.encode("base64").strip().replace("\n", "")
+      return '~'+base64.b64encode(
+        fn.encode()
+      ).decode().strip().replace("\n", "")
   def escape_old(self, fn):
       ret = ''
       for x in fn:
