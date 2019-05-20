@@ -87,7 +87,7 @@ def fread(filename):
       except ImportError:
         from urllib2 import urlopen
       try:
-        return urlopen(filename, context=ctx).read().split("\n")
+        return urlopen(filename, context=ctx).read().decode("utf8").split("\n")
       except Exception as err:
         print(filename, err)
         return []
@@ -423,7 +423,9 @@ class SNMP:
     ",,,V,V,A,W,Hz,C,%,rpm,cmm,,,dBm".split(",")
   ))
   def __init__(self, addr, community_name="public"):
+      # allow loading site-packages even for python -S
       import site
+      site.main()
       from pysnmp.entity.rfc3413.oneliner import cmdgen
       #from pysnmp.proto.rfc1905 import NoSuchInstance
       self.cmdgen = cmdgen
@@ -695,7 +697,7 @@ class logfile:
         self.f = self.open(self.filename, "rb+")
         counter = self.f.readline()
         if counter:
-          counter_split = counter.split(" ")
+          counter_split = counter.split(b" ")
           if counter_split[0].isdigit():
             self.counter = (
               long(counter_split[0]),
@@ -732,7 +734,7 @@ class logfile:
         raise LockError("ERROR: File locked: %s!" % filename)
       return f
   def data_type(self, value):
-      if value=="N" or value=="None":
+      if value=="N" or value=="None" or value==b"N" or value==b"None":
         return None
       return long(value, 10)
   def store_value(self, value):
@@ -744,7 +746,7 @@ class logfile:
       for row in self.f.readlines():
         row = row.rstrip()
         if row:
-          row_split = row.split(" ", 4)
+          row_split = row.split(b" ", 4)
           try:
             t = long(row_split[0])
             if t>max_time:
@@ -768,9 +770,9 @@ class logfile:
         if self.header_format:
           self.f.write(self.header())
         for t in sorted(self.deltas, reverse=True):
-          self.f.write(self.data_format
+          self.f.write((self.data_format
             % tuple([t]+[self.store_value(x) for x in self.deltas[t]])
-          )
+          ).encode("utf8"))
         self.f.close()
         if BACKUP:
           os.rename(self.filename, self.filename+"~")
@@ -785,7 +787,7 @@ class logfile:
             self.f.seek(0)
             self.f.write(header)
         self.f.seek(0, 2) # EOF
-        self.f.write(self.data_format % delta)
+        self.f.write((self.data_format % delta).encode("utf8"))
         self.f.close()
   def update(self, data_in, data_out,
              gauge_in=False, gauge_out=False,
@@ -907,7 +909,7 @@ class logfile_simple(logfile):
         self.f = self.open(self.filename, "wb")
         self.f.write(self.header())
   def data_type(self, value):
-      if value=="N" or value=="None":
+      if value=="N" or value=="None" or value==b"N" or value==b"None":
         return None
       return float(value)
   def header(self):
