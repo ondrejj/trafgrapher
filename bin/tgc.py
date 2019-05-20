@@ -427,9 +427,8 @@ class SNMP:
       import site
       site.main()
       from pysnmp.entity.rfc3413.oneliner import cmdgen
-      #from pysnmp.proto.rfc1905 import NoSuchInstance
-      self.cmdgen = cmdgen
-      self.cmdGen = cmdgen.CommandGenerator()
+      self.MibVariable = cmdgen.MibVariable
+      self.engine = cmdgen.CommandGenerator()
       self.addr = addr
       self.community = cmdgen.CommunityData(community_name)
       self.transport = cmdgen.UdpTransportTarget((addr, self.port))
@@ -440,11 +439,10 @@ class SNMP:
                + "." + (".".join([str(x) for x in ids]))
         else:
           return OID_TABLE.get(suffix, suffix)
-      return self.cmdgen.MibVariable(prefix, suffix, *ids)
-               #.addMibSource(mib_source)
+      return self.MibVariable(prefix, suffix, *ids)
   def get_data(self, prefix, oids):
       errorIndication, errorStatus, errorIndex, varBindTable = \
-        self.cmdGen.nextCmd(
+        self.engine.nextCmd(
           self.community,
           self.transport,
           *[self.oid(prefix, x) for x in oids]
@@ -540,11 +538,11 @@ class SNMP:
       return ret
   def get_uptime(self):
       errorIndication, errorStatus, errorIndex, varBindTable = \
-        self.cmdGen.nextCmd(
+        self.engine.nextCmd(
           self.community, self.transport,
-          self.cmdgen.MibVariable(
+          self.MibVariable(
             'SNMPv2-MIB', 'sysUpTime'
-          )#.addMibSource(mib_source)
+          )
         )
       if not varBindTable:
         print("%s: %s" % (self.addr, errorIndication))
@@ -605,7 +603,7 @@ class SNMP:
           self.oid(prefix, str(suffix))
           for suffix in suffixes
         ])
-      errorIndication, errorStatus, errorIndex, varBinds = self.cmdGen.getCmd(
+      errorIndication, errorStatus, errorIndex, varBinds = self.engine.getCmd(
         self.community,
         self.transport,
         *mibvars
@@ -931,7 +929,7 @@ class logfile_simple(logfile):
 
 def update_io(cfg, tdir, community_name="public", force_compress=False,
               filter_time=None, filter_value=None):
-    ids = cfg['ifs'].keys()
+    ids = list(cfg['ifs'].keys())
     IP = cfg['ip']
     snmpc = SNMP(IP, community_name)
     uptime = snmpc.get_uptime()
@@ -961,7 +959,7 @@ def update_io(cfg, tdir, community_name="public", force_compress=False,
 
 def update_value(cfg, tdir, community_name="public", force_compress=False,
                  filter_time=None, filter_value=None):
-    ids = cfg['oids'].keys()
+    ids = list(cfg['oids'].keys())
     IP = cfg['ip']
     snmpc = SNMP(IP, community_name)
     vals = snmpc.getsome("", cfg['oids'].keys())
