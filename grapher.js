@@ -97,6 +97,9 @@ function unit_si(val, axis, unit) {
   else if (axis && axis.tickSize) precision = guessPrecision(axis.tickSize);
   if (axis && unit===undefined) unit = axis.options.si_unit;
   if ((unit=="C" || unit==degreeC) && val<0) sign = "-";
+  if (unit=="") {
+    ki = 1000; // do not use ki for empty unit
+  }
   if (unit=="ms") {
     aval = aval/1000;
     unit = "s";
