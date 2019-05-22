@@ -43,7 +43,7 @@ def pp(x):
 
 def ustr(x):
     '''Encode as UTF8 string.'''
-    return str(x).decode("utf8", "replace")
+    return (b"%s" % x).decode("utf8", "replace")
 
 def macaddr(x):
     '''Format as MAC address.'''
@@ -56,7 +56,7 @@ def macaddr(x):
       return x.prettyPrint()
     for i in range(6):
       ret.insert(0, "%02x" % (x % 256))
-      x = x/256
+      x = x//256
     return ':'.join(ret)
 
 def ifspeed(speed, unit="b/s"):
