@@ -4,7 +4,7 @@
   Licensed under the MIT license.
 */
 
-var trafgrapher_version = '3.0.4',
+var trafgrapher_version = '3.0.5',
     one_hour = 3600000,
     last_reload = null,
     degreeC = "℃";
