@@ -6,14 +6,14 @@
 %endif
 
 Name:           trafgrapher
-Version:        3.0.5
-Release:        1%{?dist}
+Version:        3.1.0
+Release:        0.beta1%{?dist}
 Summary:        Collect and display network/disk/storage transfers.
 
 License:        MIT
 URL:            http://www.salstar.sk/trafgrapher/
 Source0:        http://www.salstar.sk/pub/trafgrapher/trafgrapher-%{version}.tgz
-Source1:	http://www.flotcharts.org/downloads/flot-0.8.3.tar.gz
+Source1:	https://github.com/flot/flot/archive/v3.1.1.tar.gz
 BuildArch:      noarch
 
 # use prebuilt jquery for EPEL-6
@@ -37,9 +37,10 @@ mkdir web
 ln -s network.html index.html
 mv *.css *.html *.js web/
 tar xvzf %{SOURCE1} -C web --exclude '._*'
-rm -rf web/flot/examples
+mv web/flot-*/source web/flot
+rm -rf web/flot-*
 if [ -d /usr/share/javascript/jquery/latest ]; then
-  rm web/flot/jquery.js web/flot/jquery.min.js
+  rm web/flot/jquery.js #web/flot/jquery.min.js
   ln -s /usr/share/javascript/jquery/latest/* web/flot/
 fi
 # update python version
@@ -58,7 +59,7 @@ mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/httpd/conf.d
 cat > $RPM_BUILD_ROOT%{_sysconfdir}/httpd/conf.d/trafgrapher.conf << EOF
 <Directory /usr/share/trafgrapher/web>
     Options SymLinksifOwnerMatch
-    <IfModule mod_authz_core.c>  
+    <IfModule mod_authz_core.c>
         # Apache 2.4
         Require all granted
     </IfModule>
@@ -66,7 +67,7 @@ cat > $RPM_BUILD_ROOT%{_sysconfdir}/httpd/conf.d/trafgrapher.conf << EOF
         # Apache 2.2
         AllowOverride None
         Order allow,deny
-        Allow from all      
+        Allow from all
     </IfModule>
 </Directory>
 

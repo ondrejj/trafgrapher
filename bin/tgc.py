@@ -411,10 +411,14 @@ OID_TABLE = dict(
   ifHCOutOctets = "1.3.6.1.2.1.31.1.1.1.10",
 
   entPhysicalDescr = "1.3.6.1.2.1.47.1.1.1.1.2",
+  entPhysicalName = "1.3.6.1.2.1.47.1.1.1.1.7",
+
   entSensorType = "1.3.6.1.4.1.9.9.91.1.1.1.1.1",
   entSensorScale = "1.3.6.1.4.1.9.9.91.1.1.1.1.2",
   entSensorPrecision = "1.3.6.1.4.1.9.9.91.1.1.1.1.3",
-  entSensorValue = "1.3.6.1.4.1.9.9.91.1.1.1.1.4"
+  entSensorValue = "1.3.6.1.4.1.9.9.91.1.1.1.1.4",
+
+  hwEntityOpticalRxPower = "1.3.6.1.4.1.2011.5.25.31.1.1.3.1.8"
 )
 
 class SNMP:
@@ -511,7 +515,7 @@ class SNMP:
         if data['ifName']!='Nu0':
           ret[ifindex] = data
       return ret
-  def get_sensors(self):
+  def get_sensors_cisco(self):
       ret = {}
       receive_sensor_string = " Receive Power Sensor"
       infos = dict(
@@ -526,7 +530,7 @@ class SNMP:
             = self.getsome("", oids_sensor[1:], [id])
           scale = 1000**(float(scale)-9)
           precision = 10**float(precision)
-          value = float(value)*scale/precision
+          #value = float(value)*scale/precision
           ret[self.oid("", oids_sensor[-1], id)] = dict(
             log = "%s_%s.log" % (self.addr, id),
             unit = self.sensor_datatypes.get(int(datatype), ""),
@@ -535,6 +539,39 @@ class SNMP:
             name = interface,
             **infos.get(interface, {}) # update with interface info
           )
+      return ret
+  def get_key_value(self, prefix, type=str, reverse=False):
+      if reverse:
+        return dict([
+          (str(x[0][1]), x[0][0][-1])
+          for x in self.get_data("", {prefix: type})
+        ])
+      else:
+        return dict([
+          (x[0][0][-1], str(x[0][1]))
+          for x in self.get_data("", {prefix: type})
+        ])
+  def get_sensors_huawei(self):
+      ret = {}
+      infos = dict(
+        (x['ifDescr'], x)
+        for x in self.get_info().values()
+      )
+      names = self.get_key_value("entPhysicalName")
+      power = self.get_key_value("hwEntityOpticalRxPower")
+      for id, interface in names.items():
+        if id not in power:
+          continue # ignore missing
+        #value = float(power.get(id))/100
+        ret[OID_TABLE["hwEntityOpticalRxPower"]+'.'+str(id)] = dict(
+          log = "%s_%s.log" % (self.addr, id),
+          unit = "dBm",
+          scale = 0.01,
+          #replaces = [[-1, None]],
+          description = interface,
+          name = interface,
+          **infos.get(interface, {}) # update with interface info
+        )
       return ret
   def get_uptime(self):
       errorIndication, errorStatus, errorIndex, varBindTable = \
@@ -574,7 +611,7 @@ class SNMP:
       return ret
   def getall(self, ids, ifs={}, n=8, only32bit=False):
       ret = {}
-      while ids:
+      if ids:
         request = {"ifHC": [], "if": []}
         while ids:
           # override to 32bit, if configured
@@ -964,9 +1001,12 @@ def update_value(cfg, tdir, community_name="public", force_compress=False,
     snmpc = SNMP(IP, community_name)
     vals = snmpc.getsome("", cfg['oids'].keys())
     for val, data in zip(vals, cfg['oids'].values()):
-      if not val:
-        continue
       #print(float(val)*data['scale'], data)
+      replaces = dict(data.get("replaces", []))
+      if val in replaces:
+        val = replaces[val]
+      if val is None:
+        continue
       try:
         logfile_simple(
           os.path.join(tdir, data['log']),
@@ -1341,7 +1381,7 @@ if __name__ == "__main__":
   opts, files = getopt.gnu_getopt(sys.argv[1:], 'hctzw:dvq',
     ['help', 'mkcfg', 'test', 'write=', 'mkdir', 'id=', 'rename',
      'verbose', 'quiet', 'check', 'backup', 'filter-time=', 'filter-value=',
-     'local', 'sensors',
+     'local', 'sensors-cisco', 'sensors-huawei',
      'iptables', 'ipset', 'netdev', 'cmd'])
   opts = dict(opts)
   if "--verbose" in opts or "-v" in opts:
@@ -1377,8 +1417,11 @@ if __name__ == "__main__":
     else:
       print("Connecting to: %s@%s [%s]" % (community, name, log_prefix))
     ret = {}
-    if "--sensors" in opts:
-      result = SNMP(name, community).get_sensors()
+    if "--sensors-cisco" in opts:
+      result = SNMP(name, community).get_sensors_cisco()
+      ret['oids'] = result
+    elif "--sensors-huawei" in opts:
+      result = SNMP(name, community).get_sensors_huawei()
       ret['oids'] = result
     else:
       result = SNMP(name, community).get_info(ifid, log_prefix, filter=iffilter)

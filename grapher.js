@@ -4,7 +4,7 @@
   Licensed under the MIT license.
 */
 
-var trafgrapher_version = '3.0.5',
+var trafgrapher_version = '3.1.0',
     one_hour = 3600000,
     last_reload = null,
     degreeC = "℃";
@@ -397,10 +397,8 @@ Graph.prototype.add_plot_callbacks = function(placeholder) {
             ftime = new Date(item.datapoint[0]).toLocaleString();
         table.push("<tr><td>Time</td><td>"+ftime+"</td></tr>");
         for (var key in info) {
-          if (key!="log")
-            table.push(
-              "<tr><td>"+key+"</td><td>" +
-              info[key]+"</td></tr>" );
+          if (key!="log" && typeof info[key]!=="object")
+            table.push("<tr><td>"+key+"</td><td>"+info[key]+"</td></tr>");
         }
         table.push("</table>");
         self.find("info_table").html($(table.join('\n')));
