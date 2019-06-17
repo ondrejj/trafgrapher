@@ -13,7 +13,7 @@ Summary:        Collect and display network/disk/storage transfers.
 License:        MIT
 URL:            http://www.salstar.sk/trafgrapher/
 Source0:        http://www.salstar.sk/pub/trafgrapher/trafgrapher-%{version}.tgz
-Source1:	https://github.com/flot/flot/archive/v3.1.1.tar.gz
+#Source1:	https://github.com/flot/flot/archive/v3.1.1.tar.gz
 BuildArch:      noarch
 
 # use prebuilt jquery for EPEL-6
@@ -35,12 +35,12 @@ Also useable to display SAN storage performance or Nagios performance data.
 %build
 mkdir web
 ln -s network.html index.html
-mv *.css *.html *.js web/
-tar xvzf %{SOURCE1} -C web --exclude '._*'
-mv web/flot-*/source web/flot
-rm -rf web/flot-*
+mv *.css *.html *.js flot web/
+#tar xvzf %{SOURCE1} -C web --exclude '._*'
+#mv web/flot-*/source web/flot
+#rm -rf web/flot-*
 if [ -d /usr/share/javascript/jquery/latest ]; then
-  rm web/flot/jquery.js #web/flot/jquery.min.js
+  rm web/flot/jquery.js web/flot/jquery.min.js web/flot/jquery.min.map
   ln -s /usr/share/javascript/jquery/latest/* web/flot/
 fi
 # update python version
