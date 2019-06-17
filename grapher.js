@@ -889,14 +889,22 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
   }
   if (placeholder===undefined) placeholder = this.placeholder;
   this.plot = $.plot(placeholder, flots, {
-    xaxis: { mode: "time", timezone: "browser" },
+    xaxis: {
+      //position: "bottom",
+      font: { fill: "#eee" },
+      mode: "time",
+      timezone: "browser",
+      timeBase: "milliseconds"
+    },
     yaxis: {
+      //position: "right",
+      font: { fill: "#eee" },
       tickFormatter: unit_si,
       si_unit: unit
     },
     legend: { show: false },
     grid: { hoverable: true, clickable: true },
-    //series: { stack: true, lines: { show: true, fill: true } },
+    series: { lines: { lineWidth: 2 } },
     selection: { mode: "x" }
   });
   // set checkbox colors
