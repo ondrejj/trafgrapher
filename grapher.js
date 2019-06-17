@@ -1310,16 +1310,17 @@ JSONLoader.prototype.load_index = function(url) {
     if (data.oids) {
       self.graph.unit_type.val("B");
       for (var oid in data.oids) {
+        var data_oid = data.oids[oid];
         if (oid===null) continue;
         ethid = data.ip.replace(/[^a-z0-9]/gi, '_') + oid.replace(".", "_");
         files.push({
           'index': url,
-          'filename': urldir + data.oids[oid].log,
+          'filename': urldir + data_oid.log,
           'ethid': ethid,
           'port_id': oid,
-          'name': data.oids[oid].description || data.oids[oid].name,
+          'name': data_oid.description || data_oid.name,
           'ip': data.ip,
-          'info': data.oids[oid]
+          'info': data_oid
         });
         if (preselect_graphs.length>0) {
           if ($.inArray(oid, preselect_graphs)>=0)

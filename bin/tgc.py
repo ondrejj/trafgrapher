@@ -568,7 +568,7 @@ class SNMP:
           unit = "dBm",
           scale = 0.01,
           #replaces = [[-1, None]],
-          description = interface,
+          description = infos.get(interface, {}).get("ifAlias", interface),
           name = interface,
           **infos.get(interface, {}) # update with interface info
         )
