@@ -374,7 +374,7 @@ Graph.prototype.add_plot_callbacks = function(placeholder) {
       if (self.info[label].info && self.info[label].info.price) {
         var data = item.series.data,
             hours = (data[data.length-1][0] - data[0][0]) / 3600000,
-            price = self.info[label].info.price * Math.abs(sum_value) * hours;
+            price = self.info[label].info.price * Math.abs(sum_value);
         self.find("value_price").val(price.toFixed(4)+" €");
       }
       self.find("description").val(description);
@@ -385,7 +385,7 @@ Graph.prototype.add_plot_callbacks = function(placeholder) {
         left: Math.min(item.pageX+5, window.innerWidth*0.8)
       };
       $("#tooltip").html(
-          description + ": " + value +
+          description + "<br/>" + value +
           "<br/>" +
           dt.toDateString() +
           "<br/>" +

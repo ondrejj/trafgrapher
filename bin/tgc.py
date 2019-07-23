@@ -906,7 +906,7 @@ class logfile:
               break
       elif filter.startswith(">"):
         value = self.unit_si(filter[1:])
-        for key in self.deltas.keys():
+        for key in list(self.deltas.keys()):
           for vx in self.deltas[key]:
             if vx is not None and vx>value:
               print("Filtered value: %s - %s" % (from_ts(key), vx))
@@ -1005,7 +1005,7 @@ def update_value(cfg, tdir, community_name="public", force_compress=False,
       replaces = dict(data.get("replaces", []))
       if val in replaces:
         val = replaces[val]
-      if val is None:
+      if val is None or val=="" or val==b"":
         continue
       try:
         logfile_simple(
