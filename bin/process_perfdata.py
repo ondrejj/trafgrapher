@@ -147,6 +147,10 @@ class Logfiles:
       # rename new file to old file
       os.rename(self.filename+".tmp", self.filename)
 
+swap_chars_trans = str.maketrans("/ ", " /")
+def swap_chars(s):
+    return s.translate(swap_chars_trans)
+
 def mkindex(subdirs=False):
     os.chdir(prefix)
     filelist = []
@@ -163,7 +167,7 @@ def mkindex(subdirs=False):
             sublists[host] = [host_file]
           else:
             sublists[host].append(host_file)
-    filelist.sort()
+    filelist.sort(key=swap_chars)
     open(os.path.join(prefix, "index.html"), "wt").write("\n".join(filelist))
     if subdirs:
       for host, files in sublists.items():
