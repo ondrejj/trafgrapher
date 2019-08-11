@@ -147,7 +147,12 @@ class Logfiles:
       # rename new file to old file
       os.rename(self.filename+".tmp", self.filename)
 
-swap_chars_trans = str.maketrans("/ ", " /")
+try:
+  maketrans = str.maketrans # py3
+except AttributeError:
+  import string
+  maketrans = string.maketrans # py2
+swap_chars_trans = maketrans("/ ", " /")
 def swap_chars(s):
     return s.translate(swap_chars_trans)
 
