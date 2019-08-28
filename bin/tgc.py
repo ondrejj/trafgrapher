@@ -1380,7 +1380,8 @@ def process_configs(files):
 if __name__ == "__main__":
   opts, files = getopt.gnu_getopt(sys.argv[1:], 'hctzw:dvq',
     ['help', 'mkcfg', 'test', 'write=', 'mkdir', 'id=', 'rename',
-     'verbose', 'quiet', 'check', 'backup', 'filter-time=', 'filter-value=',
+     'verbose', 'quiet', 'check', 'backup',
+     'filter=', 'filter-time=', 'filter-value=',
      'local', 'sensors-cisco', 'sensors-huawei',
      'iptables', 'ipset', 'netdev', 'cmd'])
   opts = dict(opts)
