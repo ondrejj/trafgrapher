@@ -130,6 +130,12 @@ function unit_si(val, axis, unit) {
         precision = guessPrecision(axis.tickSize*1000);
       return sign+(aval*1000).toFixed(precision)+" ms";
     }
+    if (aval>3600*24) {
+      return sign+(aval/3600/24).toFixed(1)+" d";
+    }
+    if (aval>3600) {
+      return sign+(aval/3600).toFixed(1)+" h";
+    }
   } else {
     if (aval>=(ki*ki*ki*ki*ki))
       return sign+(aval/ki/ki/ki/ki/ki).toFixed(precision)+" P"+unit;
