@@ -1775,7 +1775,9 @@ service_groups = {
   swap_check_mk: {
     name: "Swap",
     search: /memory.*\/pagefile/i,
-    unit: "MB"
+    unit: "MB",
+    hide: true,
+    next: true
   },
   mem_total: {
     name: "Memory total",
@@ -1790,7 +1792,7 @@ service_groups = {
   },
   mem_check_mk: {
     name: "Memory",
-    search: /memory.*\/memory/i,
+    search: /memory.*\/(memory|pagefile)/i,
     unit: "MB"
   },
   eth_io: {
