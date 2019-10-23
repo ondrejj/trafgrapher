@@ -112,11 +112,11 @@ function unit_si(val, axis, unit) {
     }
   }
   // do not display double extensions (kMB)
-  if (unit=="kB" || unit=="kb" || unit=="kW") {
-    unit = unit[1];
+  if (unit=="kB" || unit=="kiB" || unit=="kb" || unit=="kib" || unit=="kW") {
+    unit = unit.substring(1);
     aval = aval * ki;
-  } else if (unit=="MB" || unit=="Mb" || unit=="MW") {
-    unit = unit[1];
+  } else if (unit=="MB" || unit=="MiB" || unit=="Mb" || unit=="Mib" || unit=="MW") {
+    unit = unit.substring(1);
     aval = aval * ki * ki;
   }
   if (unit=="s") {
@@ -1841,7 +1841,7 @@ service_groups = {
   disk_usage: {
     name: "Disk usage bytes",
     search: /(disk_|fs_[A-Z]:\/)/i,
-    unit: "B"
+    //unit: "B"
   },
   disk_usage_other: {
     // other data from check_mk
