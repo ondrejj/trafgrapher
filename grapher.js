@@ -899,6 +899,7 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
       //position: "bottom",
       font: { fill: "#eee" },
       mode: "time",
+      //axisZoom: true, plotZoom: true,
       timezone: "browser",
       timeBase: "milliseconds"
     },
@@ -909,6 +910,8 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
       si_unit: unit
     },
     legend: { show: false },
+    //zoom: { interactive: true, active: true, enableTouch: true },
+    //pan: { interactive: true, active: true, enableTouch: true },
     grid: { hoverable: true, clickable: true },
     series: { lines: { lineWidth: 2 } },
     selection: { mode: "x" }
