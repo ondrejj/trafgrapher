@@ -452,7 +452,7 @@ class SNMP:
           *[self.oid(prefix, x) for x in oids]
         )
       if errorIndication:
-        print(errorIndication)
+        print("%s: %s" % (self.addr, errorIndication))
       elif errorStatus:
         print('%s at %s' % (
             errorStatus.prettyPrint(),
@@ -646,7 +646,7 @@ class SNMP:
         *mibvars
       )
       if errorIndication:
-        print(errorIndication)
+        print("%s: %s" % (self.addr, errorIndication))
         return []
       elif errorStatus:
         print('%s at %s' % (
