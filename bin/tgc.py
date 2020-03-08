@@ -1116,7 +1116,7 @@ def cmd_mkindex(cmds):
       ifs = {}
     )
     for cmdid, cmd in enumerate(cmds):
-      descr = "%d:%s" % (cmdid, cmd)
+      descr = b"%d:%s" % (cmdid, cmd.encode("utf8"))
       md5 = hashlib.md5(descr).hexdigest()
       cfg["ifs"][cmdid] = dict(
         cmd = cmd,

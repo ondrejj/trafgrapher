@@ -52,17 +52,19 @@ function joinarrays(arr) {
 }
 
 // Create array with deltas of two arrays.
-function arraydelta(nodes) {
+// Set time_related=true for time related data (value per second, like b/s)
+function arraydelta(nodes, time_related) {
   if (!nodes) return [];
   if (nodes.length===0) return [];
   var deltas = [];
   nodes.sort(col0diff);
-  var prev = nodes[0];
+  var prev = nodes[0], item, value, time_interval=1;
   for(var i=1; i<nodes.length; i++) {
-    var item = nodes[i];
-    var value = item[1]-prev[1];
+    item = nodes[i];
+    value = item[1]-prev[1];
     // divide by 1000 because time is in miliseconds
-    var time_interval = (item[0]-prev[0])/1000;
+    if (time_related)
+      time_interval = (item[0]-prev[0])/1000;
     if (value<0) value = 0;
     if (time_interval>0)
       deltas.push([item[0], value/time_interval]);
@@ -97,7 +99,7 @@ function unit_si(val, axis, unit) {
   else if (axis && axis.tickSize) precision = guessPrecision(axis.tickSize);
   if (axis && unit===undefined) unit = axis.options.si_unit;
   if ((unit=="C" || unit==degreeC) && val<0) sign = "-";
-  if (unit=="") {
+  if (unit=="" || unit[0]=="W") {
     ki = 1000; // do not use ki for empty unit
   }
   if (unit=="ms") {
@@ -1186,7 +1188,7 @@ Loader.prototype.file_loaded = function() {
       for (var rw in counters[name]) {
         var arrs = [];
         for (var nodeid in counters[name][rw])
-          arrs.push(arraydelta(counters[name][rw][nodeid]));
+          arrs.push(arraydelta(counters[name][rw][nodeid], true));
         deltas[name][rw] = joinarrays(arrs);
       }
     }
@@ -1253,6 +1255,9 @@ JSONLoader.prototype.load_log = function(filename, args) {
         deltas.O.push([t, om]);
       }
     }
+    if (args.info.counter)
+      for (var key in deltas)
+        deltas[key] = arraydelta(deltas[key], false);
     self.graph.deltas[ethid] = deltas;
     // create info and copy args
     self.graph.info[ethid] = {name: ethid, unit: {b: 'ib/s', B: 'iB/s'}};
@@ -2042,7 +2047,7 @@ NagiosLoader.prototype.load_data = function(filename, service) {
         counters.push([to_ms(cols[0]), value]);
       }
       // compute deltas
-      self.graph.deltas[name][rw] = arraydelta(counters);
+      self.graph.deltas[name][rw] = arraydelta(counters, true);
     } else {
       // create deltas
       for (rowi=1; rowi<rows.length; rowi++) {
