@@ -1,6 +1,6 @@
 /*
   TrafGrapher
-  (c) 2015-2019 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
+  (c) 2015-2020 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
   Licensed under the MIT license.
 */
 
@@ -577,7 +577,7 @@ Graph.prototype.files_to_args = function(prefix, suffix) {
 
 // Update URL link according to current choices
 Graph.prototype.urllink = function(force) {
-  var self = this, ports = [], url,
+  var self = this, url,
       inputs_all = this.filter.find("input"),
       inputs_checked = this.filter.find("input:checked");
   if (this.index_mode=="json") {
@@ -1291,6 +1291,12 @@ JSONLoader.prototype.load_index = function(url) {
           }
         }
         if (port_id===null) continue;
+        // load only preselected graphs, if first preselect is "!" character
+        if (preselect_graphs.length>0
+             && preselect_graphs[0]=="!"
+             && $.inArray(port_id, preselect_graphs)<0) {
+          continue;	// skip non preselected graphs
+        }
         ethid = data.ip.replace(/[^a-z0-9]/gi, '_')+port_id.replace(".", "_");
         function get_if_name(ifs) {
           if (ifs[port_id].ifAlias) {
@@ -1848,7 +1854,7 @@ service_groups = {
   },
   disk_usage: {
     name: "Disk usage bytes",
-    search: /(disk_|fs_[A-Z]:\/)/i,
+    search: /(disk_|fs_[A-Z]:\/)/i
     //unit: "B"
   },
   disk_usage_other: {
