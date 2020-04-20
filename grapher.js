@@ -323,15 +323,20 @@ Graph.prototype.reset_range = function() {
 
 // Get unit
 Graph.prototype.get_unit = function(label) {
-  var unit = this.info[label].unit;
-  if (typeof(unit)=="string")
-    return unit;
-  else if (this.info[label].info && this.info[label].info.unit)
-    return this.info[label].info.unit;
-  else if (this.unit_type && this.unit_type.length>0)
-    return unit[this.unit_type.find("option:selected").val()];
-  else if (this.graph_type && this.graph_type.length>0)
-    return unit[this.graph_type.find("option:selected").val()[1]];
+  var info = this.info[label];
+  if (typeof(info.unit)=="string") {
+    if (info.prefer_unit=="b") {
+      return info.unit.replace("B", "b");
+    } else {
+      return info.unit;
+    }
+  } else if (info.info && info.info.unit) {
+    return info.info.unit;
+  } else if (this.unit_type && this.unit_type.length>0) {
+    return info.unit[this.unit_type.find("option:selected").val()];
+  } else if (this.graph_type && this.graph_type.length>0) {
+    return info.unit[this.graph_type.find("option:selected").val()[1]];
+  }
   return unit;
 };
 
@@ -884,12 +889,19 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
           console.log("Undefined data: "+name+" "+graph_type[gt]);
         if (this.deltas[name][graph_type[gt]].length===0)
           continue; // skip empty graph
+        this.info[name].prefer_unit =
+          this.unit_type.find("option:selected").val();
+        if (!this.info[name].prefer_unit &&
+            this.info[name].service && this.info[name].service.prefer_bits) {
+          this.info[name].prefer_unit = "b";
+        }
+        unit = this.get_unit(name); // refresh unit
         flots.push({
           label: {name: name, gt: graph_type[gt]},
           color: String(color),
           data: this.filter_interval(
                   this.deltas[name][graph_type[gt]],
-                  this.unit_type.find("option:selected").val(),
+                  this.info[name].prefer_unit,
                   graph_type[gt]==graph_type[gt].toUpperCase())
         });
       }
@@ -1814,7 +1826,8 @@ service_groups = {
     search: /((eth|tun).+\/[rt]x_bytes|Interface [0-9]+\/(in|out)$)/i,
     join_by: /^(rx_|tx_|in|out)/,
     reversed: /^(rx|in)/,
-    unit: "b/s"
+    unit: "B/s",
+    prefer_bits: true
   },
   eth_stat: {
     name: "Ethernet packets",
@@ -2020,7 +2033,7 @@ NagiosLoader.prototype.load_data = function(filename, service) {
       self.graph.groups[service].push({name: name, enabled: is_enabled(name)});
     // create info
     if (!self.graph.info[name])
-      self.graph.info[name] = {name: desc, unit: lunit};
+      self.graph.info[name] = {name: desc, unit: lunit, service: service_group};
     if (lunit=="MB") {
       multiplier = 1048576;
       self.graph.info[name].unit = "B";
@@ -2140,8 +2153,7 @@ NagiosLoader.prototype.load_index = function(url) {
     }
     // preset unit_type
     if (service_groups[service]) {
-      var unit = service_groups[service].unit;
-      if (unit=="b" || unit=="b/s")
+      if (service_groups[service].prefer_bits)
         self.graph.unit_type.val("b");
       else
         self.graph.unit_type.val("B");
