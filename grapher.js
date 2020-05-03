@@ -1813,8 +1813,20 @@ service_groups = {
   },
   mem: {
     name: "Memory",
-    search: /mem\/./i,
-    unit: "B"
+    // all memory object except PageIn/PageOut processed below
+    search: /mem\/(?!Page)./i,
+    unit: "B",
+    next: true
+  },
+  mem_paging: {
+    name: "Memory paging",
+    // process below mem to display in better order
+    search: /mem.*\/Page/,
+    join_by: /^(PageIn|PageOut)/,
+    join_desc: "Page Out/In",
+    reversed: /^PageIn/,
+    unit: "B",
+    next: false
   },
   mem_check_mk: {
     name: "Memory",
@@ -1825,6 +1837,7 @@ service_groups = {
     name: "Ethernet [bits]",
     search: /((eth|tun).+\/[rt]x_bytes|Interface [0-9]+\/(in|out)$)/i,
     join_by: /^(rx_|tx_|in|out)/,
+    join_desc: "tx/rx",
     reversed: /^(rx|in)/,
     unit: "B/s",
     prefer_bits: true
@@ -1833,6 +1846,7 @@ service_groups = {
     name: "Ethernet packets",
     search: /((eth|tun).+|Interface [0-9]+)\/./i,
     join_by: /^(rx|tx|in|out)_/,
+    join_desc: "tx/rx",
     reversed: /^(rx|in)/,
     unit: "/s"
   },
@@ -1840,6 +1854,7 @@ service_groups = {
     name: "Disk bytes",
     search: /(diskio_.\/(read|write)|Disk.*IO.*SUMMARY\/(read|write|disk_read_throughput|disk_write_throughput))/i,
     join_by: /(read|write)/,
+    join_desc: "read/write",
     reversed: /write/,
     unit: "B/s"
   },
@@ -1847,6 +1862,7 @@ service_groups = {
     name: "Disk IO blocks",
     search: /(diskio_.|Disk.*IO.*SUMMARY)\/(ioread|iowrite|disk_read_ios|disk_write_ios)/i,
     join_by: /(read|write)/, // do not use ioread/iowrite
+    join_desc: "read/write",
     reversed: /^(iowrite|disk_write_ios)/,
     unit: "io/s"
   },
@@ -2021,7 +2037,8 @@ NagiosLoader.prototype.load_data = function(filename, service) {
     }
     desc = hdr[0] + " " + hdr[1] + " ";
     if (service_group.join_by) {
-      desc = desc + hdr[2].replace(service_group.join_by, "");
+      desc = desc + hdr[2].replace(service_group.join_by,
+                                   service_group.join_desc || "");
     } else {
       desc = desc + hdr[2];
     }
