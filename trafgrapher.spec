@@ -7,12 +7,12 @@
 
 Name:           trafgrapher
 Version:        3.1.0
-Release:        0.beta20%{?dist}
+Release:        0.beta21%{?dist}
 Summary:        Collect and display network/disk/storage transfers.
 
 License:        MIT
-URL:            http://www.salstar.sk/trafgrapher/
-Source0:        http://www.salstar.sk/pub/trafgrapher/trafgrapher-%{version}.tgz
+URL:            https://www.salstar.sk/trafgrapher/
+Source0:        https://www.salstar.sk/pub/trafgrapher/trafgrapher-%{version}.tgz
 BuildArch:      noarch
 
 # use prebuilt jquery for EPEL-6 and EPEL-8

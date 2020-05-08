@@ -1267,7 +1267,7 @@ JSONLoader.prototype.load_log = function(filename, args) {
         deltas.O.push([t, om]);
       }
     }
-    if (args.info.counter)
+    if (args.info && args.info.counter)
       for (var key in deltas)
         deltas[key] = arraydelta(deltas[key], false);
     self.graph.deltas[ethid] = deltas;
@@ -1823,7 +1823,7 @@ service_groups = {
     // process below mem to display in better order
     search: /mem.*\/Page/,
     join_by: /^(PageIn|PageOut)/,
-    join_desc: "Page Out/In",
+    join_desc: "Page Out/In ",
     reversed: /^PageIn/,
     unit: "B",
     next: false
@@ -1837,7 +1837,7 @@ service_groups = {
     name: "Ethernet [bits]",
     search: /((eth|tun).+\/[rt]x_bytes|Interface [0-9]+\/(in|out)$)/i,
     join_by: /^(rx_|tx_|in|out)/,
-    join_desc: "tx/rx",
+    join_desc: "tx/rx ",
     reversed: /^(rx|in)/,
     unit: "B/s",
     prefer_bits: true
@@ -1846,7 +1846,7 @@ service_groups = {
     name: "Ethernet packets",
     search: /((eth|tun).+|Interface [0-9]+)\/./i,
     join_by: /^(rx|tx|in|out)_/,
-    join_desc: "tx/rx",
+    join_desc: "tx/rx ",
     reversed: /^(rx|in)/,
     unit: "/s"
   },
@@ -1854,7 +1854,7 @@ service_groups = {
     name: "Disk bytes",
     search: /(diskio_.\/(read|write)|Disk.*IO.*SUMMARY\/(read|write|disk_read_throughput|disk_write_throughput))/i,
     join_by: /(read|write)/,
-    join_desc: "read/write",
+    join_desc: "read/write ",
     reversed: /write/,
     unit: "B/s"
   },
@@ -1862,7 +1862,7 @@ service_groups = {
     name: "Disk IO blocks",
     search: /(diskio_.|Disk.*IO.*SUMMARY)\/(ioread|iowrite|disk_read_ios|disk_write_ios)/i,
     join_by: /(read|write)/, // do not use ioread/iowrite
-    join_desc: "read/write",
+    join_desc: "read/write ",
     reversed: /^(iowrite|disk_write_ios)/,
     unit: "io/s"
   },
