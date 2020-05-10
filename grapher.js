@@ -666,6 +666,7 @@ Graph.prototype.menu_selected = function(sel) {
 
 // Keyboard events
 Graph.prototype.keyevent = function(event) {
+  var prevent_default = true;
   if (event.ctrlKey || event.altKey) {
     // ignore keyboard keys with alt | ctrl
     return;
@@ -755,9 +756,14 @@ Graph.prototype.keyevent = function(event) {
         this.plot_all_graphs();
       }
       break;
+    default:
+      prevent_default = false;
   }
-  if (65<=event.which<=90 || 96<=event.which<=111) {
+  //if ((65<=event.which && event.which<=90) || (96<=event.which && event.which<=111)) {
+  console.log(event.which, prevent_default);
+  if (prevent_default) {
     event.preventDefault();
+    console.log("prevent", event.which, prevent_default);
   }
 };
 
