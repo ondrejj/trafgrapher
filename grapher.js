@@ -756,7 +756,7 @@ Graph.prototype.keyevent = function(event) {
       }
       break;
   }
-  if (65<=event.which<=90 || 97<=event.which<=122) {
+  if (65<=event.which<=90 || 96<=event.which<=111) {
     event.preventDefault();
   }
 };
@@ -1827,6 +1827,15 @@ service_groups = {
     reversed: /^PageIn/,
     unit: "B",
     next: false
+  },
+  mem_duplicates: {
+    // Paging should be displayed after base data, which must be hidden
+    // here to avoid dislpying in other.
+    name: "Memory hidden duplicates",
+    search: /mem\/./i,
+    unit: "B",
+    next: false,
+    hide: true
   },
   mem_check_mk: {
     name: "Memory",
