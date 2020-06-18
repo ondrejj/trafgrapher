@@ -1346,7 +1346,7 @@ JSONLoader.prototype.load_index = function(url) {
       }
     }
     if (data.oids) {
-      self.graph.unit_type.val("B");
+      //self.graph.unit_type.val("B");
       for (var oid in data.oids) {
         var data_oid = data.oids[oid];
         if (oid===null) continue;

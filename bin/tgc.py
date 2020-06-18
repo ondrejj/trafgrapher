@@ -366,14 +366,11 @@ oids_info = dict(
   ifType=iftype,
   ifMtu=safe_int,
   ifSpeed=ifspeed,
-  ifHighSpeed=ifhighspeed,
-  ifPhysAddress=macaddr
-)
-
-oids_status = dict(
-  ifAdminStatus=safe_int,
+  #ifAdminStatus=safe_int,
   ifOperStatus=safe_int,
   #ifConnectorPresent=bool,
+  ifHighSpeed=ifhighspeed,
+  ifPhysAddress=macaddr
 )
 
 oids_io = dict(
@@ -497,6 +494,10 @@ class SNMP:
         if 'ifType' in data and data['ifType']=='ieee8023adLag':
           if ('ifSpeed' not in data) or data['ifSpeed'].startswith("0"):
             continue
+        # ignore interfaces, which are not present (unreachable stack ports ...)
+        if data['ifOperStatus'] == 6: # interface not present
+          #print("Interface not present: %s" % data["ifName"])
+          continue
         # use HighSpeed if possible
         if 'ifHighSpeed' in data:
           if data['ifHighSpeed'] is not None:
