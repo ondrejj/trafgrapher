@@ -901,6 +901,10 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
             this.info[name].service && this.info[name].service.prefer_bits) {
           this.info[name].prefer_unit = "b";
         }
+        // force to Bytes for temperature and some special units
+        if (this.info[name].info && this.info[name].info.force_bytes) {
+          this.info[name].prefer_unit = "B";
+        }
         unit = this.get_unit(name); // refresh unit
         flots.push({
           label: {name: name, gt: graph_type[gt]},
