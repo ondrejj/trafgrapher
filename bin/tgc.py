@@ -3,7 +3,7 @@
 '''
 TrafGrapher collector
 
-(c) 2015-2019 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
+(c) 2015-2020 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
 
 Licensed under the MIT license.
 
@@ -1117,8 +1117,8 @@ def cmd_mkindex(cmds):
       ifs = {}
     )
     for cmdid, cmd in enumerate(cmds):
-      descr = b"%d:%s" % (cmdid, cmd.encode("utf8"))
-      md5 = hashlib.md5(descr).hexdigest()
+      descr = "%d:%s" % (cmdid, cmd)
+      md5 = hashlib.md5(descr.encode("utf-8")).hexdigest()
       cfg["ifs"][cmdid] = dict(
         cmd = cmd,
         index = cmdid,

@@ -760,10 +760,10 @@ Graph.prototype.keyevent = function(event) {
       prevent_default = false;
   }
   //if ((65<=event.which && event.which<=90) || (96<=event.which && event.which<=111)) {
-  console.log(event.which, prevent_default);
+  //console.log(event.which, prevent_default);
   if (prevent_default) {
     event.preventDefault();
-    console.log("prevent", event.which, prevent_default);
+    //console.log("prevent", event.which, prevent_default);
   }
 };
 
@@ -2238,9 +2238,38 @@ function callgraphs(fx) {
 }
 
 $(function() {
+  var graph_id_counter = 0;
   current_url = window.location.href;
   $(".footer a").text(
     $(".footer a").text().replace("#.#", trafgrapher_version));
+
+  // create graph for multigraph pages
+  $("div.trafgrapher_conf").each(function(index, div) {
+    var div = $(div);
+    var graph_id = div.attr("id");
+    var template = $("div.trafgrapher_template").clone();
+    if (!graph_id) {
+      graph_id_counter += 1;
+      graph_id = graph_id_counter;
+    } else {
+      graph_id = graph_id.replace("graph", "");
+    }
+    template = $(template);
+    template.find("h2").text(div.find("h2").text());
+    template.find("div.selection").prepend(div.find("input"));
+    // replace element IDs
+    template.find("[id$='0']").each(function(index, element) {
+      $(element).attr("id", $(element).attr("id").replace("0", graph_id));
+    });
+    // attach to current div
+    div.attr("id", "graph"+graph_id);
+    div.attr("class", "trafgrapher");
+    div.empty();
+    template.children().appendTo(div);
+  });
+  // remove used template
+  $("div.trafgrapher_template").remove();
+
   graphs = [];
   $("div[id^=graph]").each(function() {
     var graph = new Graph($(this).prop("id"));
