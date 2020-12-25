@@ -2244,10 +2244,11 @@ $(function() {
     $(".footer a").text().replace("#.#", trafgrapher_version));
 
   // create graph for multigraph pages
-  $("div.trafgrapher_conf").each(function(index, div) {
+  $('div[class^="trafgrapher_conf"]').each(function(index, div) {
     var div = $(div);
     var graph_id = div.attr("id");
-    var template = $("div.trafgrapher_template").clone();
+    var template_name = div.attr("class").replace("trafgrapher_conf", "trafgrapher_template");
+    var template = $("div."+template_name).clone();
     if (!graph_id) {
       graph_id_counter += 1;
       graph_id = graph_id_counter;
@@ -2255,11 +2256,12 @@ $(function() {
       graph_id = graph_id.replace("graph", "");
     }
     template = $(template);
+    var template_id = template.attr("id").replace("graph", "");
     template.find("h2").text(div.find("h2").text());
     template.find("div.selection").prepend(div.find("input"));
     // replace element IDs
-    template.find("[id$='0']").each(function(index, element) {
-      $(element).attr("id", $(element).attr("id").replace("0", graph_id));
+    template.find("[id$='"+template_id+"']").each(function(index, element) {
+      $(element).attr("id", $(element).attr("id").replace(template_id, graph_id));
     });
     // attach to current div
     div.attr("id", "graph"+graph_id);
@@ -2268,7 +2270,7 @@ $(function() {
     template.children().appendTo(div);
   });
   // remove used template
-  $("div.trafgrapher_template").remove();
+  $('div[class^="trafgrapher_template"]').remove();
 
   graphs = [];
   $("div[id^=graph]").each(function() {
