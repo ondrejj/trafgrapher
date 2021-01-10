@@ -9,17 +9,18 @@
   <script src="grapher.js"></script>
 </head>
 <body>
-  <div id="graph1" class="trafgrapher">
-    <div id="loader1" class="loader">
-      <div id="error1" class="error"></div>
+  <!-- Definition of template named "main". -->
+  <div id="graph0" class="trafgrapher_template_main">
+    <h2>Header redefined later.</h2>
+    <div id="loader0" class="loader">
+      <div id="error0" class="error"></div>
       <h1>Loading...</h1>
-      <h2 id="progress1">&nbsp;</h2>
+      <h2 id="progress0">&nbsp;</h2>
     </div>
-    <div id="placeholder1" class="graph">
+    <div id="placeholder0" class="graph">
     </div>
     <div class="selection">
-      <input type="hidden" name="mrtg_file" value="/6513/"/>
-      <select id="graph_type1">
+      <select id="graph_type0">
         <option value="jo" selected="selected">Avg OUT/IN</option>
         <option value="o">Avg OUT</option>
         <option value="i">Avg IN</option>
@@ -27,11 +28,11 @@
         <option value="O">Max OUT</option>
         <option value="I">Max IN</option>
       </select>
-      <select id="unit_type1">
+      <select id="unit_type0">
         <option value="b" selected="selected">bits</option>
         <option value="B">bytes</option>
       </select>
-      <select id="interval1">
+      <select id="interval0">
         <option value="4">4 hours [4]</option>
         <option value="8">8 hours [8]</option>
         <option value="24" selected="selected">1 day [1]</option>
@@ -42,81 +43,42 @@
         <option value="17532">2 years [2]</option>
         <option value="26298">3 years [0]</option>
       </select>
-      <button class="b_reload" id="b_reload1" title="Reload [R]">&nbsp;</button>
-      <button class="b_select_all" id="b_select_all1" title="Select all [A]">&nbsp;</button>
-      <button class="b_select_invert" id="b_select_inv1" title="Invert sel. [X]">&nbsp;</button>
-      <button class="b_select_none" id="b_select_none1" title="Select none [N]">&nbsp;</button>
-      <button class="b_zoom_out" id="b_zoom_out1" title="Zoom out [Z]">&nbsp;</button>
-      <input type="text" value="" size="9" id="value_one1" class="right"/>
-      <input type="text" value="" size="9" id="value_sum1" class="right"/>
+      <button class="b_reload" id="b_reload0" title="Reload [R]">&nbsp;</button>
+      <button class="b_select_all" id="b_select_all0" title="Select all [A]">&nbsp;</button>
+      <button class="b_select_invert" id="b_select_inv0" title="Invert sel. [X]">&nbsp;</button>
+      <button class="b_select_none" id="b_select_none0" title="Select none [N]">&nbsp;</button>
+      <button class="b_zoom_out" id="b_zoom_out0" title="Zoom out [Z]">&nbsp;</button>
+      <input type="text" value="" size="9" id="value_one0" class="right"/>
+      <input type="text" value="" size="9" id="value_sum0" class="right"/>
       <br/>
-      <input type="text" value="" size="30" id="description1"/>
-      @ <input type="text" value="" size="20" id="switchname1"/>
-      <input type="submit" value="(i)" id="toggle_info1"/>
-      <input type="submit" value="(f)" id="toggle_filter1"/>
+      <input type="text" value="" size="30" id="description0"/>
+      @ <input type="text" value="" size="20" id="switchname0"/>
+      <input type="submit" value="(i)" id="toggle_info0"/>
+      <input type="submit" value="(f)" id="toggle_filter0"/>
     </div>
-    <div id="info_table1" class="info">
+    <div id="info_table0" class="info">
       Interface info.<br/>
       Hover on graph to fill this.
     </div>
-    <ul id="filter1" style="display: none"></ul>
+    <ul id="filter0" style="display: none"></ul>
   </div>
-  <div id="graph2" class="trafgrapher">
-    <div id="loader2" class="loader">
-      <div id="error2" class="error"></div>
-      <h1>Loading...</h1>
-      <h2 id="progress2">&nbsp;</h2>
-    </div>
-    <div id="placeholder2" class="graph">
-    </div>
+
+  <!-- First use of template named "main". -->
+  <div id="graph1" class="trafgrapher_conf_main">
+    <h2>Graph for source1</h2>
     <div class="selection">
-      <input type="hidden" name="mrtg_file" value="/rtu/"/>
-      <select id="graph_type2">
-        <option value="jo" selected="selected">Avg OUT/IN</option>
-        <option value="o">Avg OUT</option>
-        <option value="i">Avg IN</option>
-        <option value="JO">Max OUT/IN</option>
-        <option value="O">Max OUT</option>
-        <option value="I">Max IN</option>
-      </select>
-      <select id="unit_type2">
-        <option value="b" selected="selected">bits</option>
-        <option value="B">bytes</option>
-      </select>
-      <select id="interval2">
-        <option value="4">4 hours [4]</option>
-        <option value="8">8 hours [8]</option>
-        <option value="24" selected="selected">1 day [1]</option>
-        <option value="72">3 days [3]</option>
-        <option value="168">1 week [7]</option>
-        <option value="744">1 month [5]</option>
-        <option value="8766">1 year [9]</option>
-        <option value="17532">2 years [2]</option>
-        <option value="26298">3 years [0]</option>
-      </select>
-      <select id="menu2">
-        <option value="">Menu</option>
-        <option value="inv">Invert sel.</option>
-        <option value="none">Select none</option>
-        <option value="all">Select all</option>
-        <option value="virtual">Invert virtual</option>
-        <option value="zoomout">Zoom out</option>
-        <option value="reload">Reload</option>
-      </select>
-      <input type="text" value="" size="9" id="value_one2" class="right"/>
-      <input type="text" value="" size="9" id="value_sum2" class="right"/>
-      <br/>
-      <input type="text" value="" size="30" id="description2"/>
-      @ <input type="text" value="" size="20" id="switchname2"/>
-      <input type="submit" value="(i)" id="toggle_info2"/>
-      <input type="submit" value="(f)" id="toggle_filter2"/>
+      <input type="hidden" name="json_file" value="/source1/"/>
     </div>
-    <div id="info_table2" class="info">
-      Interface info.<br/>
-      Hover on graph to fill this.
-    </div>
-    <ul id="filter2" style="display: none"></ul>
   </div>
+
+  <!-- Second use of template named "main". -->
+  <div id="graph2" class="trafgrapher_conf_main">
+    <h2>Graph for source2</h2>
+    <div class="selection">
+      <input type="hidden" name="json_file" value="/source2/"/>
+    </div>
+  </div>
+
   <div class="footer">
      <a href="https://www.salstar.sk/trafgrapher/">TrafGrapher v#.#</a>
   </div>
