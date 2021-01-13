@@ -527,7 +527,6 @@ Graph.prototype.add_menu_callbacks = function() {
     self.refresh_graph();
     self.urllink();
   });
-  this.find("menu").change(function() { self.menu_selected(); }).val("");
   this.find("toggle_info").click(function() {
     self.find("info_table").animate({height: "toggle"}, 300);
   });
@@ -633,35 +632,6 @@ Graph.prototype.urllink = function(force) {
       window.location = current_url;
     }
   }
-};
-
-// Menu commands
-Graph.prototype.menu_selected = function(sel) {
-  var self = this, inputs_all = this.filter.find("input");
-  if (sel===undefined)
-    sel = this.find("menu", "option:selected").val();
-  if (sel==="") {
-    return;
-  } else if (sel=="all") {
-    this.select_all();
-  } else if (sel=="none") {
-    this.select_none();
-  } else if (sel=="inv") {
-    this.select_inv();
-  } else if (sel=="virtual") {
-    this.select_virt();
-  } else if (sel=="zoomout") {
-    this.zoom_out();
-  } else if (sel=="reload") {
-    this.refresh_graph();
-  } else if (sel=="service_graph") {
-    window.location = "nagios-service.html?"+this.files_to_args("n");
-  } else if (sel=="host_graph") {
-    window.location = "nagios-host.html?"+this.files_to_args("n");
-  } else if (sel=="urllink") {
-    this.urllink(true);
-  }
-  this.find("menu").val("");
 };
 
 // Keyboard events
