@@ -337,7 +337,7 @@ Graph.prototype.get_unit = function(label) {
   } else if (this.graph_type && this.graph_type.length>0) {
     return info.unit[this.graph_type.find("option:selected").val()[1]];
   }
-  return unit;
+  return "";
 };
 
 // Get color

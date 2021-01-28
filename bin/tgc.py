@@ -3,7 +3,7 @@
 '''
 TrafGrapher collector
 
-(c) 2015-2020 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
+(c) 2015-2021 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
 
 Licensed under the MIT license.
 
@@ -1302,8 +1302,8 @@ def process_configs(files):
                   file_age = time.time() - \
                     os.stat(os.path.join(prefix, cmd["file"])).st_mtime
                   if file_age>max_age:
-                    print("Data file %s older than %d seconds."
-                          % (cmd["file"], file_age))
+                    print("Data file %s older than %d seconds for '%s'."
+                          % (cmd["file"], file_age, cmd.get("ifDescr", "")))
                     continue
                 fc = open(os.path.join(prefix, cmd["file"])
                          ).read().strip()
@@ -1321,8 +1321,8 @@ def process_configs(files):
                   file_age = time.time() - \
                     os.stat(os.path.join(prefix, cmd["file"])).st_mtime
                   if file_age>max_age:
-                    print("Data file %s older than %d seconds."
-                          % (cmd["file"], file_age))
+                    print("Data file %s older than %d seconds for '%s'."
+                          % (cmd["file"], file_age, cmd.get("ifDescr", "")))
                     continue
                 fc = open(os.path.join(prefix, cmd["file2"])
                          ).read().strip().split()
