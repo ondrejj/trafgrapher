@@ -1,10 +1,10 @@
 /*
   TrafGrapher
-  (c) 2015-2020 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
+  (c) 2015-2021 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
   Licensed under the MIT license.
 */
 
-var trafgrapher_version = '3.1.0',
+var trafgrapher_version = '3.2.0',
     one_hour = 3600000,
     last_reload = null,
     degreeC = "℃";
@@ -93,14 +93,17 @@ function guessPrecision(ticksize) {
   else if (ticksize<1) return 1;
   return 0;
 }
-function unit_si(val, axis, unit) {
+function format_unit(val, axis, unit) {
   var ki = 1024, precision = 3, aval = Math.abs(val), sign = "";
   if (typeof(axis)=="number") precision = axis;
   else if (axis && axis.tickSize) precision = guessPrecision(axis.tickSize);
   if (axis && unit===undefined) unit = axis.options.si_unit;
   if ((unit=="C" || unit==degreeC) && val<0) sign = "-";
-  if (unit=="" || unit[0]=="W") {
-    ki = 1000; // do not use ki for empty unit
+  if (unit=="") {
+    return aval.toFixed(precision);
+  }
+  if (unit[0]=="W") {
+    ki = 1000; // do not use ki for Watts
   }
   if (unit=="ms") {
     aval = aval/1000;
@@ -367,20 +370,20 @@ Graph.prototype.add_plot_callbacks = function(placeholder) {
       // compute bytes
       var graph_type = item.series.label.gt,
           unit = self.get_unit(label);
-      var value = unit_si(item.datapoint[1], 3, unit),
+      var value = format_unit(item.datapoint[1], 3, unit),
           description = self.info[label].name,
           switchname = self.info[label].ip,
           dt = new Date(item.datapoint[0]),
           sum_value, sum_text;
       if (unit.match(/i[bB]\/s$/)) { // bits per second
         sum_value = self.arraysum(self.deltas[label][graph_type]);
-        sum_text = unit_si(sum_value, null, 'iB');
+        sum_text = format_unit(sum_value, null, 'iB');
       } else if (unit.match(/\/h$/)) {
         sum_value = self.arraysum(self.deltas[label][graph_type])/3600;
-        sum_text = unit_si(sum_value, null, unit.split("/")[0]);
+        sum_text = format_unit(sum_value, null, unit.split("/")[0]);
       } else {
         sum_value = self.arrayavg(self.deltas[label][graph_type]);
-        sum_text = unit_si(sum_value, null, unit);
+        sum_text = format_unit(sum_value, null, unit);
       }
       self.find("value_one").val(value);
       self.find("value_sum").val(sum_text);
@@ -879,6 +882,7 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
         flots.push({
           label: {name: name, gt: graph_type[gt]},
           color: String(color),
+          yaxis: this.info[name].info.yaxis || 1,
           data: this.filter_interval(
                   this.deltas[name][graph_type[gt]],
                   this.info[name].prefer_unit,
@@ -887,8 +891,26 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
       }
     }
   }
+  // main axis on left side
+  var multiple_axes = [{
+        font: { fill: "#eee" },
+        tickFormatter: format_unit,
+        si_unit: unit
+  }];
+  // add another axes on right side
+  if (this.json_data.axes_units) {
+    for (var ax_unit in this.json_data.axes_units) {
+      multiple_axes.push({
+        position: "right",
+        alignTicksWithAxis: 1,
+        font: { fill: "#eee" },
+        tickFormatter: format_unit,
+        si_unit: this.json_data.axes_units[ax_unit]
+      });
+    }
+  }
   if (placeholder===undefined) placeholder = this.placeholder;
-  this.plot = $.plot(placeholder, flots, {
+  this.plot = $.plot(this.placeholder, flots, {
     xaxis: {
       //position: "bottom",
       font: { fill: "#eee" },
@@ -897,12 +919,7 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
       timezone: "browser",
       timeBase: "milliseconds"
     },
-    yaxis: {
-      //position: "right",
-      font: { fill: "#eee" },
-      tickFormatter: unit_si,
-      si_unit: unit
-    },
+    yaxes: multiple_axes,
     legend: { show: false },
     //zoom: { interactive: true, active: true, enableTouch: true },
     //pan: { interactive: true, active: true, enableTouch: true },
@@ -1274,6 +1291,7 @@ JSONLoader.prototype.load_index = function(url) {
     cache: false
   }).done(function(data) {
     var files = [], ethid;
+    self.graph.json_data = data;
     if (data.ifs) {
       for (var port_id in data.ifs) {
         for (var i in excluded_interfaces) {
