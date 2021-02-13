@@ -826,7 +826,7 @@ Graph.prototype.plot_all_graphs = function() {
 };
 
 Graph.prototype.plot_graph = function(checked_choices, placeholder) {
-  var flots = [], name, unit, color,
+  var flots = [], name, unit, color, axis,
       graph_type = this.graph_type.find("option:selected").val() || "jo";
   if (checked_choices===undefined) {
     checked_choices = [];
@@ -834,6 +834,39 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
       checked_choices.push($(this).prop("name"));
     });
   }
+  // main axis on left side
+  var multiple_axes = [{
+        font: { fill: "#eee" },
+        tickFormatter: format_unit,
+        //si_unit: "" // redefined below
+  }];
+  // add another axes on right side
+  var ax_list = [];
+  if (this.json_data.ifs) {
+    for (var ax_iface in this.json_data.ifs) {
+      var unit = this.json_data.ifs[ax_iface].yaxis
+      if (unit!==undefined) {
+        // copy unit if it's set to True
+        if (unit===true) {
+          unit = this.json_data.ifs[ax_iface].unit
+          if (ax_list.indexOf(unit)<0)
+            ax_list.push(unit)
+        }
+        multiple_axes.push({
+          position: "right",
+          alignTicksWithAxis: 1,
+          font: { fill: "#eee" },
+          tickFormatter: format_unit,
+          si_unit: unit
+        });
+      } else {
+        // this looks like default unit
+        if (this.json_data.ifs[ax_iface].unit)
+          multiple_axes[0].si_unit = this.json_data.ifs[ax_iface].unit
+      }
+    }
+  }
+  // flot graphs
   this.palette = gen_colors(checked_choices.length);
   for (var n=0; n<checked_choices.length; n++) {
     name = checked_choices[n];
@@ -879,10 +912,13 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
           this.info[name].prefer_unit = "B";
         }
         unit = this.get_unit(name); // refresh unit
+        axis = this.info[name].info.yaxis
+        if (axis===true)
+          axis = this.info[name].info.unit
         flots.push({
           label: {name: name, gt: graph_type[gt]},
           color: String(color),
-          yaxis: this.info[name].info.yaxis || 1,
+          yaxis: ax_list.indexOf(axis)+2,
           data: this.filter_interval(
                   this.deltas[name][graph_type[gt]],
                   this.info[name].prefer_unit,
@@ -891,25 +927,11 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
       }
     }
   }
-  // main axis on left side
-  var multiple_axes = [{
-        font: { fill: "#eee" },
-        tickFormatter: format_unit,
-        si_unit: unit
-  }];
-  // add another axes on right side
-  if (this.json_data.axes_units) {
-    for (var ax_unit in this.json_data.axes_units) {
-      multiple_axes.push({
-        position: "right",
-        alignTicksWithAxis: 1,
-        font: { fill: "#eee" },
-        tickFormatter: format_unit,
-        si_unit: this.json_data.axes_units[ax_unit]
-      });
-    }
-  }
-  if (placeholder===undefined) placeholder = this.placeholder;
+  // set default unit if still not defined
+  if (multiple_axes[0].si_unit===undefined)
+    multiple_axes[0].si_unit = unit
+  if (placeholder===undefined)
+    placeholder = this.placeholder;
   this.plot = $.plot(this.placeholder, flots, {
     xaxis: {
       //position: "bottom",
