@@ -333,8 +333,8 @@ Graph.prototype.get_unit = function(label) {
     } else {
       return info.unit;
     }
-  } else if (info.info && info.info.unit) {
-    return info.info.unit;
+  } else if (info.json && info.json.unit) {
+    return info.json.unit;
   } else if (this.unit_type && this.unit_type.length>0) {
     return info.unit[this.unit_type.find("option:selected").val()];
   } else if (this.graph_type && this.graph_type.length>0) {
@@ -345,7 +345,7 @@ Graph.prototype.get_unit = function(label) {
 
 // Get color
 Graph.prototype.get_color = function(label, n) {
-  var info = this.info[label].info;
+  var info = this.info[label].json;
   if (info && info.color) {
     if (typeof info.color === "number")
       return this.palette[info.color];
@@ -387,10 +387,10 @@ Graph.prototype.add_plot_callbacks = function(placeholder) {
       }
       self.find("value_one").val(value);
       self.find("value_sum").val(sum_text);
-      if (self.info[label].info && self.info[label].info.price) {
+      if (self.info[label].json && self.info[label].json.price) {
         var data = item.series.data,
             hours = (data[data.length-1][0] - data[0][0]) / 3600000,
-            price = self.info[label].info.price * Math.abs(sum_value);
+            price = self.info[label].json.price * Math.abs(sum_value);
         self.find("value_price").val(price.toFixed(4)+" €");
       }
       self.find("description").val(description);
@@ -408,8 +408,8 @@ Graph.prototype.add_plot_callbacks = function(placeholder) {
           dt.toTimeString()
        ).css(tooltip_position).show();
       // display information from json file
-      if (self.index_mode=="json" && self.info[label].info) {
-        var table = ['<table>'], info = self.info[label].info,
+      if (self.index_mode=="json" && self.info[label].json) {
+        var table = ['<table>'], info = self.info[label].json,
             ftime = new Date(item.datapoint[0]).toLocaleString();
         table.push("<tr><td>Time</td><td>"+ftime+"</td></tr>");
         for (var key in info) {
@@ -500,8 +500,8 @@ Graph.prototype.select_virt = function() {
   var self = this;
   this.filter.find("input").each(function() {
     var sel = $(this);
-    if (self.deltas[this.name]['info'] &&
-        self.deltas[this.name]['info']['ifType']=='propVirtual')
+    if (self.deltas[this.name].info &&
+        self.deltas[this.name].info.ifType=='propVirtual')
       sel.prop("checked", !sel.prop("checked"));
   });
   this.plot_graph();
@@ -883,16 +883,15 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
           this.info[name].prefer_unit = "b";
         }
         // force to Bytes for temperature and some special units
-        if (this.info[name].info && this.info[name].info.force_bytes) {
+        if (this.info[name].json && this.info[name].json.force_bytes) {
           this.info[name].prefer_unit = "B";
         }
         unit = this.get_unit(name); // refresh unit
-        axis = this.info[name].info.yaxis;
-        //var ax_unit = this.info[name].info.yaxis;
+        axis = this.info[name].json.yaxis;
         if (axis!==undefined) {
           // copy unit if it's set to True
           if (axis===true) {
-            axis = this.info[name].info.unit;
+            axis = this.info[name].json.unit;
             axis = unit;
             if (ax_list.indexOf(axis)<0)
               ax_list.push(axis);
@@ -906,8 +905,8 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
           });
         } else {
           // this looks like default unit
-          if (this.info[name].info.unit)
-            multiple_axes[0].si_unit = this.info[name].info.unit;
+          if (this.info[name].json.unit)
+            multiple_axes[0].si_unit = this.info[name].json.unit;
         }
         // add to flots
         flots.push({
@@ -1345,7 +1344,7 @@ JSONLoader.prototype.load_index = function(url) {
           'ethid': ethid,
           'name': get_if_name(data.ifs),
           'ip': data.ip,
-          'info': data.ifs[port_id]
+          'json': data.ifs[port_id]
         });
         if (preselect_graphs.length>0) {
           if ($.inArray(port_id, preselect_graphs)>=0)
@@ -1366,7 +1365,7 @@ JSONLoader.prototype.load_index = function(url) {
           'port_id': oid,
           'name': data_oid.description || data_oid.name,
           'ip': data.ip,
-          'info': data_oid
+          'json': data_oid
         });
         if (preselect_graphs.length>0) {
           if ($.inArray(oid, preselect_graphs)>=0)
