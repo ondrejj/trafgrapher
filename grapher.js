@@ -98,7 +98,7 @@ function format_unit(val, axis, unit) {
   if (typeof(axis)=="number") precision = axis;
   else if (axis && axis.tickSize) precision = guessPrecision(axis.tickSize);
   if (axis && unit===undefined) unit = axis.options.si_unit;
-  if ((unit=="C" || unit==degreeC) && val<0) sign = "-";
+  if ((unit=="C" || unit==degreeC || unit=="\u00b0C") && val<0) sign = "-";
   if (unit=="") {
     return aval.toFixed(precision);
   }
@@ -844,13 +844,13 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
   var ax_list = [];
   if (this.json_data.ifs) {
     for (var ax_iface in this.json_data.ifs) {
-      var unit = this.json_data.ifs[ax_iface].yaxis
+      var unit = this.json_data.ifs[ax_iface].yaxis;
       if (unit!==undefined) {
         // copy unit if it's set to True
         if (unit===true) {
-          unit = this.json_data.ifs[ax_iface].unit
+          unit = this.json_data.ifs[ax_iface].unit;
           if (ax_list.indexOf(unit)<0)
-            ax_list.push(unit)
+            ax_list.push(unit);
         }
         multiple_axes.push({
           position: "right",
@@ -862,7 +862,7 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
       } else {
         // this looks like default unit
         if (this.json_data.ifs[ax_iface].unit)
-          multiple_axes[0].si_unit = this.json_data.ifs[ax_iface].unit
+          multiple_axes[0].si_unit = this.json_data.ifs[ax_iface].unit;
       }
     }
   }
@@ -912,9 +912,9 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
           this.info[name].prefer_unit = "B";
         }
         unit = this.get_unit(name); // refresh unit
-        axis = this.info[name].info.yaxis
+        axis = this.info[name].info.yaxis;
         if (axis===true)
-          axis = this.info[name].info.unit
+          axis = this.info[name].info.unit;
         flots.push({
           label: {name: name, gt: graph_type[gt]},
           color: String(color),
@@ -929,7 +929,7 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
   }
   // set default unit if still not defined
   if (multiple_axes[0].si_unit===undefined)
-    multiple_axes[0].si_unit = unit
+    multiple_axes[0].si_unit = unit;
   if (placeholder===undefined)
     placeholder = this.placeholder;
   this.plot = $.plot(this.placeholder, flots, {
@@ -1327,6 +1327,7 @@ JSONLoader.prototype.load_index = function(url) {
         if (preselect_graphs.length>0
              && preselect_graphs[0]=="!"
              && $.inArray(port_id, preselect_graphs)<0) {
+          delete self.graph.json_data.ifs[port_id];
           continue;	// skip non preselected graphs
         }
         ethid = data.ip.replace(/[^a-z0-9]/gi, '_')+port_id.replace(".", "_");
