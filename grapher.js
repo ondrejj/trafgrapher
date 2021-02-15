@@ -893,16 +893,16 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
           if (axis===true) {
             axis = info.json.unit;
             axis = unit;
-            if (ax_list.indexOf(axis)<0) {
-              ax_list.push(axis);
-              multiple_axes.push({
-                position: "right",
-                alignTicksWithAxis: 1,
-                font: { fill: "#eee" },
-                tickFormatter: format_unit,
-                si_unit: axis
-              });
-            }
+          }
+          if (ax_list.indexOf(axis)<0) {
+            ax_list.push(axis);
+            multiple_axes.push({
+              position: "right",
+              //alignTicksWithAxis: 1,
+              font: { fill: "#eee" },
+              tickFormatter: format_unit,
+              si_unit: axis
+            });
           }
           yaxis = ax_list.indexOf(axis)+2;
         } else if (info.json && info.json.unit) {
