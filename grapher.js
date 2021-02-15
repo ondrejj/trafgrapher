@@ -826,7 +826,7 @@ Graph.prototype.plot_all_graphs = function() {
 };
 
 Graph.prototype.plot_graph = function(checked_choices, placeholder) {
-  var flots = [], name, info, unit, color, axis,
+  var flots = [], name, info, unit, color, axis, yaxis,
       graph_type = this.graph_type.find("option:selected").val() || "jo";
   if (checked_choices===undefined) {
     checked_choices = [];
@@ -886,22 +886,25 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
           info.prefer_unit = "B";
         }
         unit = this.get_unit(name); // refresh unit
+        yaxis = 1;
         if (info.json && info.json.yaxis!==undefined) {
           axis = info.json.yaxis;
           // copy unit if it's set to True
           if (axis===true) {
             axis = info.json.unit;
             axis = unit;
-            if (ax_list.indexOf(axis)<0)
+            if (ax_list.indexOf(axis)<0) {
               ax_list.push(axis);
+              multiple_axes.push({
+                position: "right",
+                alignTicksWithAxis: 1,
+                font: { fill: "#eee" },
+                tickFormatter: format_unit,
+                si_unit: axis
+              });
+            }
           }
-          multiple_axes.push({
-            position: "right",
-            alignTicksWithAxis: 1,
-            font: { fill: "#eee" },
-            tickFormatter: format_unit,
-            si_unit: axis
-          });
+          yaxis = ax_list.indexOf(axis)+2;
         } else if (info.json && info.json.unit) {
           // this looks like default unit should be set
           multiple_axes[0].si_unit = info.json.unit;
@@ -910,7 +913,7 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
         flots.push({
           label: {name: name, gt: graph_type[gt]},
           color: String(color),
-          yaxis: ax_list.indexOf(axis)+2,
+          yaxis: yaxis,
           data: this.filter_interval(
                   this.deltas[name][graph_type[gt]],
                   info.prefer_unit,
