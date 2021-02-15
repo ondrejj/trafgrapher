@@ -826,7 +826,7 @@ Graph.prototype.plot_all_graphs = function() {
 };
 
 Graph.prototype.plot_graph = function(checked_choices, placeholder) {
-  var flots = [], name, unit, color, axis,
+  var flots = [], name, info, unit, color, axis,
       graph_type = this.graph_type.find("option:selected").val() || "jo";
   if (checked_choices===undefined) {
     checked_choices = [];
@@ -838,13 +838,14 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
   var multiple_axes = [{
         font: { fill: "#eee" },
         tickFormatter: format_unit,
-        //si_unit: "" // redefined below
+        //si_unit: undefined // redefined below
   }];
   // flot graphs
   this.palette = gen_colors(checked_choices.length);
   var ax_list = [];
   for (var n=0; n<checked_choices.length; n++) {
     name = checked_choices[n];
+    info = this.info[name];
     unit = this.get_unit(name);
     color = this.get_color(name, n);
     if (this.index_mode=="storage") {
@@ -876,22 +877,20 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
           console.log("Undefined data: "+name+" "+graph_type[gt]);
         if (this.deltas[name][graph_type[gt]].length===0)
           continue; // skip empty graph
-        this.info[name].prefer_unit =
-          this.unit_type.find("option:selected").val();
-        if (!this.info[name].prefer_unit &&
-            this.info[name].service && this.info[name].service.prefer_bits) {
-          this.info[name].prefer_unit = "b";
+        info.prefer_unit = this.unit_type.find("option:selected").val();
+        if (!info.prefer_unit && info.service && info.service.prefer_bits) {
+          info.prefer_unit = "b";
         }
         // force to Bytes for temperature and some special units
-        if (this.info[name].json && this.info[name].json.force_bytes) {
-          this.info[name].prefer_unit = "B";
+        if (info.json && info.json.force_bytes) {
+          info.prefer_unit = "B";
         }
         unit = this.get_unit(name); // refresh unit
-        axis = this.info[name].json.yaxis;
-        if (axis!==undefined) {
+        if (info.json && info.json.yaxis!==undefined) {
+          axis = info.json.yaxis;
           // copy unit if it's set to True
           if (axis===true) {
-            axis = this.info[name].json.unit;
+            axis = info.json.unit;
             axis = unit;
             if (ax_list.indexOf(axis)<0)
               ax_list.push(axis);
@@ -903,10 +902,9 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
             tickFormatter: format_unit,
             si_unit: axis
           });
-        } else {
-          // this looks like default unit
-          if (this.info[name].json.unit)
-            multiple_axes[0].si_unit = this.info[name].json.unit;
+        } else if (info.json && info.json.unit) {
+          // this looks like default unit should be set
+          multiple_axes[0].si_unit = info.json.unit;
         }
         // add to flots
         flots.push({
@@ -915,7 +913,7 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
           yaxis: ax_list.indexOf(axis)+2,
           data: this.filter_interval(
                   this.deltas[name][graph_type[gt]],
-                  this.info[name].prefer_unit,
+                  info.prefer_unit,
                   graph_type[gt]==graph_type[gt].toUpperCase())
         });
       }
@@ -924,9 +922,7 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
   // set default unit if still not defined
   if (multiple_axes[0].si_unit===undefined)
     multiple_axes[0].si_unit = unit;
-  if (placeholder===undefined)
-    placeholder = this.placeholder;
-  this.plot = $.plot(this.placeholder, flots, {
+  this.plot = $.plot(placeholder || this.placeholder, flots, {
     xaxis: {
       //position: "bottom",
       font: { fill: "#eee" },
