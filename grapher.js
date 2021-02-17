@@ -1279,7 +1279,7 @@ JSONLoader.prototype.load_log = function(filename, args) {
         deltas.O.push([t, om]);
       }
     }
-    if (args.info && args.info.counter)
+    if (args.json && args.json.counter)
       for (var key in deltas)
         deltas[key] = arraydelta(deltas[key], false);
     self.graph.deltas[ethid] = deltas;
@@ -1953,6 +1953,11 @@ service_groups = {
     name: "SQL",
     search: /mysql\/./i,
     unit: "/s"
+  },
+  redis: {
+    name: "Redis",
+    search: /NRPE_redis/,
+    unit: "B"
   },
   ups: {
     name: "UPS",
