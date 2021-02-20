@@ -2264,7 +2264,7 @@ $(function() {
     }
     template = $(template);
     var template_id = template.attr("id").replace("graph", "");
-    template.find("h2").text(div.find("h2").text());
+    template.find("h2").html(div.find("h2").html());
     template.find("div.selection").prepend(div.find("input"));
     // replace element IDs
     template.find("[id$='"+template_id+"']").each(function(index, element) {
