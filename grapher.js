@@ -1854,6 +1854,23 @@ service_groups = {
     search: /memory.*\/(memory|pagefile)/i,
     unit: "MB"
   },
+  collisions: {
+    name: "Network collistions",
+    search: /eth.+\/collisions$/,
+    unit: "/s",
+    hide: true,
+    next: true
+  },
+  net_errors: {
+    name: "Network errors",
+    search: /eth.+\/[rt]x_errors$/,
+    join_by: /^(rx_|tx_)/,
+    join_desc: "tx/rx ",
+    reversed: /^(rx|in)/,
+    unit: "/s",
+    hide: true,
+    next: true
+  },
   eth_io: {
     name: "Ethernet [bits]",
     search: /((eth|tun).+\/[rt]x_bytes|Interface [0-9]+\/(in|out)$)/i,
