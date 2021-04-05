@@ -93,8 +93,49 @@ function guessPrecision(ticksize) {
   else if (ticksize<1) return 1;
   return 0;
 }
+function convert_unit(unit, value) {
+  var prefix = "", inet = "", base = unit, dimension = "", dimension_power, ki;
+  var match = unit.match(/^([numkMGTP]?)(i?)([bBWVAC℃shmg]+)([²³]?)$/);
+  if (match) {
+    prefix = match[1];
+    inet = match[2];
+    base = match[3];
+    dimension = match[4];
+  }
+  if (value===undefined) {
+    value = 1;
+  }
+  if (dimension=="³") {
+    dimension_power = 3;
+  } else if (dimension=="²") {
+    dimension_power = 2;
+  } else {
+    dimension_power = 1;
+  }
+  if (base=="B" || base=="b" || base=="iB" || base=="ib") {
+    ki = 1024;
+  } else {
+    ki = 1000;
+  }
+  ki = Math.pow(ki, dimension_power);
+  var prefixes = {
+    n: -3, u: -2, m: -1,
+    '': 0,
+    k: 1, M: 2, G: 3, T: 4, P: 5
+  }
+  var multiply = Math.pow(ki, prefixes[prefix]);
+  return {
+    prefix: prefix,
+    base: base,
+    unit: inet+base+dimension,
+    ki: ki,
+    dim: dimension,
+    multiply: multiply,
+    value: value * multiply
+  }
+}
 function format_unit(val, axis, unit) {
-  var ki = 1024, precision = 3, aval = Math.abs(val), sign = "";
+  var precision = 3, aval = Math.abs(val), sign = "", ki;
   if (typeof(axis)=="number") precision = axis;
   else if (axis && axis.tickSize) precision = guessPrecision(axis.tickSize);
   if (axis && unit===undefined) unit = axis.options.si_unit;
@@ -102,28 +143,10 @@ function format_unit(val, axis, unit) {
   if (unit=="") {
     return aval.toFixed(precision);
   }
-  if (unit[0]=="W") {
-    ki = 1000; // do not use ki for Watts
-  }
-  if (unit=="ms") {
-    aval = aval/1000;
-    unit = "s";
-  }
-  if (unit.indexOf) {
-    if (unit.indexOf("³")>=0) {
-      ki = 1000*1000*1000;
-    } else if (unit.indexOf("²")>=0) {
-      ki = 1000*1000;
-    }
-  }
-  // do not display double extensions (kMB)
-  if (unit=="kB" || unit=="kiB" || unit=="kb" || unit=="kib" || unit=="kW") {
-    unit = unit.substring(1);
-    aval = aval * ki;
-  } else if (unit=="MB" || unit=="MiB" || unit=="Mb" || unit=="Mib" || unit=="MW") {
-    unit = unit.substring(1);
-    aval = aval * ki * ki;
-  }
+  var converted = convert_unit(unit, aval);
+  aval = converted.value;
+  unit = converted.unit;
+  ki = converted.ki;
   if (unit=="s") {
     if (aval<0.001) {
       if (axis && axis.tickSize)
@@ -141,6 +164,8 @@ function format_unit(val, axis, unit) {
     if (aval>3600) {
       return sign+(aval/3600).toFixed(1)+" h";
     }
+  } else if (unit=="hPa") {
+    return sign+aval.toFixed(precision)+" "+unit;
   } else {
     if (aval>=(ki*ki*ki*ki*ki))
       return sign+(aval/ki/ki/ki/ki/ki).toFixed(precision)+" P"+unit;
@@ -2094,13 +2119,9 @@ NagiosLoader.prototype.load_data = function(filename, service) {
     // create info
     if (!self.graph.info[name])
       self.graph.info[name] = {name: desc, unit: lunit, service: service_group};
-    if (lunit=="MB") {
-      multiplier = 1048576;
-      self.graph.info[name].unit = "B";
-    } else if (lunit=="ms" || lunit=="mV") {
-      multiplier = 0.001;
-      self.graph.info[name].unit = lunit[1];
-    }
+    var converted = convert_unit(lunit, 1);
+    multiplier = converted.value;
+    self.graph.info[name].unit = converted.unit;
     if (service_group.unit!==undefined)
       self.graph.info[name].unit = service_group.unit;
     if (service_group.convert) {
