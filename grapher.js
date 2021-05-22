@@ -284,6 +284,17 @@ Graph.prototype.arraysum = function(arr) {
   }
   return value;
 };
+Graph.prototype.arraysum_values = function(arr) {
+  var value = 0;
+  if (arr.length===0) return 0;
+  for (var idx=arr.length-1; idx>=0; idx--) {
+    var t = arr[idx][0], v = arr[idx][1];
+    if (this.range_from<=t && t<this.range_to && v!==null && !isNaN(v)) {
+      value += Math.abs(v);
+    }
+  }
+  return value;
+};
 Graph.prototype.arrayavg = function(arr) {
   var value = 0, count = 0, last = null;
   if (arr.length===0) return 0;
@@ -399,19 +410,22 @@ Graph.prototype.add_plot_callbacks = function(placeholder) {
           description = self.info[label].name,
           switchname = self.info[label].ip,
           dt = new Date(item.datapoint[0]),
-          sum_value, sum_text;
-      if (unit.match(/i[bB]\/s$/)) { // bits per second
+          sum_value, sum_text, avg_value, avg_text;
+      if (unit.match(/[bB]\/s$/)) { // bits per second
         sum_value = self.arraysum(self.deltas[label][graph_type]);
         sum_text = format_unit(sum_value, null, 'iB');
       } else if (unit.match(/\/h$/)) {
         sum_value = self.arraysum(self.deltas[label][graph_type])/3600;
         sum_text = format_unit(sum_value, null, unit.split("/")[0]);
       } else {
-        sum_value = self.arrayavg(self.deltas[label][graph_type]);
-        sum_text = format_unit(sum_value, null, unit);
+        sum_value = self.arraysum_values(self.deltas[label][graph_type]);
+        sum_text = format_unit(sum_value, null, unit.replace(/\/s$/, ""));
       }
+      avg_value = self.arrayavg(self.deltas[label][graph_type]);
+      avg_text = format_unit(avg_value, null, unit);
       self.find("value_one").val(value);
       self.find("value_sum").val(sum_text);
+      self.find("value_avg").val(avg_text);
       if (self.info[label].json && self.info[label].json.price) {
         var data = item.series.data,
             hours = (data[data.length-1][0] - data[0][0]) / 3600000,

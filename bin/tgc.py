@@ -1087,7 +1087,7 @@ class ipset(fwcounter_base):
       self.cmd = cmd
   def items(self):
       for row in self.read():
-        if row and row[0].isdigit():
+        if row and ' packets ' in row and ' bytes ' in row:
           cols = row.strip().split(" ")
           self.bytes[cols[0]] = int(cols[4])
           self.packets[cols[0]] = int(cols[2])
