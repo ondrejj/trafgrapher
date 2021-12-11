@@ -601,12 +601,15 @@ Graph.prototype.files_to_args = function(prefix, suffix) {
     // add list of checked boxes
     var ports = [], index_file;
     if (inputs_checked.length<inputs_all.length) {
+      if ($.inArray(fn, self.preselect_only)>=0) {
+        ports.push("!");
+      }
       inputs_checked.each(function() {
         if (self.index_mode=="storage" ||
             self.index_mode=="nagios_service" ||
             self.index_mode=="nagios_host" ||
             self.index_mode=="sagator") {
-          ports.push(this.name);
+          ports.push(self.info[this.name]);
         } else {
           index_file = self.index_files[i].split(";")[0];
           if (self.info[this.name].index == index_file) {
@@ -1339,6 +1342,7 @@ JSONLoader.prototype.load_index = function(url) {
   url = preselect_graphs.shift();
   var urldir = url.replace(/[^\/]*$/, "");
   this.graph.preselect_graphs = [];
+  this.graph.preselect_only = [];
   $.ajax({
     url: url,
     dataType: "json",
@@ -1356,9 +1360,14 @@ JSONLoader.prototype.load_index = function(url) {
         if (port_id===null) continue;
         // load only preselected graphs, if first preselect is "!" character
         if (preselect_graphs.length>0
-             && preselect_graphs[0]=="!"
-             && $.inArray(port_id, preselect_graphs)<0) {
-          continue;	// skip non preselected graphs
+             && preselect_graphs[0]=="!") {
+          if ($.inArray(port_id, preselect_graphs)<0) {
+            // skip non preselected graphs
+            continue;
+          } else {
+            // store port_id for urllink function
+            self.graph.preselect_only.push(url);
+          }
         }
         ethid = data.ip.replace(/[^a-z0-9]/gi, '_')+port_id.replace(".", "_");
         function get_if_name(ifs) {
