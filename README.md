@@ -84,3 +84,23 @@ Open URL to your web server and enjoy graphs:
 http://localhost/trafgrapher/?m=/path/to/mrtg/index.html
 http://localhost/trafgrapher/?s=/path/to/iostats/
 ```
+
+Keyboard shortcuts
+------------------
+
+| Key  | Command
+| ---- | -----------------------------------------
+| R    | Reload
+| A    | Select all
+| X    | Invert selection
+| N    | Select none
+| Z    | Zoom out
+| 0    | Interval 3 years
+| 2    | Interval 2 years
+| 9    | Interval 1 year
+| 5    | Interval 1 month
+| 7    | Interval 1 week
+| 3    | Interval 3 days
+| 1    | Interval 1 day
+| 8    | Interval 8 hours
+| 4    | Interval 4 hours
