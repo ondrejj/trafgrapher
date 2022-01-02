@@ -536,6 +536,7 @@ class SNMP:
             log = "%s_%s.log" % (self.addr, id),
             unit = self.sensor_datatypes.get(int(datatype), ""),
             scale = scale/precision,
+            force_bytes = True, # do not multiply by 8
             description = interface,
             name = interface,
             **infos.get(interface, {}) # update with interface info
@@ -568,6 +569,7 @@ class SNMP:
           log = "%s_%s.log" % (self.addr, id),
           unit = "dBm",
           scale = 0.01,
+          force_bytes = True, # do not multiply by 8
           #replaces = [[-1, None]],
           description = infos.get(interface, {}).get("ifAlias", interface),
           name = interface,

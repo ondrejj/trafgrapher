@@ -1,10 +1,10 @@
 /*
   TrafGrapher
-  (c) 2015-2021 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
+  (c) 2015-2022 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
   Licensed under the MIT license.
 */
 
-var trafgrapher_version = '3.2.0',
+var trafgrapher_version = '3.2.1',
     one_hour = 3600000,
     last_reload = null,
     degreeC = "℃";
@@ -1060,6 +1060,7 @@ Graph.prototype.select_devices = function() {
   this.div.find("[name^=json_file]").each(function() {
     self.index_mode = "json";
     self.index_files.push($(this).val());
+    self.onload = this.onload;
   });
   this.div.find("[name^=mrtg_file]").each(function() {
     self.index_mode = "mrtg";
@@ -1079,7 +1080,6 @@ Graph.prototype.select_devices = function() {
   this.div.find("[name^=sagator_file]").each(function() {
     self.index_mode = "sagator";
     self.index_files.push($(this).val());
-    console.log($(this).val());
   });
 };
 
@@ -1264,6 +1264,9 @@ Loader.prototype.file_loaded = function() {
       this.graph.update_checkboxes();
     }
     this.graph.plot_all_graphs();
+    if (this.graph.onload) {
+      this.graph.onload();
+    }
   }
 };
 
