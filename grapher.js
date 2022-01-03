@@ -4,7 +4,7 @@
   Licensed under the MIT license.
 */
 
-var trafgrapher_version = '3.2.1',
+var trafgrapher_version = '3.2.2',
     one_hour = 3600000,
     last_reload = null,
     degreeC = "℃";
@@ -233,8 +233,8 @@ function light_theme() {
 }
 
 // Escape selector ID
-String.prototype.escapeSelector = function() {
-  return this.replace(/([ #;?%&,.+*~\':"!^$[\]()=>|\/@])/g,'\\$1');
+String.prototype.escapeSelector = function () {
+  return this.replace(/([ #;?%&,.+*~':"!\^$\[\]()=>|\/@])/g,"\\$1");
 };
 
 /*
@@ -349,7 +349,7 @@ Graph.prototype.filter_interval = function(data, unit, use_max) {
 };
 
 // Reset range
-Graph.prototype.reset_range = function() {
+Graph.prototype.reset_range = function () {
   // set current interval
   var current_datetime = new Date(),
       range_end = this.div.find("[name^=range_end]").val(),
@@ -508,7 +508,7 @@ Graph.prototype.add_plot_callbacks = function(placeholder) {
 };
 
 // Menu functions
-Graph.prototype.select_all = function() {
+Graph.prototype.select_all = function () {
   if (this.groups) {
     // nagios host graph
     for (var srvi in this.groups) {
@@ -522,22 +522,22 @@ Graph.prototype.select_all = function() {
   this.plot_all_graphs();
   this.urllink();
 };
-Graph.prototype.select_none = function() {
+Graph.prototype.select_none = function () {
   this.filter.find("input").prop("checked", false);
   this.plot_graph();
   this.urllink();
 };
-Graph.prototype.select_inv = function() {
-  this.filter.find("input").each(function() {
+Graph.prototype.select_inv = function () {
+  this.filter.find("input").each(function () {
     var sel = $(this);
     sel.prop("checked", !sel.prop("checked"));
   });
   this.plot_graph();
   this.urllink();
 };
-Graph.prototype.select_virt = function() {
+Graph.prototype.select_virt = function () {
   var self = this;
-  this.filter.find("input").each(function() {
+  this.filter.find("input").each(function () {
     var sel = $(this);
     if (self.deltas[this.name].info &&
         self.deltas[this.name].info.ifType=='propVirtual')
@@ -548,43 +548,43 @@ Graph.prototype.select_virt = function() {
 };
 
 // Add menu callbacks for graph
-Graph.prototype.add_menu_callbacks = function() {
+Graph.prototype.add_menu_callbacks = function () {
   var self = this;
   // buttons and selectors
-  this.interval.change(function() {
+  this.interval.change(function () {
     self.refresh_range();
     self.urllink();
   });
-  this.graph_source.change(function() {
+  this.graph_source.change(function () {
     self.change_source();
     self.urllink();
   });
-  $("select#service").change(function() {
+  $("select#service").change(function () {
     self.filter.empty(); // checkbox names are different
     self.refresh_graph();
     self.urllink();
   });
-  $("select#host").change(function() {
+  $("select#host").change(function () {
     self.filter.empty(); // checkbox names are different
     self.refresh_graph();
     self.urllink();
   });
-  this.find("toggle_info").click(function() {
+  this.find("toggle_info").click(function () {
     self.find("info_table").animate({height: "toggle"}, 300);
   });
-  this.find("toggle_filter").click(function() {
+  this.find("toggle_filter").click(function () {
     self.filter.toggle();
   });
-  this.find("hide_graph").click(function() {
+  this.find("hide_graph").click(function () {
     self.placeholder.toggle();
   });
-  this.find("b_select_all").click(function() { self.select_all(); });
-  this.find("b_select_inv").click(function() { self.select_inv(); });
-  this.find("b_select_none").click(function() { self.select_none(); });
-  this.find("b_select_virt").click(function() { self.select_virt(); });
-  this.find("b_zoom_out").click(function() { self.zoom_out(); });
-  this.find("b_reload").click(function() { self.refresh_graph(); });
-  this.find("b_urllink").click(function() { self.urllink(); });
+  this.find("b_select_all").click(function () { self.select_all(); });
+  this.find("b_select_inv").click(function () { self.select_inv(); });
+  this.find("b_select_none").click(function () { self.select_none(); });
+  this.find("b_select_virt").click(function () { self.select_virt(); });
+  this.find("b_zoom_out").click(function () { self.zoom_out(); });
+  this.find("b_reload").click(function () { self.refresh_graph(); });
+  this.find("b_urllink").click(function () { self.urllink(); });
 };
 
 // Create link args for index files
@@ -604,7 +604,7 @@ Graph.prototype.files_to_args = function(prefix, suffix) {
       if ($.inArray(fn, self.preselect_only)>=0) {
         ports.push("!");
       }
-      inputs_checked.each(function() {
+      inputs_checked.each(function () {
         if (self.index_mode=="storage" ||
             self.index_mode=="nagios_service" ||
             self.index_mode=="nagios_host" ||
@@ -783,7 +783,7 @@ Graph.prototype.keyevent = function(event) {
 };
 
 // Update checkboxes according to number of graphs.
-Graph.prototype.update_checkboxes = function() {
+Graph.prototype.update_checkboxes = function () {
   var self = this;
   // Skip updating filter checkboxes if at least one of them is checked.
   // All checkboxes are unchecked when switching graph source to allow
@@ -811,22 +811,22 @@ Graph.prototype.update_checkboxes = function() {
   }
   self.preselect_graphs = []; // clear after apply
   // Add actions.
-  this.filter.find("input").click(function() {
+  this.filter.find("input").click(function () {
     self.plot_graph();
     self.urllink();
   });
-  this.graph_type.change(function() {
+  this.graph_type.change(function () {
     self.plot_graph();
     self.urllink();
   });
-  this.unit_type.change(function() {
+  this.unit_type.change(function () {
     self.plot_graph();
     self.urllink();
   });
 };
 
 // Plot current graph.
-Graph.prototype.plot_all_graphs = function() {
+Graph.prototype.plot_all_graphs = function () {
   var graph, enabled_groups, placeholder;
   if (this.groups) {
     // make menu fixed (always visisble)
@@ -868,11 +868,11 @@ Graph.prototype.plot_all_graphs = function() {
 };
 
 Graph.prototype.plot_graph = function(checked_choices, placeholder) {
-  var flots = [], name, info, unit, color, axis, yaxis,
+  var flots = [], name, info, unit, color, axis, yaxis, axis_unit, axis_pos,
       graph_type = this.graph_type.find("option:selected").val() || "jo";
   if (checked_choices===undefined) {
     checked_choices = [];
-    this.filter.find("input:checked").each(function() {
+    this.filter.find("input:checked").each(function () {
       checked_choices.push($(this).prop("name"));
     });
   }
@@ -931,19 +931,25 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
         yaxis = 1;
         if (info.json && info.json.yaxis!==undefined) {
           axis = info.json.yaxis;
-          // copy unit if it's set to True
+          axis_pos = "right";
           if (axis===true) {
-            axis = info.json.unit;
-            axis = unit;
+            // copy unit if it's set to True
+            axis_unit = unit;
+          } else if (typeof axis === "number") {
+            // copy unit and assign right/left position
+            axis_unit = unit;
+            if (axis < 0) { axis_pos = "left"; }
+          } else {
+            axis_unit = axis;
           }
           if (ax_list.indexOf(axis)<0) {
             ax_list.push(axis);
             multiple_axes.push({
-              position: "right",
+              position: axis_pos,
               //alignTicksWithAxis: 1,
               font: { fill: "#eee" },
               tickFormatter: format_unit,
-              si_unit: axis
+              si_unit: axis_unit
             });
           }
           yaxis = ax_list.indexOf(axis)+2;
@@ -1010,7 +1016,7 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
   =================
 */
 
-Graph.prototype.refresh_range = function() {
+Graph.prototype.refresh_range = function () {
   this.reset_range();
   if (this.index_mode=="storage")
     this.refresh_graph();
@@ -1018,7 +1024,7 @@ Graph.prototype.refresh_range = function() {
     this.plot_all_graphs();
 };
 
-Graph.prototype.refresh_graph = function() {
+Graph.prototype.refresh_graph = function () {
   var loader;
   // stop all loaders
   for (var i=0; i<this.loaders.length; i++) {
@@ -1040,50 +1046,50 @@ Graph.prototype.refresh_graph = function() {
   if (loader) loader.reload();
 };
 
-Graph.prototype.change_source = function() {
+Graph.prototype.change_source = function () {
   // Remove checkboxes, because new source has different checkboxes.
   this.filter.empty();
   this.refresh_graph();
 };
 
-Graph.prototype.zoom_out = function() {
+Graph.prototype.zoom_out = function () {
   // Reset zoom
   this.reset_range();
   this.plot_all_graphs();
   this.urllink();
 };
 
-Graph.prototype.select_devices = function() {
+Graph.prototype.select_devices = function () {
   var self = this;
   // skip if files defined for query string
   if (self.index_files.length>0) return;
-  this.div.find("[name^=json_file]").each(function() {
+  this.div.find("[name^=json_file]").each(function () {
     self.index_mode = "json";
     self.index_files.push($(this).val());
     self.onload = this.onload;
   });
-  this.div.find("[name^=mrtg_file]").each(function() {
+  this.div.find("[name^=mrtg_file]").each(function () {
     self.index_mode = "mrtg";
     self.index_files.push($(this).val());
   });
-  this.div.find("[name^=storage_file]").each(function() {
+  this.div.find("[name^=storage_file]").each(function () {
     self.index_mode = "storage";
     self.index_files.push($(this).val());
   });
-  this.div.find("[name^=nagios_file]").each(function() {
+  this.div.find("[name^=nagios_file]").each(function () {
     if ($("select#host").length>0)
       self.index_mode = "nagios_host";
     else
       self.index_mode = "nagios_service";
     self.index_files.push($(this).val());
   });
-  this.div.find("[name^=sagator_file]").each(function() {
+  this.div.find("[name^=sagator_file]").each(function () {
     self.index_mode = "sagator";
     self.index_files.push($(this).val());
   });
 };
 
-Graph.prototype.parse_query_string = function() {
+Graph.prototype.parse_query_string = function () {
   filter_services = [];
   function split_arg(arg, arr) {
     var sarg = arg.split(",");
@@ -1168,7 +1174,7 @@ Progress = function(graph, loader) {
   this.files_to_load = 0;
 };
 
-Progress.prototype.echo = function() {
+Progress.prototype.echo = function () {
   if (this.files_to_load>0) {
     this.tag.html(this.files_to_load+
       " files to load (<a href=\"#\">skip</a>)");
@@ -1191,7 +1197,7 @@ Progress.prototype.update = function(remaining_files) {
     this.files_to_load = remaining_files;
   if (this.files_to_load>0) {
     this.echo();
-    this.tag.find("a").click(function() {
+    this.tag.find("a").click(function () {
       self.update(1); // set last file
       self.data_loader.file_loaded();
       return false;
@@ -1234,14 +1240,14 @@ Loader = function(graph, index_files) {
   this.graph.placeholder.empty();
 };
 
-Loader.prototype.reload = function() {
+Loader.prototype.reload = function () {
   for (var idx=0; idx<this.index_files.length; idx++)
     this.load_index(this.index_files[idx]);
   last_reload = new Date();
 };
 
 // File loaded, update counter, show graph if all files processed.
-Loader.prototype.file_loaded = function() {
+Loader.prototype.file_loaded = function () {
   var counters = this.counters, deltas = this.graph.deltas;
   if (this.progress.update()===0) { // last file loaded
     // if counters is empty, this is skipped
@@ -2308,7 +2314,7 @@ function callgraphs(fx) {
   }
 }
 
-$(function() {
+$(function () {
   var graph_id_counter = 0;
   current_url = window.location.href;
   $(".footer a").text(
@@ -2344,7 +2350,7 @@ $(function() {
   $('div[class^="trafgrapher_template"]').remove();
 
   graphs = [];
-  $("div[id^=graph]").each(function() {
+  $("div[id^=graph]").each(function () {
     var graph = new Graph($(this).prop("id"));
     graph.parse_query_string();
     graph.refresh_graph();
