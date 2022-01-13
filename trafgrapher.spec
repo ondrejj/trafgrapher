@@ -1,12 +1,14 @@
 # use python3 for Fedora
 %if 0%{?fedora} || 0%{?rhel} > 7
-%define PYTHON %{_bindir}/python3
+%global PYTHON %{python3}
+%global PYTHON_SITELIB %{python3_sitelib}
 %else
-%define PYTHON %{_bindir}/python2
+%global PYTHON %{_bindir}/python2
+%global PYTHON_SITELIB %{python2_sitelib}
 %endif
 
 Name:           trafgrapher
-Version:        3.2.2
+Version:        3.3.0
 Release:        0.beta1%{?dist}
 Summary:        Collect and display network/disk/storage transfers.
 
@@ -15,11 +17,15 @@ URL:            https://www.salstar.sk/trafgrapher/
 Source0:        https://www.salstar.sk/pub/trafgrapher/trafgrapher-%{version}.tgz
 BuildArch:      noarch
 
-# use prebuilt jquery for EPEL-6 and EPEL-8
-%if 0%{?rhel} == 7
+%if 0%{?fedora} || 0%{?rhel} > 7
+BuildRequires:  python3-devel
+%else
+BuildRequires:  python2-devel
+%endif
+
+# use distribution jquery
 BuildRequires:  js-jquery
 Requires:       js-jquery
-%endif
 
 %description
 TrafGrapher is an javascript script to collect and display data.
@@ -35,20 +41,24 @@ Also useable to display SAN storage performance or Nagios performance data.
 mkdir web
 ln -s network.html index.html
 mv *.css *.html *.js flot web/
+rm -f bin/tgc.py # remove client symlink
 if [ -d /usr/share/javascript/jquery/latest ]; then
   rm web/flot/jquery.js web/flot/jquery.min.js web/flot/jquery.min.map
-  ln -s /usr/share/javascript/jquery/latest/* web/flot/
+  ln -s ../../../javascript/jquery/latest/jquery.js web/flot/
+  ln -s ../../../javascript/jquery/latest/jquery.min.js web/flot/
+  ln -s ../../../javascript/jquery/latest/jquery.min.map web/flot/
 fi
 # update python version
 sed -i 's|#!/usr/bin/python[23]|#!%{PYTHON}|' bin/*.py
 
 
 %install
-rm -rf $RPM_BUILD_ROOT
-mkdir -p $RPM_BUILD_ROOT%{_bindir} $RPM_BUILD_ROOT%{_datadir}/%{name}
+mkdir -p $RPM_BUILD_ROOT%{_bindir} $RPM_BUILD_ROOT%{_datadir}/%{name} \
+  $RPM_BUILD_ROOT%{PYTHON_SITELIB}
+mv bin/trafgrapher.py $RPM_BUILD_ROOT%{PYTHON_SITELIB}/
+ln -s %{PYTHON_SITELIB}/%{name}.py $RPM_BUILD_ROOT%{_bindir}/tgc
 cp -ar bin/* $RPM_BUILD_ROOT%{_datadir}/%{name}
 cp -ar web $RPM_BUILD_ROOT%{_datadir}/%{name}
-ln -s ../share/%{name}/tgc.py $RPM_BUILD_ROOT%{_bindir}/tgc
 ln -s ../share/%{name}/compellent.py $RPM_BUILD_ROOT%{_bindir}/tg_compellent
 ln -s ../share/%{name}/process_perfdata.py $RPM_BUILD_ROOT%{_bindir}/tg_process_perfdata
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/httpd/conf.d
@@ -78,6 +88,12 @@ EOF
 %{!?_licensedir:%global license %%doc}
 %license LICENSE.txt
 %config(noreplace) %verify(not md5 size mtime) %{_sysconfdir}/httpd/conf.d/trafgrapher.conf
+%if 0%{?fedora} || 0%{?rhel} > 7
+%{python3_sitelib}/%{name}.py
+%pycached %{python3_sitelib}/%{name}.py
+%else
+%{python2_sitelib}/%{name}.py*
+%endif
 %{_bindir}/*
 %{_datadir}/%{name}
 
