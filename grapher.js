@@ -45,7 +45,7 @@ function joinarrays(arr) {
   }
   var a = [];
   for (key in d) {
-    a.push([key, d[key]]);
+    a.push([parseInt(key), d[key]]);
   }
   a.sort(col0diff);
   return a;
@@ -606,10 +606,11 @@ Graph.prototype.files_to_args = function(prefix, suffix) {
       }
       inputs_checked.each(function () {
         if (self.index_mode=="storage" ||
-            self.index_mode=="nagios_service" ||
             self.index_mode=="nagios_host" ||
             self.index_mode=="sagator") {
           ports.push(self.info[this.name]);
+        } else if (self.index_mode=="nagios_service") {
+          ports.push(this.name);
         } else {
           index_file = self.index_files[i].split(";")[0];
           if (self.info[this.name].index == index_file) {
@@ -1186,7 +1187,7 @@ Progress.prototype.add = function(files, bytes) {
   this.files_to_load += files;
   this.echo();
   if (files<=0)
-    this.progress.text("No data to load!");
+    this.tag.text("No data to load!");
 };
 
 Progress.prototype.update = function(remaining_files) {
@@ -1715,13 +1716,13 @@ StorageLoader.prototype.load_compellent = function(filename) {
       //   WriteIos-14,WriteKBs-15,WriteLatency-16
       var cols = rows[row_id].split(",");
       var name = cols[hdr_cols.InstanceName].replace("Disk ", "");
-      var timestamp = cols[hdr_cols.PlatformTime]+"000";
+      var timestamp = to_ms(cols[hdr_cols.PlatformTime]);
       var ctrl = cols[hdr_cols.ScSerialNumber]; // controller or SC_serial?
       if (name=="Unknown") continue;
       if (!counters[name]) {
         counters[name] = {};
         for (var key in self.data_items)
-          counters[name][self.data_items[key]] = [];
+          counters[name][self.data_items[key]] = {};
         self.graph.info[name] = {name: name, unit: {
           o: "io/s", b: "B/s", l: "ms", t: "tr/s"
         }};
@@ -1750,6 +1751,58 @@ StorageLoader.prototype.load_compellent = function(filename) {
       if (!counters[name].wl[ctrl]) counters[name].wl[ctrl] = [];
       counters[name].wl[ctrl].push(
         [timestamp, parseInt(cols[hdr_cols.WriteLatency])]);
+    }
+    self.file_loaded();
+  });
+};
+
+// TrafGrapher internal files (Load DELL Unity)
+StorageLoader.prototype.load_tg = function(filename) {
+  var self = this, deltas = this.graph.deltas;
+  $.ajax({
+    url: filename,
+    dataType: "text"
+  }).done(function(data) {
+    var lines = data.split('\n');
+    var header = lines.shift().split('\t'); // shift removes header line
+    lines = lines.filter(function(row) {
+      return row[0]; // filter out empty values
+    }).map(function(row) {
+      return row.split(" ").map(function(col) { return parseFloat(col); });
+    });
+    lines.sort(col0diff);
+    var ctrl=header[0], name=header[1], entry=header[2];
+    if (!deltas[name]) {
+      deltas[name] = {};
+      for (var key in self.data_items) {
+        deltas[name][self.data_items[key]] = [];
+      }
+      self.graph.info[name] = {name: name, unit: {
+        o: "io/s", b: "B/s", l: "ms", t: "tr/s"
+      }};
+    }
+    for (var line=0; line<lines.length; line++) {
+      var cols = lines[line];
+      cols[0] = cols[0]*1000; // convert to miliseconds
+      if (entry=="readsRate") {
+        // read IO
+        deltas[name].ro.push(cols);
+      } else if (entry=="readBytesRate") {
+        // read kB
+        deltas[name].rb.push(cols);
+      } else if (entry=="writesRate") {
+        // write IO
+        deltas[name].wo.push(cols);
+      } else if (entry=="writeBytesRate") {
+        // write kB
+        deltas[name].wb.push(cols);
+      } else if (entry=="responseTime") {
+        // there is no read/write latency, just write both at once
+        // read latency
+        deltas[name].rl.push(cols);
+        // write latency
+        deltas[name].wl.push(cols);
+      }
     }
     self.file_loaded();
   });
@@ -1806,15 +1859,24 @@ StorageLoader.prototype.load_index = function(url) {
         if (current_datetime-parsedatetime(d, t)<interval*one_hour)
           files.push(url+href);
       }
+      // TrafGrapher internal files (DELL EMC Unity)
+      if (href.indexOf("TG_")===0) {
+        if (self.tagsrc=="vdsk" && href.indexOf("TG_lun_")!=0) continue;
+        if (self.tagsrc=="mdsk" && href.indexOf("TG_pool_")!=0) continue;
+        if (self.tagsrc=="disk" && href.indexOf("TG_disk_")!=0) continue;
+        files.push(url+href);
+      }
     }
     self.progress.add(files.length, data.length);
     for (var fni=0; fni<files.length; fni++) {
-      if (files[fni].indexOf(url+"N")===0) {
+      if (files[fni].indexOf(url+"N")===0) { // Nv_|Nd_|Nm_|Nn_
         self.load_storwize(files[fni]);
-      } else if (files[fni].indexOf(url+"U")===0) {
+      } else if (files[fni].indexOf(url+"Uni_")===0) {
         self.load_unisphere(files[fni]);
-      } else if (files[fni].indexOf(url+"C")===0) {
+      } else if (files[fni].indexOf(url+"Cmpl")===0) {
         self.load_compellent(files[fni]);
+      } else if (files[fni].indexOf(url+"TG_")===0) {
+        self.load_tg(files[fni]);
       }
     }
   }).fail(function(jqXHR, textStatus, error) {

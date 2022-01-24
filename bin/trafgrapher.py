@@ -928,6 +928,7 @@ class logfile:
       return self
 
 class logfile_simple(logfile):
+  # header: host service value unit
   header_format = "%s\t%s\t%s\t%s\n"
   data_format = "%d %s\n"
   def __init__(self, filename, header, force_compress=False):
@@ -956,8 +957,8 @@ class logfile_simple(logfile):
       '''
       Update with current value
       '''
-      t = long(time.time()) # Local time
-      delta = (t, value)
+      ts = long(time.time()) # Local time
+      delta = (ts, value)
       self.save(delta)
   def compress(self):
       '''
