@@ -51,7 +51,7 @@ for row in ping.readlines():
   elif rowa[0]=="rtt":
     rtt = [float(x) for x in rowa[3].split("/")]
 
-loss = (transmit-receive)/transmit
+loss = (transmit-receive)*100.0/transmit
 
 def save(name, value):
     open(os.path.join(path, name), "wt").write(str(value))

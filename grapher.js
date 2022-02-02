@@ -1975,14 +1975,14 @@ service_groups = {
   },
   collisions: {
     name: "Network collistions",
-    search: /eth.+\/collisions$/,
+    search: /(eth|ens).+\/collisions$/,
     unit: "/s",
     hide: true,
     next: true
   },
   net_errors: {
     name: "Network errors",
-    search: /eth.+\/[rt]x_errors$/,
+    search: /(eth|ens).+\/[rt]x_errors$/,
     join_by: /^(rx_|tx_)/,
     join_desc: "tx/rx ",
     reversed: /^(rx|in)/,
@@ -1992,7 +1992,7 @@ service_groups = {
   },
   eth_io: {
     name: "Ethernet [bits]",
-    search: /((eth|tun).+\/[rt]x_bytes|Interface [0-9]+\/(in|out)$)/i,
+    search: /((eth|ens|tun).+\/[rt]x_bytes|Interface [0-9]+\/(in|out)$)/i,
     join_by: /^(rx_|tx_|in|out)/,
     join_desc: "tx/rx ",
     reversed: /^(rx|in)/,
@@ -2001,7 +2001,7 @@ service_groups = {
   },
   eth_stat: {
     name: "Ethernet packets",
-    search: /((eth|tun).+|Interface [0-9]+)\/./i,
+    search: /((eth|ens|tun).+|Interface [0-9]+)\/./i,
     join_by: /^(rx|tx|in|out)_/,
     join_desc: "tx/rx ",
     reversed: /^(rx|in)/,
