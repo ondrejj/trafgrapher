@@ -16,6 +16,7 @@ Usage: tgc.py [--mkcfg|-c [community@]IP_or_hostname] \\
 		[--filter-value=value=>value[kMGTP]]
        tgc.py --ipset|--iptables [-q|--quiet] download_cmd upload_cmd
        tgc.py --netdev [filename|URL]
+       tgc.py --hwmon /sys/class/hwmon
        tgc.py --cmd [-q|--quiet] cmd1 [cmd2 ...]
 
 Examples:
@@ -432,7 +433,8 @@ class SNMP:
       self.engine = cmdgen.CommandGenerator()
       self.addr = addr
       self.community = cmdgen.CommunityData(community_name)
-      self.transport = cmdgen.UdpTransportTarget((addr, self.port))
+      self.transport = cmdgen.UdpTransportTarget((addr, self.port),
+                         timeout=2, retries=2)
   def oid(self, prefix, suffix, *ids):
       if prefix=="" or suffix in OID_TABLE:
         if ids:
@@ -1229,6 +1231,44 @@ class proc_net_dev(fwcounter_base):
         )
       return cfg
 
+class sys_class_hwmon(fwcounter_base):
+  cmd = "hwmon"
+  def __init__(self, dir="/sys/class/hwmon"):
+      self.dir = dir
+  def mkindex(self):
+      cfg = dict(
+        ip = socket.gethostbyname(socket.gethostname()),
+        name = socket.gethostname(),
+        cmd_type = "files",
+        ifs = {}
+      )
+      for hwmon in os.listdir(self.dir):
+        dev_dir = os.path.join(self.dir, hwmon)
+        name = open(os.path.join(dev_dir, "name")).read().strip()
+        for i in range(1, 99):
+          file_prefix = os.path.join(dev_dir, "temp%d_" % i)
+          def read(what, type=float):
+              if os.path.exists(file_prefix+what):
+                content = open(file_prefix+what).read().strip()
+                if what=="label":
+                  return content
+                if type==float:
+                  return float(content)/1000.0
+                return content
+              return None
+          value = read("input")
+          if value is None:
+            break
+          label = read("label")
+          cfg["ifs"]["%s_%d" % (hwmon, i)] = dict(
+            ifName = "%s_temp%s" % (hwmon, i),
+            ifDescr = "%s: %s" % (name, label or i),
+            log = "%s_temp%s.log" % (hwmon, i),
+            file = os.path.join(dev_dir, "temp%d_input" % i),
+            unit = "m℃"
+          )
+      return cfg
+
 def process_configs(files):
     filter_time = filter_value = ""
     if "--filter-time" in opts:
@@ -1387,7 +1427,7 @@ if __name__ == "__main__":
      'verbose', 'quiet', 'check', 'backup',
      'filter=', 'filter-time=', 'filter-value=',
      'local', 'sensors-cisco', 'sensors-huawei',
-     'iptables', 'ipset', 'netdev', 'cmd'])
+     'iptables', 'ipset', 'netdev', 'hwmon', 'cmd'])
   opts = dict(opts)
   if "--verbose" in opts or "-v" in opts:
     VERBOSE = True
@@ -1494,6 +1534,9 @@ if __name__ == "__main__":
       print(json.dumps(cfg, indent=2))
   elif "--netdev" in opts:
     cfg = proc_net_dev("both", files[0]).mkindex()
+    print(json.dumps(cfg, indent=2))
+  elif "--hwmon" in opts:
+    cfg = sys_class_hwmon().mkindex()
     print(json.dumps(cfg, indent=2))
   elif "--cmd" in opts:
     cfg = cmd_mkindex(files)
