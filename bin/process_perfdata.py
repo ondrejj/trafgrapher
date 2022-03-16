@@ -3,7 +3,7 @@
 '''
 Process nagios performance data for TrafGrapher
 
-(c) 2016-2019 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
+(c) 2016-2022 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
 
 Licensed under the MIT license.
 
@@ -154,7 +154,7 @@ except AttributeError:
   maketrans = string.maketrans # py2
 swap_chars_trans = maketrans("/ ", " /")
 def swap_chars(s):
-    return s.translate(swap_chars_trans)
+    return s.lower().translate(swap_chars_trans)
 
 def mkindex(subdirs=False):
     os.chdir(prefix)
