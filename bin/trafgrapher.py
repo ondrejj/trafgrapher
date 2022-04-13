@@ -1448,7 +1448,7 @@ if __name__ == "__main__":
     try:
       dns_name = socket.gethostbyaddr(name)[0]
     except:
-      pass
+      dns_name = name
     if "--id" in opts:
       ifid = opts["--id"]
     else:
