@@ -1446,7 +1446,7 @@ if __name__ == "__main__":
       community = "public"
     log_prefix = name
     try:
-      name = socket.gethostbyaddr(name)[0]
+      dns_name = socket.gethostbyaddr(name)[0]
     except:
       pass
     if "--id" in opts:
@@ -1457,7 +1457,7 @@ if __name__ == "__main__":
       iffilter = opts["--filter"]
     else:
       iffilter = None
-    if name == log_prefix:
+    if dns_name == log_prefix:
       print("Connecting to: %s@%s" % (community, name))
     else:
       print("Connecting to: %s@%s [%s]" % (community, name, log_prefix))
@@ -1471,8 +1471,12 @@ if __name__ == "__main__":
     else:
       result = SNMP(name, community).get_info(ifid, log_prefix, filter=iffilter)
       ret['ifs'] = result
+    try:
+      dns_ip = socket.gethostbyname(dns_name)
+    except socket.gaierror:
+      dns_ip = name
     ret = json.dumps(
-      dict(name = name, ip = socket.gethostbyname(name), **ret),
+      dict(name = dns_name, ip = dns_ip, **ret),
       indent=2, separators=(',', ': ')
     )
     if "--write" in opts:
