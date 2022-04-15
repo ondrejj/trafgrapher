@@ -1,68 +1,72 @@
 #!/usr/bin/python3
 
-import sys, os
+import sys
+import os
 
 ip = sys.argv[1]
 rtt = []
 
-if ip=="-c":
-  # create configuration
-  source = sys.argv[2]
-  def ifcfg(ip):
-      yield "%s_packet_loss" % ip, dict(
-        file="%s/packet_loss" % ip,
-        log="logs/%s_packet_loss" % ip,
-        ifDescr="packet_loss %s@%s" % (ip, source),
-        unit="%"
-      )
-      for rtt in ["min", "avg", "max", "std"]:
-        yield "%s_rtt_%s" % (ip, rtt), dict(
-          file="%s/rtt_%s" % (ip, rtt),
-          log="logs/%s_rtt_%s" % (ip, rtt),
-          ifDescr="rtt_%s %s@%s" % (rtt, ip, source),
-          unit="ms"
+if ip == "-c":
+    # create configuration
+    source = sys.argv[2]
+
+    def ifcfg(ip):
+        yield "%s_packet_loss" % ip, dict(
+            file="%s/packet_loss" % ip,
+            log="logs/%s_packet_loss" % ip,
+            ifDescr="packet_loss %s@%s" % (ip, source),
+            unit="%"
         )
-  conf = dict(
-    ip = source,
-    ifs = {},
-    name = source,
-    cmd_type = "files",
-    max_age = 3660
-  )
-  for ip in sys.argv[3:]:
-    try:
-      os.makedirs(ip)
-    except FileExistsError:
-      pass
-    for cfg in ifcfg(ip):
-      conf["ifs"][cfg[0]] = cfg[1]
-  import json
-  print(json.dumps(conf, indent=2))
-  sys.exit()
+        for rtt in ["min", "avg", "max", "std"]:
+            yield "%s_rtt_%s" % (ip, rtt), dict(
+                file="%s/rtt_%s" % (ip, rtt),
+                log="logs/%s_rtt_%s" % (ip, rtt),
+                ifDescr="rtt_%s %s@%s" % (rtt, ip, source),
+                unit="ms"
+            )
+    conf = dict(
+        ip=source,
+        ifs={},
+        name=source,
+        cmd_type="files",
+        max_age=3660
+    )
+    for ip in sys.argv[3:]:
+        try:
+            os.makedirs(ip)
+        except FileExistsError:
+            pass
+        for cfg in ifcfg(ip):
+            conf["ifs"][cfg[0]] = cfg[1]
+    import json
+    print(json.dumps(conf, indent=2))
+    sys.exit()
 
 ping = os.popen("ping -i 0.2 -c 10 -n %s" % ip)
 for row in ping.readlines():
-  rowa = row.split(" ")
-  # 20 packets transmitted, 20 received, 0% packet loss, time 3952ms
-  # rtt min/avg/max/mdev = 0.012/0.042/0.056/0.013 ms
-  if "packets transmitted," in row:
-    transmit = int(rowa[0])
-    receive = int(rowa[3])
-  elif rowa[0]=="rtt":
-    rtt = [float(x) for x in rowa[3].split("/")]
+    rowa = row.split(" ")
+    # 20 packets transmitted, 20 received, 0% packet loss, time 3952ms
+    # rtt min/avg/max/mdev = 0.012/0.042/0.056/0.013 ms
+    if "packets transmitted," in row:
+        transmit = int(rowa[0])
+        receive = int(rowa[3])
+    elif rowa[0] == "rtt":
+        rtt = [float(x) for x in rowa[3].split("/")]
 
 loss = (transmit-receive)*100.0/transmit
+
 
 def save(name, value):
     open(os.path.join(path, name), "wt").write(str(value))
 
+
 if sys.argv[2:]:
-  path = sys.argv[2]
-  save("packet_loss", loss)
-  if rtt:
-    save("rtt_min", rtt[0])
-    save("rtt_avg", rtt[1])
-    save("rtt_max", rtt[2])
-    save("rtt_std", rtt[3])
+    path = sys.argv[2]
+    save("packet_loss", loss)
+    if rtt:
+        save("rtt_min", rtt[0])
+        save("rtt_avg", rtt[1])
+        save("rtt_max", rtt[2])
+        save("rtt_std", rtt[3])
 else:
-  print(transmit, receive, loss, rtt)
+    print(transmit, receive, loss, rtt)

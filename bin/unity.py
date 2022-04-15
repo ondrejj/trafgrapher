@@ -149,17 +149,20 @@ hostname = sys.argv[1]
 userpass = tuple(open(sys.argv[2]).read().strip().split(":", 1))
 target_dir = sys.argv[3]
 
+
 def get(path):
     url = "https://%s/api/%s" % (hostname, path)
     req = session.get(url, headers=headers, auth=userpass, verify=False)
     data = req.json()
     return data
 
+
 # login
 get("types/loginSessionInfo/instances")
 
 lunids = get("types/lun/instances?compact=true&fields=id,name")["entries"]
 luns = {x["content"]["id"]: x["content"]["name"] for x in lunids}
+
 
 def rw_bi(*prefixes):
     return ' OR '.join([
@@ -174,69 +177,71 @@ def rw_bi(*prefixes):
         for prefix in prefixes
     ])
 
+
 metrics = get(
-  "types/metricValue/instances?filter=("
-  + rw_bi(
-          "storage.lun",
-          #"storage.vvol.pool.*.datastore",
-          "physical.disk"
+    "types/metricValue/instances?filter=("
+    + rw_bi(
+        "storage.lun",
+        # "storage.vvol.pool.*.datastore",
+        "physical.disk"
     ) +
-  ")"
-  " AND interval EQ 300"
-  " AND timestamp GE \"2022-01-10T00:00:00.000Z\""
-  "&per_page=2"
-  "&compact=true"
-  #"&with_entrycount=true"
+    ")"
+    " AND interval EQ 300"
+    " AND timestamp GE \"2022-01-10T00:00:00.000Z\""
+    "&per_page=2"
+    "&compact=true"
+    # "&with_entrycount=true"
 )
 
 #from pprint import pprint
-#pprint(metrics)
+# pprint(metrics)
 
 for row in metrics["entries"]:
-  content = row["content"]
-  path = content["path"].split(".")
-  if "values" not in content:
-    print("Missing values:", row)
-    continue # skip
-  values = content["values"]
-  ts = time.mktime(time.strptime(content["timestamp"], "%Y-%m-%dT%H:%M:%S.000Z"))
-  age = time.mktime(time.gmtime())-ts
-  if "Bytes" in path[-1]:
-    unit = "B/s"
-  else:
-    unit = "io/s"
-  if age>content["interval"]:
-    # process only finished intervals
-    #print(content["timestamp"], path[3], path[-1])
-    if path[3]=="disk":
-      for disk_name in values["spa"].keys():
-        value = values["spa"][disk_name]+values["spb"][disk_name]
-        lf = logfile_simple(
-               os.path.join(target_dir, "TG_disk_%s_%s.log"
-                 % (disk_name, path[-1])),
-               (hostname, disk_name, path[-1], unit)
-             )
-        lf.save((ts+3600, value*1024))
-    elif path[3]=="vvol":
-      print(row)
-    elif path[3]=="lun":
-      lun_values = {
-        lun_name: values["spa"][lun_id]+values["spb"][lun_id]
-        for lun_id, lun_name in luns.items()
-        # ignore lun_ids, which are only on one SP, they are teporary
-        if lun_id in values["spa"] and lun_id in values["spb"]
-      }
-      for lun_name, value in lun_values.items():
-        lf = logfile_simple(
-               os.path.join(target_dir, "TG_lun_%s_%s.log"
-                 % (lun_name, path[-1])),
-               (hostname, lun_name, path[-1], unit)
-             )
-        lf.save((ts+3600, value*1024))
+    content = row["content"]
+    path = content["path"].split(".")
+    if "values" not in content:
+        print("Missing values:", row)
+        continue  # skip
+    values = content["values"]
+    ts = time.mktime(time.strptime(
+        content["timestamp"], "%Y-%m-%dT%H:%M:%S.000Z"))
+    age = time.mktime(time.gmtime())-ts
+    if "Bytes" in path[-1]:
+        unit = "B/s"
     else:
-      print("Unknown path:", path)
-  #else:
-  #  print(content["timestamp"], path[3], path[-1], "ignored")
+        unit = "io/s"
+    if age > content["interval"]:
+        # process only finished intervals
+        #print(content["timestamp"], path[3], path[-1])
+        if path[3] == "disk":
+            for disk_name in values["spa"].keys():
+                value = values["spa"][disk_name]+values["spb"][disk_name]
+                lf = logfile_simple(
+                    os.path.join(target_dir, "TG_disk_%s_%s.log"
+                                 % (disk_name, path[-1])),
+                    (hostname, disk_name, path[-1], unit)
+                )
+                lf.save((ts+3600, value*1024))
+        elif path[3] == "vvol":
+            print(row)
+        elif path[3] == "lun":
+            lun_values = {
+                lun_name: values["spa"][lun_id]+values["spb"][lun_id]
+                for lun_id, lun_name in luns.items()
+                # ignore lun_ids, which are only on one SP, they are teporary
+                if lun_id in values["spa"] and lun_id in values["spb"]
+            }
+            for lun_name, value in lun_values.items():
+                lf = logfile_simple(
+                    os.path.join(target_dir, "TG_lun_%s_%s.log"
+                                 % (lun_name, path[-1])),
+                    (hostname, lun_name, path[-1], unit)
+                )
+                lf.save((ts+3600, value*1024))
+        else:
+            print("Unknown path:", path)
+    # else:
+    #  print(content["timestamp"], path[3], path[-1], "ignored")
 
 if "--list" in sys.argv:
-  print(luns)
+    print(luns)
