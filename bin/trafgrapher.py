@@ -694,7 +694,7 @@ class grouper(dict):
           try:
             not_none = [x[id] for x in values if x[id] is not None]
           except IndexError:
-            print("Wrong data from log file: %s" % str(x))
+            print("Wrong data from log file")
             # clear current vals and ignore whole row
             vals = []
             continue
