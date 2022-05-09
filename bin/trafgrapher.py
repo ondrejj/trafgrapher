@@ -10,6 +10,7 @@ Licensed under the MIT license.
 Usage: tgc.py [--mkcfg|-c [community@]IP_or_hostname] \\
 		[--write|-w index.json] [--mkdir|-d] [--verbose|-v] \\
 		[--filter ifOperStatus|ifAdminStatus] \\
+		[--sensors-cisco|--sensors-huawei] \\
 		[--id ifName] [--rename] [--backup] [--compress|-z] [--check]
        tgc.py [--verbose|-v] [community@]config.json \\
 		[--filter-time=timestamp|datetime] \\
