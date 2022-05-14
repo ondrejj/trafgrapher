@@ -93,6 +93,14 @@ function guessPrecision(ticksize) {
   else if (ticksize<1) return 1;
   return 0;
 }
+function toNumber(sign, value, ki, pow, precision, unit) {
+  var prefixes = ["", "k", "M", "G", "T", "P"];
+  // fix precision for small values
+  var updated_value = value / Math.pow(ki, pow);
+  if (updated_value<10 && precision==0 && pow>0)
+    precision = 1;
+  return sign+updated_value.toFixed(precision)+" "+prefixes[pow]+unit;
+}
 function convert_unit(unit, value) {
   var prefix = "", inet = "", base = unit, dimension = "", dimension_power, ki;
   var match = unit.match(/^([numkMGTP]?)(i?)([bBWVAC℃shmg]+)([²³]?)$/);
@@ -168,19 +176,19 @@ function format_unit(val, axis, unit) {
     return sign+aval.toFixed(precision)+" "+unit;
   } else {
     if (aval>=(ki*ki*ki*ki*ki))
-      return sign+(aval/ki/ki/ki/ki/ki).toFixed(precision)+" P"+unit;
+      return toNumber(sign, aval, ki, 5, precision, unit);
     if (aval>=(ki*ki*ki*ki))
-      return sign+(aval/ki/ki/ki/ki).toFixed(precision)+" T"+unit;
+      return toNumber(sign, aval, ki, 4, precision, unit);
     if (aval>=(ki*ki*ki))
-      return sign+(aval/ki/ki/ki).toFixed(precision)+" G"+unit;
+      return toNumber(sign, aval, ki, 3, precision, unit);
     if (aval>=(ki*ki))
-      return sign+(aval/ki/ki).toFixed(precision)+" M"+unit;
+      return toNumber(sign, aval, ki, 2, precision, unit);
     if (aval>=ki)
-      return sign+(aval/ki).toFixed(precision)+" k"+unit;
+      return toNumber(sign, aval, ki, 1, precision, unit);
   }
   if (unit && unit[0]=="i" && unit[1]!="o")
-    return aval.toFixed(precision)+" "+unit.substr(1);
-  return sign+aval.toFixed(precision)+" "+unit;
+    return toNumber("", aval, ki, 0, precision, unit.substr(1));
+  return toNumber(sign, aval, ki, 0, precision, unit);
 }
 
 // Parse date and time in format "YYMMHH HHMMSS" into Date object.
