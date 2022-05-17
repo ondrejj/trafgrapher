@@ -1,4 +1,5 @@
 #!/usr/bin/python3 -S
+# -*- coding: utf-8 -*-
 
 '''
 TrafGrapher collector
