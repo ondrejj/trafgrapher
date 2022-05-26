@@ -1,7 +1,7 @@
 TrafGrapher
 ===========
 
-TrafGrapher is an javascript script to collect and display data.
+TrafGrapher is an javascript program to collect and display data.
 It can read MRTG log files, or can collect it's own data.
 Also useable to display SAN storage performance or Nagios performance data.
 
@@ -10,6 +10,7 @@ favorite browser using javascript.
 
 ### Features
 
+* interactive graph manipulation (hide graphs, zoom intervals)
 * pure html/javascript/css - no need for server scripting
 * display multiple graphs at once (also multiple routers)
 * can handle integer or floating point, positive or negative values
@@ -25,9 +26,9 @@ favorite browser using javascript.
      * iptables rules
   * MRTG mode, reuse MRTG log files
   * graph SAN storage performance
-     * DELL Compellent storage
+     * DELL Unity or Compellent storage
      * EMC Clarion CX4-120
-     * IBM Storwize (tested on V3700)
+     * IBM Storwize (tested on V3700 and V7000)
   * Nagios performance data
 * any browser support (mobile devices too)
 * less intensive disk writes for .log files
