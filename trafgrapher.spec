@@ -8,8 +8,8 @@
 %endif
 
 Name:           trafgrapher
-Version:        3.3.0
-Release:        2%{?dist}
+Version:        3.3.1
+Release:        0.beta1%{?dist}
 Summary:        Collect and display network/disk/storage transfers.
 
 License:        MIT

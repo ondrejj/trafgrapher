@@ -4,7 +4,7 @@
   Licensed under the MIT license.
 */
 
-var trafgrapher_version = '3.3.0',
+var trafgrapher_version = '3.3.1',
     one_hour = 3600000,
     last_reload = null,
     degreeC = "℃";
@@ -1983,14 +1983,14 @@ service_groups = {
   },
   collisions: {
     name: "Network collistions",
-    search: /(eth|ens).+\/collisions$/,
+    search: /(eth|ens)[0-9]+\/collisions$/,
     unit: "/s",
     hide: true,
     next: true
   },
   net_errors: {
     name: "Network errors",
-    search: /(eth|ens).+\/[rt]x_errors$/,
+    search: /(eth|ens)[0-9]+\/[rt]x_errors$/,
     join_by: /^(rx_|tx_)/,
     join_desc: "tx/rx ",
     reversed: /^(rx|in)/,
@@ -2000,7 +2000,7 @@ service_groups = {
   },
   eth_io: {
     name: "Ethernet [bits]",
-    search: /((eth|ens|tun).+\/[rt]x_bytes|Interface [0-9]+\/(in|out)$)/i,
+    search: /((eth|ens|tun)[0-9]+\/[rt]x_bytes|Interface [0-9]+\/(in|out)$)/i,
     join_by: /^(rx_|tx_|in|out)/,
     join_desc: "tx/rx ",
     reversed: /^(rx|in)/,
@@ -2009,7 +2009,7 @@ service_groups = {
   },
   eth_stat: {
     name: "Ethernet packets",
-    search: /((eth|ens|tun).+|Interface [0-9]+)\/./i,
+    search: /((eth|ens|tun)[0-9]+|Interface [0-9]+)\/./i,
     join_by: /^(rx|tx|in|out)_/,
     join_desc: "tx/rx ",
     reversed: /^(rx|in)/,
