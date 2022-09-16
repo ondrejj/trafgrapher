@@ -16,7 +16,8 @@ Usage: tgc.py [--mkcfg|-c [community@]IP_or_hostname] \\
        tgc.py [--verbose|-v] [community@]config.json \\
 		[--filter-time=timestamp|datetime] \\
 		[--filter-value=value=>value[kMGTP]]
-       tgc.py --ipset|--iptables [-q|--quiet] download_cmd upload_cmd
+       tgc.py --ipset|--iptables|--nft \\
+                [-q|--quiet] download_cmd upload_cmd
        tgc.py --netdev [filename|URL]
        tgc.py --hwmon /sys/class/hwmon
        tgc.py --cmd [-q|--quiet] cmd1 [cmd2 ...]
@@ -28,6 +29,7 @@ Examples:
   tgc index.json --filter-value='>1T'
   tgc --ipset "ipset list acc_download" "ipset list acc_upload" [index_file]
   tgc --iptables "iptables -L acc_download -vxn" "iptables -L acc_upload -vxn"
+  tgc --nft "nft -jN list set ip acc download" "nft -jN list set ip acc upload"
 '''
 
 from __future__ import print_function
@@ -1150,11 +1152,15 @@ def update_local(cfg, tdir, force_compress=False,
         except LockError as err:
             print(err)
 
-# ipset and iptables counters for firewall accounting
+
+# ipset, iptables and nftables counters for firewall accounting
 
 
 class fwcounter_base():
     cmd = ""  # redefined in subclass
+
+    def __init__(self, cmd):
+        self.cmd = cmd
 
     def read(self):
         self.bytes = {}
@@ -1164,9 +1170,6 @@ class fwcounter_base():
 
 class ipset(fwcounter_base):
     type = "ipset"
-
-    def __init__(self, cmd):
-        self.cmd = cmd
 
     def items(self):
         for row in self.read():
@@ -1181,9 +1184,6 @@ class iptables_src(fwcounter_base):
     type = "iptables"
     ip_column = -2
 
-    def __init__(self, cmd):
-        self.cmd = cmd
-
     def items(self):
         # skip first 2 rows of header
         for row in self.read()[2:]:
@@ -1195,6 +1195,26 @@ class iptables_src(fwcounter_base):
 
 class iptables_dst(iptables_src):
     ip_column = -1
+
+
+class nftables_set(fwcounter_base):
+    type = "nftables"
+
+    def read(self):
+        self.bytes = {}
+        self.packets = {}
+        return json.loads(os.popen(self.cmd).read().encode("utf-8"))
+
+    def items(self):
+        elems = self.read()['nftables'][1]['set']['elem']
+        for elem in elems:
+            ip = elem["elem"]["val"]
+            cnt = elem["elem"]["counter"]
+            if type(ip)==dict:
+                ip = "%s/%d" % (ip["prefix"]["addr"], ip["prefix"]["len"])
+            self.bytes[ip] = cnt["bytes"]
+            self.packets[ip] = cnt["packets"]
+            yield ip, cnt["bytes"], cnt["packets"]
 
 
 def cmd_mkindex(cmds):
@@ -1432,6 +1452,9 @@ def process_configs(files):
             elif cfg["cmd_type"] == "iptables":
                 ps = iptables_dst(cfg["cmd_dst"])
                 pd = iptables_src(cfg["cmd_src"])
+            elif cfg["cmd_type"] == "nftables":
+                ps = nftables_set(cfg["cmd_dst"])
+                pd = nftables_set(cfg["cmd_src"])
             elif cfg["cmd_type"] == "netdev":
                 ps = proc_net_dev("rx", cfg["net_dev_filename"])
                 pd = proc_net_dev("tx", cfg["net_dev_filename"])
@@ -1525,11 +1548,13 @@ def process_configs(files):
 
 if __name__ == "__main__":
     opts, files = getopt.gnu_getopt(sys.argv[1:], 'hctzw:dvq',
-                                    ['help', 'mkcfg', 'test', 'write=', 'mkdir', 'id=', 'rename',
-                                     'verbose', 'quiet', 'check', 'backup',
-                                     'filter=', 'filter-time=', 'filter-value=',
-                                     'local', 'sensors-cisco', 'sensors-huawei',
-                                     'iptables', 'ipset', 'netdev', 'hwmon', 'cmd'])
+                    ['help', 'mkcfg', 'test', 'write=',
+                     'mkdir', 'id=', 'rename',
+                     'verbose', 'quiet', 'check', 'backup',
+                     'filter=', 'filter-time=', 'filter-value=',
+                     'local', 'sensors-cisco', 'sensors-huawei',
+                     'iptables', 'ipset', 'nft',
+                     'netdev', 'hwmon', 'cmd'])
     opts = dict(opts)
     if "--verbose" in opts or "-v" in opts:
         VERBOSE = True
@@ -1634,6 +1659,16 @@ if __name__ == "__main__":
         cfg = fwcounter_mkindex(
             socket.gethostname(), socket.gethostbyname(socket.gethostname()),
             iptables_src(files[1]), iptables_dst(files[0])
+        )
+        if len(files) > 2:
+            open(files[2], "wt").write(json.dumps(cfg, indent=2))
+            process_configs(files[2:])
+        else:
+            print(json.dumps(cfg, indent=2))
+    elif "--nft" in opts:
+        cfg = fwcounter_mkindex(
+            socket.gethostname(), socket.gethostbyname(socket.gethostname()),
+            nftables_set(files[1]), nftables_set(files[0])
         )
         if len(files) > 2:
             open(files[2], "wt").write(json.dumps(cfg, indent=2))
