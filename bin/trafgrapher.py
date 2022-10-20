@@ -462,8 +462,12 @@ class SNMP:
         self.engine = cmdgen.CommandGenerator()
         self.addr = addr
         self.community = cmdgen.CommunityData(community_name)
-        self.transport = cmdgen.UdpTransportTarget((addr, self.port),
-                                                   timeout=2, retries=2)
+        if ":" in addr:
+            self.transport = cmdgen.Udp6TransportTarget(
+                                 (addr, self.port), timeout=2, retries=2)
+        else:
+            self.transport = cmdgen.UdpTransportTarget(
+                                 (addr, self.port), timeout=2, retries=2)
 
     def oid(self, prefix, suffix, *ids):
         if prefix == "" or suffix in OID_TABLE:
