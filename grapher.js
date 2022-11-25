@@ -120,7 +120,7 @@ function convert_unit(unit, value) {
   } else {
     dimension_power = 1;
   }
-  if (base=="B" || base=="b" || base=="iB" || base=="ib") {
+  if (base.search(/^i[bB]/)==0) {
     ki = 1024;
   } else {
     ki = 1000;
