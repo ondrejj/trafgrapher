@@ -677,6 +677,7 @@ class SNMP:
         return ret
 
     def getsome(self, prefix="", suffixes=[], ids=[]):
+        from pysnmp.carrier.error import CarrierError
         mibvars = []
         if ids:
             for id in ids:
@@ -689,11 +690,15 @@ class SNMP:
                 self.oid(prefix, str(suffix))
                 for suffix in suffixes
             ])
-        errorIndication, errorStatus, errorIndex, varBinds = self.engine.getCmd(
-            self.community,
-            self.transport,
-            *mibvars
-        )
+        try:
+            errorIndication, errorStatus, errorIndex, varBinds = self.engine.getCmd(
+                self.community,
+                self.transport,
+                *mibvars
+            )
+        except CarrierError as err:
+            print("%s: %s" % (self.addr, err))
+            return []
         if errorIndication:
             print("%s: %s" % (self.addr, errorIndication))
             return []
