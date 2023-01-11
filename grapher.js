@@ -1,6 +1,6 @@
 /*
   TrafGrapher
-  (c) 2015-2022 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
+  (c) 2015-2023 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
   Licensed under the MIT license.
 */
 
@@ -2152,6 +2152,22 @@ service_groups = {
   sa: {
     name: "psacct",
     search: /_sa\/./,
+    unit: ""
+  },
+  // dhcp
+  dhcp_r: {
+    name: "DHCP (r)",
+    search: /dhcp_leases\/.*_r$/,
+    unit: ""
+  },
+  dhcp_rt: {
+    name: "DHCP (rt)",
+    search: /dhcp_leases\/.*_rt$/,
+    unit: ""
+  },
+  dhcp_status: {
+    name: "DHCP (status)",
+    search: /dhcp_leases\/range_(ok|warn|crit|ignored)/,
     unit: ""
   },
   // sagator
