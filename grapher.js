@@ -1390,8 +1390,9 @@ JSONLoader.prototype.load_index = function(url) {
         ethid = data.ip.replace(/[^a-z0-9]/gi, '_')+port_id.replace(".", "_");
         function get_if_name(ifs) {
           if (ifs[port_id].ifAlias) {
-            if (ifs[port_id].ifDescr.match(/^Vlan[0-9]+$/i)) {
-              return ifs[port_id].ifAlias+" ["+ifs[port_id].ifDescr+"]";
+            if (ifs[port_id].ifDescr.match(/^(Vlan|Port-channel)[0-9]+$/i)) {
+              return ifs[port_id].ifAlias+" ["
+                       +ifs[port_id].ifDescr.replace("Port-channel", "Po")+"]";
             } else {
               return ifs[port_id].ifAlias;
             }
