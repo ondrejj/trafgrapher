@@ -15,7 +15,8 @@ Usage: tgc.py [--mkcfg|-c [community@]IP_or_hostname] \\
 		[--id ifName] [--rename] [--backup] [--compress|-z] [--check]
        tgc.py [--verbose|-v] [community@]config.json \\
 		[--filter-time=timestamp|datetime] \\
-		[--filter-value=value=>value[kMGTP]]
+		[--filter-value=value=>value[kMGTP]] \\
+		[--merge-dir=directory]
        tgc.py --ipset|--iptables|--nft \\
                 [-q|--quiet] download_cmd upload_cmd
        tgc.py --netdev [filename|URL]
@@ -816,10 +817,10 @@ class logfile:
             if len(counter) != self.header_length:
                 # load deltas and convert this file from MRTG to trafgrapher
                 print("Converting file:", self.filename)
-                self.load()
+                self.load(self.f)
             elif force_compress:
                 #print("Compress:", self.filename)
-                self.load()
+                self.load(self.f)
         except IOError:
             self.f = self.open(self.filename, "wb")
             self.counter = ()
@@ -843,9 +844,9 @@ class logfile:
             return "N"
         return value
 
-    def load(self):
+    def load(self, f):
         max_time = time.time() + 3600*24  # anything beyond 1 day from now
-        for row in self.f.readlines():
+        for row in f.readlines():
             row = row.rstrip()
             if row:
                 row_split = row.split(b" ", 4)
@@ -864,13 +865,14 @@ class logfile:
     def header(self):
         return (self.header_format % self.counter).encode("utf8")
 
-    def save(self, delta):
+    def save(self, delta=None):
         if self.deltas:
             # save data when converting to new format
             #print("Full save:", self.filename)
             # rename old file, do not close it to leave it locked
             old_f = self.f
-            self.deltas[delta[0]] = delta[1:]  # add current values
+            if delta is not None:
+                self.deltas[delta[0]] = delta[1:]  # add current values
             self.compress()
             self.f = self.open(self.filename+'.tmp', "wb")
             if self.header_format:
@@ -941,13 +943,20 @@ class logfile:
         grp.load(self.deltas, self.counter[0])
         self.deltas = dict(grp.items())
 
+    def merge(self, filename):
+        file2 = self.open(filename, "rb+")
+        header2 = file2.readline()  # read header
+        if int(header2.split(b" ", 1)[0])>int(self.counter[0]):
+          self.header = header2
+        self.load(file2)
+
     def filter_time(self, filter):
         '''
         Filter out data by time
         '''
         if not filter:
             return self
-        self.load()
+        self.load(self.f)
         for key in filter.split(","):
             key = int(key)
             if key in self.deltas:
@@ -971,7 +980,7 @@ class logfile:
         '''
         if not filter:
             return self
-        self.load()
+        self.load(self.f)
         if filter.startswith("="):
             value = self.unit_si(filter[1:])
             for key in self.deltas.keys():
@@ -1018,7 +1027,7 @@ class logfile_simple(logfile):
             if mtime//grouper.one_day < time.time()//grouper.one_day:
                 force_compress = True
             if force_compress:
-                self.load()
+                self.load(self.f)
         except OSError:
             self.f = self.open(self.filename, "wb")
             self.f.write(self.header())
@@ -1106,6 +1115,20 @@ def update_value(cfg, tdir, community_name="public", force_compress=False,
             ).update(
                 float(val)*data['scale']
             )
+        except LockError as err:
+            print(err)
+
+
+def merge_logfiles(cfg, target_dir, merge_dir):
+    for data in cfg['ifs'].values():
+        print("Merge:", data["log"])
+        try:
+            lf = logfile(
+                     os.path.join(target_dir, data['log']),
+                     force_compress=True
+                 )
+            lf.merge(os.path.join(merge_dir, data['log']))
+            lf.save()
         except LockError as err:
             print(err)
 
@@ -1433,6 +1456,10 @@ def process_configs(files):
                 cfg, tdir, force_compress,
                 filter_time=filter_time, filter_value=filter_value
             )
+        elif "--merge-dir" in opts:
+            tdir = os.path.dirname(os.path.realpath(fn))
+            merge_logfiles(cfg, tdir, opts["--merge-dir"])
+            sys.exit()
         elif "cmd_type" in cfg:
             if cfg["cmd_type"] == "sh":
                 for rowid, row in cfg["ifs"].items():
@@ -1560,7 +1587,7 @@ if __name__ == "__main__":
                     ['help', 'mkcfg', 'test', 'write=',
                      'mkdir', 'id=', 'rename',
                      'verbose', 'quiet', 'check', 'backup',
-                     'filter=', 'filter-time=', 'filter-value=',
+                     'merge-dir=', 'filter=', 'filter-time=', 'filter-value=',
                      'local', 'sensors-cisco', 'sensors-huawei',
                      'iptables', 'ipset', 'nft',
                      'netdev', 'hwmon', 'cmd'])
