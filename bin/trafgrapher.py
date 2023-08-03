@@ -31,6 +31,7 @@ Examples:
   tgc --ipset "ipset list acc_download" "ipset list acc_upload" [index_file]
   tgc --iptables "iptables -L acc_download -vxn" "iptables -L acc_upload -vxn"
   tgc --nft "nft -jN list set ip acc download" "nft -jN list set ip acc upload"
+  tgc --netdev /proc/net/dev
 '''
 
 from __future__ import print_function
