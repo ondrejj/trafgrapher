@@ -242,7 +242,7 @@ function light_theme() {
 
 // Escape selector ID
 String.prototype.escapeSelector = function () {
-  return this.replace(/([ #;?%&,.+*~':"!\^$\[\]()=>|\/@])/g,"\\$1");
+  return this.replace(/([ #;?%&,.+*~':"!\^$\[\]\\()=>|\/@])/g,"\\$1");
 };
 
 /*
