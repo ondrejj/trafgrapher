@@ -1695,22 +1695,15 @@ StorageLoader.prototype.load_compellent = function(filename) {
     dataType: "xml"
   }).done(function(data) {
     var hdr_cols, rows, l2 = data.getElementsByTagName("return")[0].innerHTML;
-    if (l2===undefined) {
-      // IE has no innerHTML for this element
-      l2 = $($(data.getElementsByTagName("return")).text());
-      hdr_cols = l2.find("header").text().split(",");
-      rows = l2.find("data").text().split(":");
-    } else {
-      // HTML processing is very slow in Chrome, replaced by regular expression
-      //var rows = $($('<div/>').html(l2).text()).find("Data").text().split(":");
-      try {
-        hdr_cols = l2.split(/&lt;\/?Header&gt;/)[1].split(",");
-        rows = l2.split(/&lt;\/?Data&gt;/)[1].split(":");
-      } catch(err) {
-        console.log("Failed to load:", filename);
-        self.file_loaded();
-        return;
-      }
+    // HTML processing is very slow in Chrome, replaced by regular expression
+    //var rows = $($('<div/>').html(l2).text()).find("Data").text().split(":");
+    try {
+      hdr_cols = l2.split(/&lt;\/?Header&gt;/)[1].split(",");
+      rows = l2.split(/&lt;\/?Data&gt;/)[1].split(":");
+    } catch(err) {
+      console.log("Failed to load:", filename);
+      self.file_loaded();
+      return;
     }
     // index headers
     for (var i in hdr_cols)
