@@ -8,7 +8,7 @@
 %endif
 
 Name:           trafgrapher
-Version:        3.3.1
+Version:        3.3.2
 Release:        1%{?dist}
 Summary:        Collect and display network/disk/storage transfers.
 
