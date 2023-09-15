@@ -4,11 +4,12 @@
 '''
 TrafGrapher collector
 
-(c) 2015-2022 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
+(c) 2015-2023 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
 
 Licensed under the MIT license.
 
 Usage: tgc.py [--mkcfg|-c [community@]IP_or_hostname] \\
+                [--entry Octets|Errors|Discards|] \\
 		[--write|-w index.json] [--mkdir|-d] [--verbose|-v] \\
 		[--filter ifOperStatus|ifAdminStatus] \\
 		[--sensors-cisco|--sensors-huawei] \\
@@ -403,18 +404,12 @@ oids_info = dict(
     ifPhysAddress=macaddr
 )
 
-oids_io = dict(
-    ifIndex=str,
-    ifHCInOctets=long,
-    ifHCOutOctets=long,
-)
-
 oids_sensor = [
     'entPhysicalDescr',
     'entSensorType',
     'entSensorScale',
     'entSensorPrecision',
-    'entSensorValue',
+    'entSensorValue'
 ]
 
 OID_TABLE = dict(
@@ -433,6 +428,10 @@ OID_TABLE = dict(
 
     ifInOctets="1.3.6.1.2.1.2.2.1.10",
     ifOutOctets="1.3.6.1.2.1.2.2.1.16",
+    ifInDiscards="1.3.6.1.2.1.2.2.1.13",
+    ifOutDiscards="1.3.6.1.2.1.2.2.1.19",
+    ifInErrors="1.3.6.1.2.1.2.2.1.14",
+    ifOutErrors="1.3.6.1.2.1.2.2.1.20",
 
     ifHCInOctets="1.3.6.1.2.1.31.1.1.1.6",
     ifHCOutOctets="1.3.6.1.2.1.31.1.1.1.10",
@@ -634,48 +633,54 @@ class SNMP:
             return None
         return float(varBindTable[0][0][1])/100
 
-    def getblock(self, request, prefix, ifs):
+    def getblock(self, request, prefix, ifs, suffix="Octets"):
         ret = {}
         result = self.getsome(
             "IF-MIB",
-            [prefix+"InOctets", prefix+"OutOctets"],
+            [prefix+"In"+suffix, prefix+"Out"+suffix],
             request
         )
         for id in request:
             try:
                 ino = result.pop(0)
                 outo = result.pop(0)
-                ret[id] = dict(
-                    ifInOctets=long(ino),
-                    ifOutOctets=long(outo),
-                    error=None
-                )
+                ret[id] = {
+                    "ifIn"+suffix: long(ino),
+                    "ifOut"+suffix: long(outo),
+                    "error": None
+                }
             except (AttributeError, IndexError, ValueError, TypeError) as err:
-                ret[id] = dict(
-                    ifInOctets=None, ifOutOctets=None,
-                    error="No such instance: ip: %s:%d, id: %s [%s]"
-                    % (self.addr, self.port, id,
-                       ifs.get(id, {}).get("ifName", ""))
-                )
+                ret[id] = {
+                    "ifIn"+suffix: None,
+                    "ifOut"+suffix: None,
+                    "error": "No such instance: ip: %s:%d, id: %s [%s]"
+                             % (self.addr, self.port, id,
+                                ifs.get(id, {}).get("ifName", ""))
+                }
         return ret
 
-    def getall(self, ids, ifs={}, n=8, only32bit=False):
+    def getall(self, ids, ifs={}, suffix="Octets", n=8, only32bit=False):
         ret = {}
         if ids:
             request = {"ifHC": [], "if": []}
             while ids:
                 # override to 32bit, if configured
-                if only32bit or ifs.get(ids[0], {}).get("_counter_size", 0) == 32:
+                if only32bit or ifs.get(ids[0], {}).get("_counter_size", 0) == 32 \
+                        or suffix!="Octets":
                     prefix = "if"
                 else:
                     prefix = "ifHC"
                 request[prefix].append(ids.pop(0))
                 if len(request[prefix]) >= n:
-                    ret.update(self.getblock(request[prefix], prefix, ifs))
+                    ret.update(
+                        self.getblock(request[prefix], prefix, ifs, suffix=suffix)
+                    )
                     request[prefix] = []
             for prefix in ["ifHC", "if"]:
                 if request[prefix]:
-                    ret.update(self.getblock(request[prefix], prefix, ifs))
+                    ret.update(
+                        self.getblock(request[prefix], prefix, ifs, suffix=suffix)
+                    )
         return ret
 
     def getsome(self, prefix="", suffixes=[], ids=[]):
@@ -1058,7 +1063,8 @@ class logfile_simple(logfile):
         self.deltas = dict(grp.items(['avg']))
 
 
-def update_io(cfg, tdir, community_name="public", force_compress=False,
+def update_io(cfg, tdir, community_name="public", suffix="Octets",
+              force_compress=False,
               filter_time=None, filter_value=None):
     ids = list(cfg['ifs'].keys())
     IP = cfg['ip']
@@ -1066,7 +1072,7 @@ def update_io(cfg, tdir, community_name="public", force_compress=False,
     uptime = snmpc.get_uptime()
     if uptime is None:
         return
-    for idx, io in snmpc.getall(ids, ifs=cfg['ifs']).items():
+    for idx, io in snmpc.getall(ids, ifs=cfg['ifs'], suffix=suffix).items():
         if io['error']:
             print(io['error'])
             if VERBOSE:
@@ -1082,7 +1088,7 @@ def update_io(cfg, tdir, community_name="public", force_compress=False,
                 ).filter_value(
                     filter_value
                 ).update(
-                    io['ifInOctets'], io['ifOutOctets'],
+                    io['ifIn'+suffix], io['ifOut'+suffix],
                     uptime=uptime,
                     counter_bits=cfg['ifs'][idx].get('counter_bits', 64)
                 )
@@ -1434,6 +1440,7 @@ def process_configs(files):
     if "--filter-value" in opts:
         filter_value = opts["--filter-value"]
     force_compress = ('-z' in opts) or ('--compress' in opts)
+    entry = opts.get("--entry", "Octets")
     for fn in files:
         if '@' in fn:
             community, fn = fn.split('@', 1)
@@ -1541,6 +1548,19 @@ def process_configs(files):
                                 lf.update(ps, pd)
                     except LockError as err:
                         print(err)
+            elif cfg["cmd_type"] == "key_value":
+                data = dict([x.split(": ", 1) for x in fread(cfg["data_url"]) if ": " in x])
+                for rowid, row in cfg["ifs"].items():
+                    value = data[row["data_key"]]
+                    try:
+                        lf = logfile_simple(
+                            os.path.join(prefix, row["log"]),
+                            (row["data_key"], "-", "-", row.get("unit", "-")),
+                            force_compress=force_compress
+                        ).filter_time(filter_time).filter_value(filter_value)
+                        lf.update(value)
+                    except LockError as err:
+                        print(err)
             elif cfg["cmd_type"] == "pid_cpu_usage":
                 usages = pid_cpu_usage()
                 for cmd_name, cmd in cfg["ifs"].items():
@@ -1571,12 +1591,13 @@ def process_configs(files):
             tdir = os.path.dirname(os.path.realpath(fn))
             if 'ifs' in cfg:
                 update_io(
-                    cfg, tdir, community, force_compress,
+                    cfg, tdir, community, suffix=cfg.get("entry", entry),
+                    force_compress=force_compress,
                     filter_time=filter_time, filter_value=filter_value
                 )
             elif 'oids' in cfg:
                 update_value(
-                    cfg, tdir, community, force_compress,
+                    cfg, tdir, community, force_compress=force_compress,
                     filter_time=filter_time, filter_value=filter_value
                 )
             else:
@@ -1589,7 +1610,7 @@ if __name__ == "__main__":
                      'mkdir', 'id=', 'rename',
                      'verbose', 'quiet', 'check', 'backup',
                      'merge-dir=', 'filter=', 'filter-time=', 'filter-value=',
-                     'local', 'sensors-cisco', 'sensors-huawei',
+                     'local', 'entry=', 'sensors-cisco', 'sensors-huawei',
                      'iptables', 'ipset', 'nft',
                      'netdev', 'hwmon', 'cmd'])
     opts = dict(opts)
@@ -1626,6 +1647,8 @@ if __name__ == "__main__":
         else:
             print("Connecting to: %s@%s [%s]" % (community, name, log_prefix))
         ret = {}
+        if "--entry" in opts:
+            ret["entry"] = opts["--entry"]
         if "--sensors-cisco" in opts:
             result = SNMP(name, community).get_sensors_cisco()
             ret['oids'] = result
