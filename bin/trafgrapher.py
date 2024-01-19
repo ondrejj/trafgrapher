@@ -82,6 +82,8 @@ def macaddr(x):
 def ifspeed(speed, unit="b/s"):
     '''Interface speed.'''
     k = 1000
+    if speed==b"":
+        return ""
     speed = long(speed)
     if (speed >= k**3):
         return "%d G%s" % (speed/k**3, unit)
@@ -845,6 +847,16 @@ class logfile:
             return None
         return long(value, 10)
 
+    def update_valid(self, value, rowid=None):
+        if value:
+            try:
+                self.update(self.data_type(value))
+            except ValueError:
+                print(
+                    "Could not convert value to float: '%s', id %s"
+                    % (value, rowid)
+                )
+
     def store_value(self, value):
         if value is None:
             return "N"
@@ -1478,16 +1490,7 @@ def process_configs(files):
                             (row["cmd"], "-", "-", row.get("unit", "-")),
                             force_compress=force_compress
                         ).filter_time(filter_time).filter_value(filter_value)
-                        if value:
-                            try:
-                                value = lf.data_type(value)
-                            except ValueError:
-                                print(
-                                    "Could not convert value to float: '%s', id %s"
-                                    % (value, rowid)
-                                )
-                                continue
-                            lf.update(value)
+                        lf.update_valid(value)
                     except LockError as err:
                         print(err)
             elif cfg["cmd_type"] == "ipset":
@@ -1523,9 +1526,8 @@ def process_configs(files):
                                     (cmd["file"], "-", "-", "-"),
                                     force_compress=force_compress
                                 ).filter_time(filter_time).filter_value(filter_value)
-                                p = lf.data_type(open(os.path.join(prefix, cmd["file"])
-                                                      ).read().strip())
-                                lf.update(p)
+                                lf.update_valid(open(os.path.join(prefix, cmd["file"])
+                                                    ).read().strip())
                         elif "file2" in cmd:
                             if max_age > 0:
                                 file_age = time.time() - \
@@ -1558,7 +1560,7 @@ def process_configs(files):
                             (row["data_key"], "-", "-", row.get("unit", "-")),
                             force_compress=force_compress
                         ).filter_time(filter_time).filter_value(filter_value)
-                        lf.update(value)
+                        lf.update_valid(value)
                     except LockError as err:
                         print(err)
             elif cfg["cmd_type"] == "pid_cpu_usage":
