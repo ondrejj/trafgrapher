@@ -4,7 +4,7 @@
 '''
 TrafGrapher collector
 
-(c) 2015-2023 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
+(c) 2015-2024 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
 
 Licensed under the MIT license.
 
