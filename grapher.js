@@ -398,6 +398,36 @@ Graph.prototype.get_color = function(label, n) {
   return this.palette[n];
 };
 
+// Show information from json or MRTG info
+Graph.prototype.show_info = function(label, ftime) {
+  var self = this;
+  // display information from json file
+  if (this.index_mode=="json" && self.info[label].json) {
+    var table = ['<table>'], info = self.info[label].json;
+    if (ftime) {
+      table.push("<tr><td>Time</td><td>"+ftime+"</td></tr>");
+    }
+    for (var key in info) {
+      if (key!="log" && typeof info[key]!=="object")
+        table.push("<tr><td>"+key+"</td><td>"+info[key]+"</td></tr>");
+    }
+    table.push("</table>");
+    self.find("info_table").html($(table.join('\n')));
+  }
+  // load table information from MRTG html file
+  if (self.index_mode=="mrtg" && self.info[label].html) {
+    $.ajax({
+      url: self.info[label].html,
+      dataType: "html"
+    }).done(function(data) {
+      // don't load images from .html
+      var noimgdata = data.replace(/\ src=/gi, " nosrc=");
+      var table = $(noimgdata).find("table");
+      self.find("info_table").html(table[0]);
+    });
+  }
+}
+
 // Add callbacks for plot
 Graph.prototype.add_plot_callbacks = function(placeholder) {
   var self = this;
@@ -454,30 +484,7 @@ Graph.prototype.add_plot_callbacks = function(placeholder) {
           "<br/>" +
           dt.toTimeString()
        ).css(tooltip_position).show();
-      // display information from json file
-      if (self.index_mode=="json" && self.info[label].json) {
-        var table = ['<table>'], info = self.info[label].json,
-            ftime = new Date(item.datapoint[0]).toLocaleString();
-        table.push("<tr><td>Time</td><td>"+ftime+"</td></tr>");
-        for (var key in info) {
-          if (key!="log" && typeof info[key]!=="object")
-            table.push("<tr><td>"+key+"</td><td>"+info[key]+"</td></tr>");
-        }
-        table.push("</table>");
-        self.find("info_table").html($(table.join('\n')));
-      }
-      // load table information from MRTG html file
-      if (self.index_mode=="mrtg" && self.info[label].html) {
-        $.ajax({
-          url: self.info[label].html,
-          dataType: "html"
-        }).done(function(data) {
-          // don't load images from .html
-          var noimgdata = data.replace(/\ src=/gi, " nosrc=");
-          var table = $(noimgdata).find("table");
-          self.find("info_table").html(table[0]);
-        });
-      }
+      self.show_info(label, new Date(item.datapoint[0]).toLocaleString());
     } else {
       $("#tooltip").hide();
     }
@@ -847,6 +854,9 @@ Graph.prototype.update_checkboxes = function () {
   this.filter.find("input").click(function () {
     self.plot_graph();
     self.urllink();
+  });
+  this.filter.find("tr").hover(function () {
+    self.show_info($(this).find("input").attr("name"));
   });
   this.graph_type.change(function () {
     self.plot_graph();

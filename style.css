@@ -191,7 +191,7 @@ div.trafgrapher button.b_select_none {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Crect x='2' y='2' width='16' height='16' rx='4' ry='4' stroke='white' stroke-width='2' fill='none'/%3E%3C/svg%3E");
 }
 div.trafgrapher button.b_select_zero {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Crect x='2' y='2' width='16' height='16' rx='4' ry='4' stroke='white' stroke-width='2' fill='none'/%3E%3Ctext x='10' y='14.4' fill='white' font-weight='normal' font-family='sans-serif' font-size='12' text-anchor='middle'%3E0%3C/text%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Crect x='2' y='2' width='16' height='16' rx='4' ry='4' stroke='white' stroke-width='2' fill='none'/%3E%3Ctext x='10' y='13' fill='white' font-weight='normal' font-family='sans-serif' font-size='8' text-anchor='middle'%3E=0%3C/text%3E%3C/svg%3E");
 }
 div.trafgrapher button.b_urllink {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Cpath d='M 4 5 L 16 5 l -4 -3 M 16 5 l -4 3' transform='rotate(-20 10 7)' stroke='white' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ctext x='10' y='18' fill='white' font-weight='bold' font-family='sans-serif' font-size='8' text-anchor='middle'%3EURL%3C/text%3E%3C/svg%3E");
