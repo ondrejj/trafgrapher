@@ -3,7 +3,7 @@
 '''
 Process nagios performance data for TrafGrapher
 
-(c) 2016-2022 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
+(c) 2016-2024 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
 
 Licensed under the MIT license.
 
@@ -204,6 +204,12 @@ def mkindex(subdirs=False):
 
 if __name__ == "__main__":
     if "--make-index" in sys.argv:
+        if os.getuid() == 0:
+            print("Dropping privileges to nagios user ...")
+            import pwd, grp
+            os.setgroups([])
+            os.setgid(grp.getgrnam("nagios").gr_gid)
+            os.setuid(pwd.getpwnam("nagios").pw_uid)
         mkindex("--subdirs" in sys.argv)
     elif len(sys.argv) == 1:
         hostname = os.environ.get("NAGIOS_HOSTNAME")
