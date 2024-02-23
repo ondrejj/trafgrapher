@@ -1997,7 +1997,7 @@ service_groups = {
   },
   mem_duplicates: {
     // Paging should be displayed after base data, which must be hidden
-    // here to avoid dislpying in other.
+    // here to avoid other to display.
     name: "Memory hidden duplicates",
     search: /mem\/./i,
     unit: "B",
@@ -2113,7 +2113,7 @@ service_groups = {
   },
   php_fpm_states: {
     name: "PHP-FPM",
-    search: /php-fpm/,
+    search: /php[_-]fpm/,
     unit: ""
   },
   mailq: {
