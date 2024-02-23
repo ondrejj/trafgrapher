@@ -19,6 +19,7 @@ export NAGIOS_TIMET=1457008744
 
 import sys
 import re
+import shlex
 import os
 import fcntl
 import time
@@ -177,7 +178,7 @@ def swap_chars(s):
     return s.lower().translate(swap_chars_trans)
 
 
-def mkindex(subdirs=False):
+def mkindex(subdirs=True):
     os.chdir(prefix)
     filelist = []
     sublists = {}
@@ -203,14 +204,14 @@ def mkindex(subdirs=False):
 
 
 if __name__ == "__main__":
-    if "--make-index" in sys.argv:
+    if "--make-index" in sys.argv or "-i" in sys.argv:
         if os.getuid() == 0:
             print("Dropping privileges to nagios user ...")
             import pwd, grp
             os.setgroups([])
             os.setgid(grp.getgrnam("nagios").gr_gid)
             os.setuid(pwd.getpwnam("nagios").pw_uid)
-        mkindex("--subdirs" in sys.argv)
+        mkindex()
     elif len(sys.argv) == 1:
         hostname = os.environ.get("NAGIOS_HOSTNAME")
         service_name = os.environ.get("NAGIOS_SERVICEDESC")
@@ -232,9 +233,9 @@ if __name__ == "__main__":
             service_time = kw["TIMET"]
             #print >> sys.stderr, service_name, service_perfdata
             if service_name and service_perfdata:
-                for data in service_perfdata.split(" "):
+                for data in shlex.split(service_perfdata):
                     try:
-                        label, values = data.split("=", 1)
+                        label, values = data.rsplit("=", 1)
                         logfile = Logfiles(hostname, service_name, label)
                         logfile.update(int(service_time), values.split(";"))
                     except Exception as err:
