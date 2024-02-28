@@ -22,6 +22,7 @@ Usage: tgc.py [--mkcfg|-c [community@]IP_or_hostname] \\
                 [-q|--quiet] download_cmd upload_cmd
        tgc.py --netdev [filename|URL]
        tgc.py --hwmon /sys/class/hwmon
+       tgc.py --files [-q|--quiet] file1 [file2 ...]
        tgc.py --cmd [-q|--quiet] cmd1 [cmd2 ...]
 
 Examples:
@@ -1268,6 +1269,23 @@ class nftables_set(fwcounter_base):
             yield ip, cnt["bytes"], cnt["packets"]
 
 
+def files_mkindex(files):
+    cfg = dict(
+        ip=socket.gethostbyname(socket.gethostname()),
+        name=socket.gethostname(),
+        cmd_type="files",
+        ifs={}
+    )
+    for cmdid, fn in enumerate(files):
+        safe_fn = fn.strip("/").replace("/", "_")
+        cfg["ifs"][safe_fn] = dict(
+            file=fn,
+            ifDescr=fn,
+            log=safe_fn+".log"
+        )
+    return cfg
+
+
 def cmd_mkindex(cmds):
     cfg = dict(
         ip=socket.gethostbyname(socket.gethostname()),
@@ -1280,7 +1298,6 @@ def cmd_mkindex(cmds):
         md5 = hashlib.md5(descr.encode("utf-8")).hexdigest()
         cfg["ifs"][cmdid] = dict(
             cmd=cmd,
-            index=cmdid,
             ifDescr=descr,
             log=md5+".log"
         )
@@ -1614,7 +1631,7 @@ if __name__ == "__main__":
                      'merge-dir=', 'filter=', 'filter-time=', 'filter-value=',
                      'local', 'entry=', 'sensors-cisco', 'sensors-huawei',
                      'iptables', 'ipset', 'nft',
-                     'netdev', 'hwmon', 'cmd'])
+                     'netdev', 'hwmon', 'files', 'cmd'])
     opts = dict(opts)
     if "--verbose" in opts or "-v" in opts:
         VERBOSE = True
@@ -1742,6 +1759,9 @@ if __name__ == "__main__":
         print(json.dumps(cfg, indent=2))
     elif "--hwmon" in opts:
         cfg = sys_class_hwmon().mkindex()
+        print(json.dumps(cfg, indent=2))
+    elif "--files" in opts:
+        cfg = files_mkindex(files)
         print(json.dumps(cfg, indent=2))
     elif "--cmd" in opts:
         cfg = cmd_mkindex(files)
