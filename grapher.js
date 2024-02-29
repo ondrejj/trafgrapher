@@ -1934,7 +1934,7 @@ NagiosLoader.prototype = Object.create(Loader.prototype);
 service_groups = {
   load1: {
     name: "Load 1",
-    search: /load\/load1$/,
+    search: /load\/(load1|user|system)$/,
     unit: "",
     hide: true,
     next: true
@@ -1955,7 +1955,7 @@ service_groups = {
   },
   load: {
     name: "Load",
-    search: /(load\/load|CPU.*utilization\/)/i,
+    search: /(load\/(load|user|system)|CPU.*utilization\/)/i,
     unit: ""
   },
   swap: {
@@ -1972,16 +1972,16 @@ service_groups = {
     hide: true,
     next: true
   },
-  mem_total: {
-    name: "Memory total",
-    search: /mem.*\/.*Total/i,
+  mem_redundant_info: {
+    name: "Memory total, free, available",
+    search: /(mem|memory|swap)\/.*(Total|Free|Available)/i,
     unit: "B",
     hide: true
   },
   mem: {
     name: "Memory",
     // all memory object except PageIn/PageOut processed below
-    search: /mem\/(?!Page)./i,
+    search: /(mem|memory|swap)\/(?!Page)./i,
     unit: "B",
     next: true
   },
@@ -1999,7 +1999,7 @@ service_groups = {
     // Paging should be displayed after base data, which must be hidden
     // here to avoid other to display.
     name: "Memory hidden duplicates",
-    search: /mem\/./i,
+    search: /(mem|memory|ncpa_swap)\/./i,
     unit: "B",
     next: false,
     hide: true
@@ -2028,19 +2028,19 @@ service_groups = {
   },
   eth_io: {
     name: "Ethernet [bits]",
-    search: /((eth|ens|tun)[0-9]+\/[rt]x_bytes|Interface [0-9]+\/(in|out)$)/i,
-    join_by: /^(rx_|tx_|in|out)/,
+    search: /((eth|ens|tun)[0-9]+\/([rt]x_bytes|bytes_recv|bytes_sent)|Interface [0-9]+\/(in|out)$)/i,
+    join_by: /^(rx_|tx_|in|out|_recv|_sent)/,
     join_desc: "tx/rx ",
-    reversed: /^(rx|in)/,
+    reversed: /^(rx|in|bytes_recv)/,
     unit: "B/s",
     prefer_bits: true
   },
   eth_stat: {
     name: "Ethernet packets",
-    search: /((eth|ens|tun)[0-9]+|Interface [0-9]+)\/./i,
-    join_by: /^(rx|tx|in|out)_/,
+    search: /((eth|ens|tun)[0-9]+|Interface [0-9]+)\/.*(packets|ucast)/i,
+    join_by: /^(rx_|tx_|in|out|_recv|_sent)/,
     join_desc: "tx/rx ",
-    reversed: /^(rx|in)/,
+    reversed: /^(rx|in|packets_recv)/,
     unit: "/s"
   },
   disk_bytes: {
@@ -2088,7 +2088,7 @@ service_groups = {
   },
   users: {
     name: "Users",
-    search: /users\/users/i,
+    search: /users\/(users|count)/i,
     unit: ""
   },
   process: {
@@ -2128,7 +2128,7 @@ service_groups = {
   },
   redis: {
     name: "Redis",
-    search: /NRPE_redis/,
+    search: /_redis/,
     unit: "B"
   },
   ups: {

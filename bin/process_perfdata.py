@@ -70,7 +70,7 @@ class grouper(dict):
 
 
 class Logfiles:
-    re_num_unit = re.compile("^(-?[0-9.]+)([a-zA-Z%]*)$")
+    re_num_unit = re.compile("^(-?[0-9.]+)([a-zA-Z/%]*)$")
     re_plain = re.compile("^[A-Za-z0-9:.,=_-]*$")
 
     def __init__(self, hostname, service, label):
