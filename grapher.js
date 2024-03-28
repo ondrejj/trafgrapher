@@ -4,7 +4,7 @@
   Licensed under the MIT license.
 */
 
-var trafgrapher_version = '3.3.3',
+var trafgrapher_version = '3.4.0',
     one_hour = 3600000,
     last_reload = null,
     degreeC = "℃";
@@ -1955,20 +1955,13 @@ service_groups = {
   },
   load: {
     name: "Load",
-    search: /(load\/(load|user|system)|CPU.*utilization\/)/i,
+    search: /load\/(load|user|system)/i,
     unit: ""
   },
   swap: {
     name: "Swap",
     search: /(mem|swap)\/swap/i,
     unit: "B",
-    hide: true,
-    next: true
-  },
-  swap_check_mk: {
-    name: "Swap",
-    search: /memory.*\/pagefile/i,
-    unit: "MB",
     hide: true,
     next: true
   },
@@ -1990,7 +1983,7 @@ service_groups = {
     // process below mem to display in better order
     search: /mem.*\/Page/,
     join_by: /^(PageIn|PageOut)/,
-    join_desc: "Page Out/In ",
+    join_desc: "Page Out/In",
     reversed: /^PageIn/,
     unit: "B",
     next: false
@@ -2004,11 +1997,6 @@ service_groups = {
     next: false,
     hide: true
   },
-  mem_check_mk: {
-    name: "Memory",
-    search: /memory.*\/(memory|pagefile)/i,
-    unit: "MB"
-  },
   collisions: {
     name: "Network collistions",
     search: /(eth|ens)[0-9]+\/collisions$/,
@@ -2016,52 +2004,53 @@ service_groups = {
     hide: true,
     next: true
   },
-  net_errors: {
-    name: "Network errors",
-    search: /(eth|ens)[0-9]+\/[rt]x_errors$/,
-    join_by: /^(rx_|tx_)/,
-    join_desc: "tx/rx ",
-    reversed: /^(rx|in)/,
-    unit: "/s",
-    hide: true,
-    next: true
-  },
   eth_io: {
     name: "Ethernet [bits]",
-    search: /((eth|ens|tun)[0-9]+\/([rt]x_bytes|bytes_recv|bytes_sent)|Interface [0-9]+\/(in|out)$)/i,
-    join_by: /^(rx_|tx_|in|out|_recv|_sent)/,
-    join_desc: "tx/rx ",
-    reversed: /^(rx|in|bytes_recv)/,
+    search: /(eth|ens|tun)[0-9]+\/([rt]x_bytes|bytes_recv|bytes_sent)$/i,
+    join_by: /(^rx_|^tx_|_recv$|_sent$)/,
+    join_desc: "tx/rx",
+    reversed: /(^rx|_recv$)/,
     unit: "B/s",
     prefer_bits: true
   },
   eth_stat: {
     name: "Ethernet packets",
-    search: /((eth|ens|tun)[0-9]+|Interface [0-9]+)\/.*(packets|ucast)/i,
-    join_by: /^(rx_|tx_|in|out|_recv|_sent)/,
-    join_desc: "tx/rx ",
-    reversed: /^(rx|in|packets_recv)/,
+    search: /(eth|ens|tun)[0-9]+\/.*(packets|ucast)/i,
+    join_by: /(^rx_|^tx_|in$|out$|_recv$|_sent$)/,
+    join_desc: "tx/rx",
+    reversed: /(^rx|in$|_recv$)/,
+    unit: "/s"
+  },
+  net_errors: {
+    name: "Network errors",
+    search: /(eth|ens)[0-9]+\/([rt]x_errors|[rt]x_dropped|collisions|errin|errout|dropin|dropout)$/,
+    join_by: /(^rx_|^tx_|in$|out$)/,
+    join_desc: "tx/rx",
+    reversed: /(^rx|in$)/,
     unit: "/s"
   },
   disk_bytes: {
     name: "Disk bytes",
-    search: /(diskio_.\/(read|write)|Disk.*IO.*SUMMARY\/(read|write|disk_read_throughput|disk_write_throughput))/i,
+    search: /diskio_.\/(read$|write$|read_bytes|write_bytes)/i,
     join_by: /(read|write)/,
-    join_desc: "read/write ",
+    join_desc: "read/write",
     reversed: /write/,
     unit: "B/s"
   },
   disk_blocks: {
     name: "Disk IO blocks",
-    search: /(diskio_.|Disk.*IO.*SUMMARY)\/(ioread|iowrite|disk_read_ios|disk_write_ios)/i,
+    search: /diskio_.\/(ioread|iowrite|read_count|write_count)/i,
     join_by: /(read|write)/, // do not use ioread/iowrite
-    join_desc: "read/write ",
-    reversed: /^(iowrite|disk_write_ios)/,
+    join_desc: "read/write",
+    reversed: /write/,
     unit: "io/s"
   },
   diskio_queue: {
     name: "Disk queue",
-    search: /(diskio_.|Disk.*IO.*SUMMARY)\/(queue|disk_read_ql|disk_write_ql)/i,
+    search: /diskio_.\/(queue|read_time|write_time)/i,
+    join_by: /(read|write)/, // do not use ioread/iowrite
+    join_desc: "read/write",
+    reversed: /write/,
     unit: "/s"
   },
   disk_usage_percent: {
@@ -2078,13 +2067,6 @@ service_groups = {
     name: "Disk usage bytes",
     search: /(disk_|fs_[A-Z]:\/)/i
     //unit: "B"
-  },
-  disk_usage_other: {
-    // other data from check_mk
-    name: "Disk usage other",
-    search: /fs_[A-Z]:\/\/(fs_size|growth|trend)/,
-    unit: "",
-    hide: true
   },
   users: {
     name: "Users",
@@ -2163,17 +2145,7 @@ service_groups = {
   },
   time_offset: {
     name: "Time offset",
-    search: /System.*Time\/offset/i,
-    unit: "s"
-  },
-  uptime: {
-    name: "Uptime",
-    search: /Uptime\/uptime/i,
-    unit: "s"
-  },
-  check_mk: {
-    name: "Check MK",
-    search: /Check_MK\/./,
+    search: /time\/offset/i,
     unit: "s"
   },
   // psacct
@@ -2251,8 +2223,11 @@ NagiosLoader.prototype.load_data = function(filename, service) {
     }
     desc = hdr[0] + " " + hdr[1] + " ";
     if (service_group.join_by) {
-      desc = desc + hdr[2].replace(service_group.join_by,
-                                   service_group.join_desc || "");
+      var join_desc = "";
+      if (service_group.join_desc) {
+        join_desc = " " + service_group.join_desc + " ";
+      }
+      desc = desc + hdr[2].replace(service_group.join_by, join_desc).trim();
     } else {
       desc = desc + hdr[2];
     }
