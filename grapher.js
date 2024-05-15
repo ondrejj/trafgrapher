@@ -2093,6 +2093,11 @@ service_groups = {
     search: /apache\/(waiting|reading|sending|closing|dns_lookup)/,
     unit: ""
   },
+  nginx: {
+    name: "Nginx",
+    search: /nginx\/./,
+    unit: ""
+  },
   php_fpm_states: {
     name: "PHP-FPM",
     search: /php[_-]fpm/,
