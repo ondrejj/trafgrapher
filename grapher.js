@@ -699,6 +699,8 @@ Graph.prototype.urllink = function(force) {
   url += "&i=" + this.interval.val() + "h";
   if (this.unit_type.val())
     url += "&u=" + this.unit_type.val();
+  if (this.graph_type.val())
+    url += "&t=" + this.graph_type.val();
   if (this.custom_range) {
     url += "&rf=" + this.range_from + "&rt=" + this.range_to;
   }
