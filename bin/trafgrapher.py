@@ -60,24 +60,9 @@ def pp(x):
     return x.prettyPrint()
 
 
-def ustr(x):
-    '''Encode as UTF8 string.'''
-    return (b"%s" % x).decode("utf8", "replace")
-
-
 def macaddr(x):
     '''Format as MAC address.'''
-    ret = []
-    try:
-        x = long(x.prettyPrint()[2:], 16)
-    except ValueError:
-        return x.prettyPrint()
-    except TypeError:
-        return x.prettyPrint()
-    for i in range(6):
-        ret.insert(0, "%02x" % (x % 256))
-        x = x//256
-    return ':'.join(ret)
+    return ":".join(["%02x" % x for x in x])
 
 
 def ifspeed(speed, unit="b/s"):
@@ -372,11 +357,7 @@ IFTYPES = dict([(itx[1], itx[0]) for itx in [
 
 
 def iftype(ift):
-    #from pysnmp.entity.rfc3413.oneliner import cmdgen
-    #cmdGen = cmdgen.CommandGenerator()
-    #iana = cmdGen.snmpEngine.msgAndPduDsp.mibInstrumController.mibBuilder.mibSymbols['IANAifType-MIB']
-    # return repr(iana['IANAifType'](ift)).split("'")[1]
-    return IFTYPES.get(ift, 'UNKNOWN')
+    return IFTYPES.get(int(ift), 'UNKNOWN')
 
 
 def ip2host(ip):
@@ -396,7 +377,7 @@ oids_info = dict(
     ifIndex=str,
     ifDescr=str,
     ifName=str,
-    ifAlias=ustr,
+    ifAlias=str,  # ustr
     ifType=iftype,
     ifMtu=safe_int,
     ifSpeed=ifspeed,
@@ -416,6 +397,7 @@ oids_sensor = [
 ]
 
 OID_TABLE = dict(
+    sysUpTime="1.3.6.1.2.1.1.3",
     ifIndex="1.3.6.1.2.1.2.2.1.1",
 
     ifDescr="1.3.6.1.2.1.2.2.1.2",
@@ -458,48 +440,38 @@ class SNMP:
     ))
 
     def __init__(self, addr, community_name="public"):
+        self.addr = addr
         # allow loading site-packages even for python -S
         import site
         site.main()
-        from pysnmp.entity.rfc3413.oneliner import cmdgen
-        self.MibVariable = cmdgen.MibVariable
-        self.engine = cmdgen.CommandGenerator()
-        self.addr = addr
-        self.community = cmdgen.CommunityData(community_name)
-        if ":" in addr:
-            self.transport = cmdgen.Udp6TransportTarget(
-                                 (addr, self.port), timeout=2, retries=2)
-        else:
-            self.transport = cmdgen.UdpTransportTarget(
-                                 (addr, self.port), timeout=2, retries=2)
+        from netsnmp import Session, VarList
+        self.session = Session(
+            DestHost=addr, Community=community_name, Version=2,
+            Timeout=2000000, Retries=2
+        )
+        self.varlist = VarList
 
     def oid(self, prefix, suffix, *ids):
-        if prefix == "" or suffix in OID_TABLE:
+        if prefix == '' or suffix in OID_TABLE:
             if ids:
-                return OID_TABLE.get(suffix, suffix) \
-                    + "." + (".".join([str(x) for x in ids]))
+                return '.' + OID_TABLE.get(suffix, suffix) \
+                    + '.' + ('.'.join([str(x) for x in ids]))
             else:
-                return OID_TABLE.get(suffix, suffix)
-        return self.MibVariable(prefix, suffix, *ids)
+                return '.' + OID_TABLE.get(suffix, suffix)
+        raise ValueError("Unable to convert OID")
 
     def get_data(self, prefix, oids):
-        errorIndication, errorStatus, errorIndex, varBindTable = \
-            self.engine.nextCmd(
-                self.community,
-                self.transport,
-                *[self.oid(prefix, x) for x in oids]
-            )
-        if errorIndication:
-            print("%s: %s" % (self.addr, errorIndication))
-        elif errorStatus:
-            print('%s at %s' % (
-                errorStatus.prettyPrint(),
-                errorIndex and varBindTable[-1][int(errorIndex)-1] or '?'
-            )
-            )
-        else:
-            return varBindTable
-        return []
+        vars = self.varlist(*[
+            self.oid(prefix, x)
+            for x in oids
+        ])
+        count = len(oids)
+        varbind = self.session.walk(vars)
+        # return itertools.batched(vars, len(oids))  # requires py3.12+
+        return [
+            vars[row:row+count]
+            for row in range(0, len(vars), count)
+        ]
 
     def get_info(self, ifid='ifIndex', log_prefix=None, oids=oids_info,
                  filter=None):
@@ -508,9 +480,16 @@ class SNMP:
         ret = {}
         for row in self.get_data("IF-MIB", oids):
             data = dict([
-                (x[0].replace("ifHC", "if"), oids[x[0]](x[1][1]))
-                for x in zip(oids, row)
+                (x.tag, oids[x.tag](x.val))
+                for x in row
             ])
+            # replace 32bit counter with 64bit, when present
+            #if "ifHCInOctets" in data:
+            #    print("hcin")
+            #    data["ifInOctets"] = data["ifHCInOctets"]
+            #if "ifHCOutOctets" in data:
+            #    print("hcout")
+            #    data["ifOutOctets"] = data["ifHCOutOctets"]
             # check IO retrieval
             ifindex = data['ifIndex']
             if ifindex.startswith('-'):
@@ -520,12 +499,12 @@ class SNMP:
             if data.get("ifName", "") == "Nu0":
                 continue  # ignore Null interfaces
             if io[ifindex]['error']:
-                print("Unable to get 64bit IO for id %s [%s], trying 32bit ..."
-                      % (ifindex, data.get("ifName", "")))
+                #print("Unable to get 64bit IO for id %s [%s], trying 32bit ..."
+                #      % (ifindex, data.get("ifName", "")))
                 io = self.getall([ifindex], only32bit=True)
                 if io[ifindex]['error']:
-                    print("Unable to get IO for id %s [%s], ignoring ..."
-                          % (ifindex, data.get("ifName", "")))
+                    #print("Unable to get IO for id %s [%s], ignoring ..."
+                    #      % (ifindex, data.get("ifName", "")))
                     if VERBOSE:
                         print(data)
                         print(io)
@@ -568,15 +547,15 @@ class SNMP:
             for x in self.get_info().values()
         )
         for row in self.get_data("", oids_sensor[:1]):
-            if str(row[0][1]).endswith(receive_sensor_string):
-                id = row[0][0].asTuple()[-1]
-                interface = str(row[0][1]).replace(receive_sensor_string, "")
+            if str(row[0].val).endswith(receive_sensor_string):
+                id = int(row[0].tag.rsplit('.', 1)[-1])
+                interface = str(row[0].val).replace(receive_sensor_string, "")
                 datatype, scale, precision, value \
                     = self.getsome("", oids_sensor[1:], [id])
                 scale = 1000**(float(scale)-9)
                 precision = 10**float(precision)
                 #value = float(value)*scale/precision
-                ret[self.oid("", oids_sensor[-1], id)] = dict(
+                ret[self.oid("", oids_sensor[-1], id).strip(".")] = dict(
                     log="%s_%s.log" % (self.addr, id),
                     unit=self.sensor_datatypes.get(int(datatype), ""),
                     scale=scale/precision,
@@ -587,17 +566,12 @@ class SNMP:
                 )
         return ret
 
-    def get_key_value(self, prefix, type=str, reverse=False):
-        if reverse:
-            return dict([
-                (str(x[0][1]), x[0][0][-1])
-                for x in self.get_data("", {prefix: type})
-            ])
-        else:
-            return dict([
-                (x[0][0][-1], str(x[0][1]))
-                for x in self.get_data("", {prefix: type})
-            ])
+    def get_key_value(self, prefix, type=str):
+        return dict([
+            # last oid number, value
+            (int(x[0].tag.rsplit('.', 1)[-1]), str(x[0].val))
+            for x in self.get_data("", {prefix: type})
+        ])
 
     def get_sensors_huawei(self):
         ret = {}
@@ -624,17 +598,8 @@ class SNMP:
         return ret
 
     def get_uptime(self):
-        errorIndication, errorStatus, errorIndex, varBindTable = \
-            self.engine.nextCmd(
-                self.community, self.transport,
-                self.MibVariable(
-                    'SNMPv2-MIB', 'sysUpTime'
-                )
-            )
-        if not varBindTable:
-            print("%s: %s" % (self.addr, errorIndication))
-            return None
-        return float(varBindTable[0][0][1])/100
+        varbind = self.session.getnext(self.varlist(self.oid('', 'sysUpTime')))
+        return float(varbind[0])/100
 
     def getblock(self, request, prefix, ifs, suffix="Octets"):
         ret = {}
@@ -687,7 +652,6 @@ class SNMP:
         return ret
 
     def getsome(self, prefix="", suffixes=[], ids=[]):
-        from pysnmp.carrier.error import CarrierError
         mibvars = []
         if ids:
             for id in ids:
@@ -700,37 +664,9 @@ class SNMP:
                 self.oid(prefix, str(suffix))
                 for suffix in suffixes
             ])
-        try:
-            errorIndication, errorStatus, errorIndex, varBinds = self.engine.getCmd(
-                self.community,
-                self.transport,
-                *mibvars
-            )
-        except CarrierError as err:
-            print("%s: %s" % (self.addr, err))
-            return []
-        if errorIndication:
-            print("%s: %s" % (self.addr, errorIndication))
-            return []
-        elif errorStatus:
-            print('%s at %s' % (
-                errorStatus.prettyPrint(),
-                errorIndex and varBinds[-1][int(errorIndex)-1] or '?'
-            )
-            )
-            return []
-        ret = []
-        try:
-            vars = dict(varBinds)
-            svars = dict([(str(x[0]), x[1]) for x in vars.items()])
-            for key in mibvars:
-                if key in vars:
-                    ret.append(vars[key])
-                if key in svars:
-                    ret.append(svars[key])
-        except AttributeError as err:
-            print(err.args[0], id)
-        return ret
+        vars = self.varlist(*mibvars)
+        varbinds = self.session.get(vars)
+        return [x.val for x in vars]
 
 
 class grouper(dict):
