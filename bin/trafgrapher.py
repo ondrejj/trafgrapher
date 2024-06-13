@@ -101,11 +101,11 @@ def fread(filename):
         except ImportError:
             from urllib2 import urlopen
         try:
-            return urlopen(filename, context=ctx).read().decode("utf8").split("\n")
+            return urlopen(filename, context=ctx).read().decode("utf8")
         except Exception as err:
             print(filename, err)
             return []
-    return open(filename).read().split("\n")
+    return open(filename).read()
 
 
 IFTYPES = dict([(itx[1], itx[0]) for itx in [
@@ -785,7 +785,7 @@ class logfile:
         return long(value, 10)
 
     def update_valid(self, value, rowid=None):
-        if value:
+        if value is not None and value!='' and value!=b'':
             try:
                 self.update(self.data_type(value))
             except ValueError:
@@ -1304,7 +1304,7 @@ class proc_net_dev(fwcounter_base):
     def read(self):
         self.bytes = {}
         self.packets = {}
-        rows = fread(self.filename)
+        rows = fread(self.filename).split("\n")
         if not rows:
             self.shift = 0
             return []
@@ -1392,6 +1392,22 @@ class sys_class_hwmon(fwcounter_base):
         return cfg
 
 
+def select_by_key(data, selector):
+    # first character is separator
+    separator = selector[0]
+    for key in selector[1:].split(separator):
+        try:
+            if type(data)==list:
+                data = data[int(key)]
+            else:
+                data = data[key]
+        except (KeyError,IndexError) as err:
+            #print(data)
+            print("Selector error for %s:" % selector, repr(err))
+            return None
+    return data
+
+
 def process_configs(files):
     filter_time = filter_value = ""
     if "--filter-time" in opts:
@@ -1458,6 +1474,19 @@ def process_configs(files):
             elif cfg["cmd_type"] == "netdev":
                 ps = proc_net_dev("rx", cfg["net_dev_filename"])
                 pd = proc_net_dev("tx", cfg["net_dev_filename"])
+            elif cfg["cmd_type"] == "json":
+                data = json.loads(fread(cfg["json"]))
+                for rowid, row in cfg["ifs"].items():
+                    value = select_by_key(data, row["selector"])
+                    try:
+                        lf = logfile_simple(
+                            os.path.join(prefix, row["log"]),
+                            (row["selector"], "-", "-", row.get("unit", "-")),
+                            force_compress=force_compress
+                        ).filter_time(filter_time).filter_value(filter_value)
+                        lf.update_valid(value)
+                    except LockError as err:
+                        print(err)
             elif cfg["cmd_type"] == "files":
                 max_age = int(cfg.get("max_age", 0))
                 for cmd_name, cmd in cfg["ifs"].items():
@@ -1504,7 +1533,11 @@ def process_configs(files):
                     except LockError as err:
                         print(err)
             elif cfg["cmd_type"] == "key_value":
-                data = dict([x.split(": ", 1) for x in fread(cfg["data_url"]) if ": " in x])
+                data = dict([
+                    x.split(": ", 1)
+                    for x in fread(cfg["data_url"]).split("\n")
+                    if ": " in x
+                ])
                 for rowid, row in cfg["ifs"].items():
                     value = data[row["data_key"]]
                     try:

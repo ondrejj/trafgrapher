@@ -62,10 +62,6 @@ div.trafgrapher ul {
   margin-left: auto;
   margin-right: auto;
   list-style: none;
-  -webkit-column-width: 18em;
-  -moz-column-width: 18em;
-  -o-column-width: 18em;
-  -ms-column-width: 18em;
   column-width: 18em;
 }
 
@@ -143,17 +139,11 @@ div.trafgrapher button {
   background-repeat: no-repeat;
   background-position: center;
   appearance: none;
-  -moz-appearance: none;
-  -webkit-appearance: none;
 }
 div.trafgrapher select {
   background-position: right;
   padding-left: 2pt;
   padding-right: 12pt;
-}
-div.trafgrapher select::-ms-expand,
-div.trafgrapher input::-ms-check {
-  display: none;
 }
 div.trafgrapher input[type="checkbox"] {
   height: 15px;
