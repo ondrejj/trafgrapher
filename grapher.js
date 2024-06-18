@@ -377,7 +377,7 @@ Graph.prototype.get_unit = function(label) {
     } else {
       return info.unit;
     }
-  } else if (info.json && info.json.unit) {
+  } else if (info.json && info.json.unit!==undefined) {
     return info.json.unit;
   } else if (this.unit_type && this.unit_type.length>0) {
     return info.unit[this.unit_type.find("option:selected").val()];
