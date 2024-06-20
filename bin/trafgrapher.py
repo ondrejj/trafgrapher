@@ -104,7 +104,7 @@ def fread(filename):
             return urlopen(filename, context=ctx).read().decode("utf8")
         except Exception as err:
             print(filename, err)
-            return []
+            return ""
     return open(filename).read()
 
 
