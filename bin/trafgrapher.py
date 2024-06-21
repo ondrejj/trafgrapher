@@ -599,6 +599,9 @@ class SNMP:
 
     def get_uptime(self):
         varbind = self.session.getnext(self.varlist(self.oid('', 'sysUpTime')))
+        if varbind[0] is None:
+            print("%s: Unable to get uptime" % self.addr)
+            return None
         return float(varbind[0])/100
 
     def getblock(self, request, prefix, ifs, suffix="Octets"):
