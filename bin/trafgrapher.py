@@ -516,7 +516,7 @@ class SNMP:
                 if ('ifSpeed' not in data) or data['ifSpeed'].startswith("0"):
                     continue
             # ignore interfaces, which are not present (unreachable stack ports ...)
-            if data['ifOperStatus'] == 6:  # interface not present
+            if 'ifOperStatus' not in data or data['ifOperStatus'] == 6:
                 #print("Interface not present: %s" % data["ifName"])
                 continue
             # use HighSpeed if possible
