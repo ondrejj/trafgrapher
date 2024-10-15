@@ -203,6 +203,31 @@ def mkindex(subdirs=True):
             )
 
 
+def find_unused(days=365, filename_only=False):
+    from datetime import datetime
+    os.chdir(prefix)
+    hosts = {}
+    t0 = datetime.now().timestamp()
+    too_old = t0-days*3600*24
+    for root, dirs, files in os.walk("."):
+        for file in files:
+            root_file = os.path.join(root, file)
+            if file.startswith("index.html") or file.endswith(".tmp"):
+                 continue
+            mtime = os.stat(root_file).st_mtime
+            host = root.split("/", 2)[1]
+            #print(host, root_file, mtime)
+            if host not in hosts or hosts[host]<mtime:
+                hosts[host] = mtime
+    for host, t in sorted(hosts.items(), key=lambda x:x[1], reverse=True):
+        ft = datetime.fromtimestamp(t).strftime("%c")
+        if t<too_old:
+            if filename_only:
+                print(host)
+            else:
+                print(ft, host)
+
+
 if __name__ == "__main__":
     if "--make-index" in sys.argv or "-i" in sys.argv:
         if os.getuid() == 0:
@@ -212,6 +237,8 @@ if __name__ == "__main__":
             os.setgid(grp.getgrnam("nagios").gr_gid)
             os.setuid(pwd.getpwnam("nagios").pw_uid)
         mkindex()
+    elif "--find-unused" in sys.argv:
+        find_unused(filename_only="--filename" in sys.argv)
     elif len(sys.argv) == 1:
         hostname = os.environ.get("NAGIOS_HOSTNAME")
         service_name = os.environ.get("NAGIOS_SERVICEDESC")
