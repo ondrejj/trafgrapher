@@ -92,7 +92,7 @@ def from_ts(ts):
     return time.strftime("%c", time.localtime(ts))
 
 
-def fread(filename):
+def fread(filename, prefix=""):
     if filename.startswith("http://") or filename.startswith("https://"):
         import ssl
         ctx = ssl._create_unverified_context()
@@ -105,6 +105,8 @@ def fread(filename):
         except Exception as err:
             print(filename, err)
             return ""
+    if prefix and not filename.startswith("/"):
+        filename = os.path.join(prefix, filename)
     return open(filename).read()
 
 
@@ -783,12 +785,12 @@ class logfile:
         return f
 
     def data_type(self, value):
-        if value == "N" or value == "None" or value == b"N" or value == b"None":
+        if value is None or value == "N" or value == "None" or value == b"N" or value == b"None":
             return None
         return long(value, 10)
 
     def update_valid(self, value, rowid=None):
-        if value is not None and value!='' and value!=b'':
+        if value!='' and value!=b'':
             try:
                 self.update(self.data_type(value))
             except ValueError:
@@ -991,7 +993,7 @@ class logfile_simple(logfile):
             self.f.write(self.header())
 
     def data_type(self, value):
-        if value == "N" or value == "None" or value == b"N" or value == b"None":
+        if value is None or value == "N" or value == "None" or value == b"N" or value == b"None":
             return None
         return float(value)
 
@@ -1478,7 +1480,7 @@ def process_configs(files):
                 ps = proc_net_dev("rx", cfg["net_dev_filename"])
                 pd = proc_net_dev("tx", cfg["net_dev_filename"])
             elif cfg["cmd_type"] == "json":
-                data = json.loads(fread(cfg["json"]))
+                data = json.loads(fread(cfg["json"], prefix=prefix))
                 for rowid, row in cfg["ifs"].items():
                     value = select_by_key(data, row["selector"])
                     try:
