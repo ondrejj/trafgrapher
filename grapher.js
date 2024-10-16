@@ -2116,8 +2116,8 @@ service_groups = {
     unit: "/s"
   },
   redis: {
-    name: "Redis",
-    search: /_redis/,
+    name: "Redis/Valkey/KeyDB",
+    search: /_(redis|valkey|keydb)/,
     unit: "B"
   },
   ups: {
