@@ -94,6 +94,7 @@ def from_ts(ts):
 
 def fread(filename, prefix=""):
     if filename.startswith("http://") or filename.startswith("https://"):
+        # download from URL
         import ssl
         ctx = ssl._create_unverified_context()
         try:
@@ -105,9 +106,18 @@ def fread(filename, prefix=""):
         except Exception as err:
             print(filename, err)
             return ""
+    elif filename.startswith("!"):
+        # run as shell command
+        return os.popen(filename).read()
     if prefix and not filename.startswith("/"):
         filename = os.path.join(prefix, filename)
     return open(filename).read()
+
+
+def nsplit(data):
+    if not data:
+        return []
+    return data.split("\n")
 
 
 IFTYPES = dict([(itx[1], itx[0]) for itx in [
@@ -1158,14 +1168,14 @@ class fwcounter_base():
     def read(self):
         self.bytes = {}
         self.packets = {}
-        return os.popen(self.cmd).readlines()
+        return fread(self.cmd)
 
 
 class ipset(fwcounter_base):
     type = "ipset"
 
     def items(self):
-        for row in self.read():
+        for row in nsplit(self.read()):
             if ' packets ' in row and ' bytes ' in row:
                 cols = row.strip().replace("[", "").replace("]", "").split(" ")
                 self.bytes[cols[0]] = int(cols[4])
@@ -1179,7 +1189,7 @@ class iptables_src(fwcounter_base):
 
     def items(self):
         # skip first 2 rows of header
-        for row in self.read()[2:]:
+        for row in nsplit(self.read())[2:]:
             cols = row.strip().split()
             self.bytes[cols[self.ip_column]] = int(cols[1])
             self.packets[cols[self.ip_column]] = int(cols[0])
@@ -1193,13 +1203,8 @@ class iptables_dst(iptables_src):
 class nftables_set(fwcounter_base):
     type = "nftables"
 
-    def read(self):
-        self.bytes = {}
-        self.packets = {}
-        return json.loads(os.popen(self.cmd).read().encode("utf-8"))
-
     def items(self):
-        elems = self.read()['nftables'][1]['set']['elem']
+        elems = json.loads(self.read())['nftables'][1]['set']['elem']
         for elem in elems:
             ip = elem["elem"]["val"]
             cnt = elem["elem"]["counter"]
@@ -1309,7 +1314,7 @@ class proc_net_dev(fwcounter_base):
     def read(self):
         self.bytes = {}
         self.packets = {}
-        rows = fread(self.filename).split("\n")
+        rows = nsplit(fread(self.filename))
         if not rows:
             self.shift = 0
             return []
@@ -1540,7 +1545,7 @@ def process_configs(files):
             elif cfg["cmd_type"] == "key_value":
                 data = dict([
                     x.split(": ", 1)
-                    for x in fread(cfg["data_url"]).split("\n")
+                    for x in nsplit(fread(cfg["data_url"]))
                     if ": " in x
                 ])
                 for rowid, row in cfg["ifs"].items():
