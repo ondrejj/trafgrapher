@@ -883,28 +883,32 @@ Graph.prototype.plot_all_graphs = function () {
       if (service_groups[service].hide===true) continue; // skip
       if (!this.groups[service]) continue;
       graph = $("#graph_"+service);
-      var urllink = '';
-      if (filter_services.length==0) {
-        urllink = ' <a href="'+current_url+'&filter='+service+
-                  '">&UpperRightArrow;</a>';
-      }
       if (graph.length===0) {
-        graph = $(
-          '<div id="graph_'+service+'" class="trafgrapher">' +
-            service_groups[service].name + urllink +
-            '<br/>' +
-            '<div id="placeholder_'+service+'" class="graph200r"></div>' +
-          '</div>');
+        graph = document.createElement("div");
+        graph.id = "graph_"+service;
+        graph.className = "trafgrapher";
+        graph.textContent = service_groups[service].name;
+        if (filter_services.length==0) {
+          var urllink = document.createElement("a");
+          urllink.textContent = "\u2197"; // UpperRightArrow
+          urllink.href = current_url+'&filter='+service;
+          graph.textContent += " ";
+          graph.append(urllink);
+        }
+        graph.append(document.createElement("br"));
+        placeholder = document.createElement("div");
+        placeholder.id = "placeholder_"+service;
+        placeholder.className = "graph200r";
+        graph.append(placeholder);
         this.placeholder.append(graph);
-        placeholder = graph.find("div#placeholder_"+service);
-        this.add_plot_callbacks(placeholder);
+        this.add_plot_callbacks($(placeholder));
       }
       enabled_groups = [];
       for (var grpi in this.groups[service]) {
         if (this.groups[service][grpi].enabled)
           enabled_groups.push(this.groups[service][grpi].name);
       }
-      placeholder = graph.find("#placeholder_"+service);
+      placeholder = $(graph).find("#placeholder_"+service);
       this.plot_graph(enabled_groups, placeholder);
     }
   } else {
