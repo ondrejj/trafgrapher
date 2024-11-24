@@ -891,7 +891,7 @@ Graph.prototype.plot_all_graphs = function () {
         if (filter_services.length==0) {
           var urllink = document.createElement("a");
           urllink.textContent = "\u2197"; // UpperRightArrow
-          urllink.href = current_url+'&filter='+service;
+          urllink.href = escape(current_url)+'&filter='+escape(service);
           graph.textContent += " ";
           graph.append(urllink);
         }
