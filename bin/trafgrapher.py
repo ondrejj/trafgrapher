@@ -1411,9 +1411,9 @@ def select_by_key(data, selector):
                 data = data[int(key)]
             else:
                 data = data[key]
-        except (KeyError,IndexError) as err:
-            #print(data)
-            print("Selector error for %s:" % selector, repr(err))
+        except (KeyError, IndexError) as err:
+            if not QUIET:
+                print("Selector error for %s:" % selector, repr(err))
             return None
     return data
 
