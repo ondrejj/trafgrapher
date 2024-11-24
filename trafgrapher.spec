@@ -56,7 +56,7 @@ sed -i 's|#!/usr/bin/python[23]|#!%{PYTHON}|' bin/*.py
 mkdir -p $RPM_BUILD_ROOT%{_bindir} $RPM_BUILD_ROOT%{_datadir}/%{name} \
   $RPM_BUILD_ROOT%{PYTHON_SITELIB}
 mv bin/trafgrapher.py $RPM_BUILD_ROOT%{PYTHON_SITELIB}/
-ln -s %{PYTHON_SITELIB}/%{name}.py $RPM_BUILD_ROOT%{_bindir}/tgc
+ln -sr %{PYTHON_SITELIB}/%{name}.py $RPM_BUILD_ROOT%{_bindir}/tgc
 cp -ar bin/* $RPM_BUILD_ROOT%{_datadir}/%{name}
 cp -ar web $RPM_BUILD_ROOT%{_datadir}/%{name}
 ln -s ../share/%{name}/compellent.py $RPM_BUILD_ROOT%{_bindir}/tg_compellent
@@ -89,7 +89,6 @@ EOF
 %license LICENSE.txt
 %config(noreplace) %verify(not md5 size mtime) %{_sysconfdir}/httpd/conf.d/trafgrapher.conf
 %if 0%{?fedora} || 0%{?rhel} > 7
-%{python3_sitelib}/%{name}.py
 %pycached %{python3_sitelib}/%{name}.py
 %else
 %{python2_sitelib}/%{name}.py*
