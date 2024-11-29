@@ -108,7 +108,7 @@ def fread(filename, prefix=""):
             return ""
     elif filename.startswith("!"):
         # run as shell command
-        return os.popen(filename).read()
+        return os.popen(filename[1:]).read()
     if prefix and not filename.startswith("/"):
         filename = os.path.join(prefix, filename)
     return open(filename).read()
