@@ -2154,9 +2154,9 @@ service_groups = {
     search: /.*\/size$/,
     unit: "B"
   },
-  time_offset: {
-    name: "Time offset",
-    search: /time\/offset/i,
+  timesync: {
+    name: "Time synchronization",
+    search: /(time|timesync)\/offset/i,
     unit: "s"
   },
   // psacct
