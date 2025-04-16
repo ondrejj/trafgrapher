@@ -54,6 +54,7 @@ if sys.version_info[0] > 2:  # python3
 VERBOSE = False
 QUIET = False
 BACKUP = False
+INSECURE = False
 
 
 def pp(x):
@@ -95,14 +96,17 @@ def from_ts(ts):
 def fread(filename, prefix=""):
     if filename.startswith("http://") or filename.startswith("https://"):
         # download from URL
-        import ssl
-        ctx = ssl._create_unverified_context()
+        if INSECURE:
+            import ssl
+            opts = dict(context=ssl._create_unverified_context())
+        else:
+            opts = {}
         try:
             from urllib.request import urlopen
         except ImportError:
             from urllib2 import urlopen
         try:
-            return urlopen(filename, context=ctx).read().decode("utf8")
+            return urlopen(filename, **opts).read().decode("utf8")
         except Exception as err:
             print(filename, err)
             return ""
@@ -1170,6 +1174,12 @@ class fwcounter_base():
         self.packets = {}
         return fread(self.cmd)
 
+    def json(self):
+        data = self.read()
+        if not data:
+            return {}
+        return json.loads(data)
+
 
 class ipset(fwcounter_base):
     type = "ipset"
@@ -1204,7 +1214,10 @@ class nftables_set(fwcounter_base):
     type = "nftables"
 
     def items(self):
-        elems = json.loads(self.read())['nftables'][1]['set']['elem']
+        try:
+            elems = self.json()['nftables'][1]['set']['elem']
+        except KeyError:
+            return
         for elem in elems:
             ip = elem["elem"]["val"]
             cnt = elem["elem"]["counter"]
@@ -1606,7 +1619,7 @@ if __name__ == "__main__":
     opts, files = getopt.gnu_getopt(sys.argv[1:], 'hctzw:dvq',
                     ['help', 'mkcfg', 'test', 'write=',
                      'mkdir', 'id=', 'rename',
-                     'verbose', 'quiet', 'check', 'backup',
+                     'verbose', 'quiet', 'check', 'backup', 'insecure',
                      'merge-dir=', 'filter=', 'filter-time=', 'filter-value=',
                      'local', 'entry=', 'sensors-cisco', 'sensors-huawei',
                      'iptables', 'ipset', 'nft',
@@ -1618,6 +1631,8 @@ if __name__ == "__main__":
         QUIET = True
     if "--backup" in opts:
         BACKUP = True
+    if "--insecure" in opts:
+        INSECURE = True
     if not files:
         print(__doc__)
         sys.exit()
