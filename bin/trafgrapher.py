@@ -8,7 +8,7 @@ TrafGrapher collector
 
 Licensed under the MIT license.
 
-Usage: tgc.py [--mkcfg|-c [community@]IP_or_hostname] \\
+Usage: tgc.py [--mkcfg|-c [community@]IP_or_hostname[:port]] \\
                 [--entry Octets|Errors|Discards|] \\
 		[--write|-w index.json] [--mkdir|-d] [--verbose|-v] \\
 		[--filter ifOperStatus|ifAdminStatus] \\
@@ -63,6 +63,8 @@ def pp(x):
 
 def macaddr(x):
     '''Format as MAC address.'''
+    if type(x)==str:
+        return ":".join(["%02x" % ord(x) for x in x])
     return ":".join(["%02x" % x for x in x])
 
 
@@ -456,7 +458,11 @@ class SNMP:
     ))
 
     def __init__(self, addr, community_name="public"):
-        self.addr = addr
+        if ":" in addr:
+            self.addr, port = addr.split(":", 1)
+            self.port = int(port)
+        else:
+            self.addr = addr
         # allow loading site-packages even for python -S
         import site
         site.main()
