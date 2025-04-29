@@ -108,7 +108,7 @@ def fread(filename, prefix=""):
         except ImportError:
             from urllib2 import urlopen
         try:
-            return urlopen(filename, **opts).read().decode("utf8")
+            return urlopen(filename, timeout=30, **opts).read().decode("utf8")
         except Exception as err:
             print(filename, err)
             return ""
