@@ -1,6 +1,6 @@
 /*
   TrafGrapher
-  (c) 2015-2024 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
+  (c) 2015-2025 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
   Licensed under the MIT license.
 */
 
@@ -362,8 +362,13 @@ Graph.prototype.reset_range = function () {
   var current_datetime = new Date(),
       range_end = this.div.find("[name^=range_end]").val(),
       time_interval = parseInt(this.interval.val());
-  if (range_end) current_datetime = range_end * 1000;
   this.custom_range = false;
+  if (range_end && range_end.startsWith("+")) {
+    // relative range in hours
+    current_datetime = Number(current_datetime)+Number(range_end)*one_hour;
+  } else if (range_end) {
+    current_datetime = range_end * 1000;
+  }
   this.range_from = Number(current_datetime - time_interval*one_hour);
   this.range_to = Number(current_datetime); // convert to number
 };
@@ -467,8 +472,9 @@ Graph.prototype.add_plot_callbacks = function(placeholder) {
       if (self.info[label].json && self.info[label].json.price) {
         var data = item.series.data,
             hours = (data[data.length-1][0] - data[0][0]) / 3600000,
-            price = self.info[label].json.price * Math.abs(sum_value);
-        self.find("value_price").val(price.toFixed(4)+" €");
+            price_k = self.info[label].json.price,
+            price = price_k / 1000 * Math.abs(avg_value) * hours;
+        self.find("value_price").val(price.toFixed(2)+" €");
       }
       self.find("description").val(description);
       self.find("switchname").val(switchname);
