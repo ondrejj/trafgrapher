@@ -2427,33 +2427,44 @@ $(function () {
     $(".footer a").text().replace("#.#", trafgrapher_version));
 
   // create graph for multigraph pages
-  $('div[class^="trafgrapher_conf"]').each(function(index, div) {
-    var div = $(div);
-    var graph_id = div.attr("id");
-    var template_name = div.attr("class").replace("trafgrapher_conf", "trafgrapher_template");
-    var template = $("div."+template_name).clone();
+  document.querySelectorAll('div[class^="trafgrapher_conf"]').forEach(div => {
+    var graph_id = div.id;
+    var template_name = div.className.replace("trafgrapher_conf", "trafgrapher_template");
+    var template = document.getElementsByClassName(template_name)[0].cloneNode(true);
     if (!graph_id) {
       graph_id_counter += 1;
       graph_id = graph_id_counter;
     } else {
       graph_id = graph_id.replace("graph", "");
     }
-    template = $(template);
-    var template_id = template.attr("id").replace("graph", "");
-    template.find("h2").html(div.find("h2").html());
-    template.find("div.selection").prepend(div.find("input"));
+    var template_id = template.id.replace("graph", "");
+    function update_element(tag) {
+      var target_elem = template.content.querySelector(tag);
+      var source_elem = div.querySelector(tag);
+      if (target_elem && source_elem) {
+        target_elem.innerHTML = source_elem.innerHTML;
+      }
+    }
+    update_element("h2");
+    update_element("summary");
+    var div_selection = template.content.querySelector("div.selection");
+    if (div_selection) {
+      [...div.querySelectorAll("input")].reverse().forEach(input => {
+        div_selection.insertBefore(input, div_selection.firstChild);
+      });
+    }
     // replace element IDs
-    template.find("[id$='"+template_id+"']").each(function(index, element) {
-      $(element).attr("id", $(element).attr("id").replace(template_id, graph_id));
+    template.querySelectorAll("[id$='"+template_id+"']").forEach(element => {
+      element.id = element.id.replace(template_id, graph_id);
     });
     // attach to current div
-    div.attr("id", "graph"+graph_id);
-    div.attr("class", "trafgrapher");
-    div.empty();
-    template.children().appendTo(div);
+    div.id = "graph"+graph_id;
+    div.className = "trafgrapher";
+    div.innerHTML = "";
+    Array.from(template.content.children).forEach(child => {
+      div.appendChild(child);
+    });
   });
-  // remove used template
-  $('div[class^="trafgrapher_template"]').remove();
 
   graphs = [];
   $("div[id^=graph]").each(function () {
