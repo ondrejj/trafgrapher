@@ -243,7 +243,7 @@ function light_theme() {
 // Escape selector ID
 String.prototype.escapeSelector = function () {
   return this.replace(/([ #;?%&,.+*~':"!\^$\[\]\\()=>|\/@])/g,"\\$1");
-};
+}
 
 /*
   Graph object
@@ -253,7 +253,8 @@ String.prototype.escapeSelector = function () {
 var Graph = function(ID) {
   this.ID = ID;
   this.div = $("div#"+ID);
-  this.deltas = {}; this.info = {};
+  this.deltas = {}
+  this.info = {}
   this.loaders = [];
   this.index_mode = "json";
   this.index_files = [];
@@ -267,7 +268,7 @@ var Graph = function(ID) {
   this.graph_type = this.div.find("[id^=graph_type]");
   this.unit_type = this.div.find("[id^=unit_type]");
   this.add_menu_callbacks();
-};
+}
 
 Graph.prototype.find = function(id, selectors) {
   var sel = "[id^="+id+"]";
@@ -276,7 +277,7 @@ Graph.prototype.find = function(id, selectors) {
   } else {
     return this.div.find(sel+" "+selectors);
   }
-};
+}
 
 // Array sum & avg
 Graph.prototype.arraysum = function(arr) {
@@ -291,7 +292,7 @@ Graph.prototype.arraysum = function(arr) {
     }
   }
   return value;
-};
+}
 Graph.prototype.arraysum_values = function(arr) {
   var value = 0;
   if (arr.length===0) return 0;
@@ -302,7 +303,7 @@ Graph.prototype.arraysum_values = function(arr) {
     }
   }
   return value;
-};
+}
 Graph.prototype.arrayavg = function(arr) {
   var value = 0, count = 0, last = null;
   if (arr.length===0) return 0;
@@ -317,7 +318,7 @@ Graph.prototype.arrayavg = function(arr) {
   }
   if (count===0) return null;
   return value/count;
-};
+}
 
 // Get data for current time interval
 Graph.prototype.filter_interval = function(data, unit, use_max) {
@@ -354,7 +355,7 @@ Graph.prototype.filter_interval = function(data, unit, use_max) {
     }
   }
   return ret;
-};
+}
 
 // Reset range
 Graph.prototype.reset_range = function () {
@@ -371,7 +372,7 @@ Graph.prototype.reset_range = function () {
   }
   this.range_from = Number(current_datetime - time_interval*one_hour);
   this.range_to = Number(current_datetime); // convert to number
-};
+}
 
 // Get unit
 Graph.prototype.get_unit = function(label) {
@@ -390,7 +391,7 @@ Graph.prototype.get_unit = function(label) {
     return info.unit[this.graph_type.find("option:selected").val()[1]];
   }
   return "";
-};
+}
 
 // Get color
 Graph.prototype.get_color = function(label, n) {
@@ -401,7 +402,7 @@ Graph.prototype.get_color = function(label, n) {
     return info.color;
   }
   return this.palette[n];
-};
+}
 
 // Show information from json or MRTG info
 Graph.prototype.show_info = function(label, ftime) {
@@ -482,7 +483,7 @@ Graph.prototype.add_plot_callbacks = function(placeholder) {
       var tooltip_position = {
         top: item.pageY+5,
         left: Math.min(item.pageX+5, window.innerWidth*0.8)
-      };
+      }
       $("#tooltip").html(
           description + "<br/>" + value +
           "<br/>" +
@@ -526,7 +527,7 @@ Graph.prototype.add_plot_callbacks = function(placeholder) {
     self.plot_all_graphs();
     self.urllink();
   });
-};
+}
 
 // Menu functions
 Graph.prototype.select_all = function () {
@@ -542,12 +543,12 @@ Graph.prototype.select_all = function () {
   }
   this.plot_all_graphs();
   this.urllink();
-};
+}
 Graph.prototype.select_none = function () {
   this.filter.find("input").prop("checked", false);
   this.plot_graph();
   this.urllink();
-};
+}
 Graph.prototype.select_inv = function () {
   this.filter.find("input").each(function () {
     var sel = $(this);
@@ -555,7 +556,7 @@ Graph.prototype.select_inv = function () {
   });
   this.plot_graph();
   this.urllink();
-};
+}
 Graph.prototype.select_virt = function () {
   var self = this;
   this.filter.find("input").each(function () {
@@ -566,7 +567,7 @@ Graph.prototype.select_virt = function () {
   });
   this.plot_graph();
   this.urllink();
-};
+}
 Graph.prototype.select_zero = function () {
   // Invert rows with only zero values in currently displayed range.
   var self = this;
@@ -585,11 +586,11 @@ Graph.prototype.select_zero = function () {
     }
     if (sum_all==0) {
       sel.prop("checked", !sel.prop("checked"));
-    };
+    }
   });
   this.plot_graph();
   this.urllink();
-};
+}
 
 // Add menu callbacks for graph
 Graph.prototype.add_menu_callbacks = function () {
@@ -630,7 +631,7 @@ Graph.prototype.add_menu_callbacks = function () {
   this.find("b_zoom_out").click(function () { self.zoom_out(); });
   this.find("b_reload").click(function () { self.refresh_graph(); });
   this.find("b_urllink").click(function () { self.urllink(); });
-};
+}
 
 // Create link args for index files
 Graph.prototype.files_to_args = function(prefix, suffix) {
@@ -668,7 +669,7 @@ Graph.prototype.files_to_args = function(prefix, suffix) {
     }
   }
   return args;
-};
+}
 
 // Update URL link according to current choices
 Graph.prototype.urllink = function(force) {
@@ -725,7 +726,7 @@ Graph.prototype.urllink = function(force) {
       window.location = current_url;
     }
   }
-};
+}
 
 // Keyboard events
 Graph.prototype.keyevent = function(event) {
@@ -828,7 +829,7 @@ Graph.prototype.keyevent = function(event) {
     event.preventDefault();
     //console.log("prevent", event.which, prevent_default);
   }
-};
+}
 
 // Update checkboxes according to number of graphs.
 Graph.prototype.update_checkboxes = function () {
@@ -874,7 +875,7 @@ Graph.prototype.update_checkboxes = function () {
     self.plot_graph();
     self.urllink();
   });
-};
+}
 
 // Plot current graph.
 Graph.prototype.plot_all_graphs = function () {
@@ -920,7 +921,7 @@ Graph.prototype.plot_all_graphs = function () {
   } else {
     this.plot_graph();
   }
-};
+}
 
 Graph.prototype.plot_graph = function(checked_choices, placeholder) {
   var flots = [], name, info, unit, color, axis, yaxis, axis_unit, axis_pos,
@@ -1064,7 +1065,7 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
   this.find("description").val("");
   this.find("switchname").val("");
   this.find("info_table").empty();
-};
+}
 
 /*
   Common functions
@@ -1077,7 +1078,7 @@ Graph.prototype.refresh_range = function () {
     this.refresh_graph();
   else
     this.plot_all_graphs();
-};
+}
 
 Graph.prototype.refresh_graph = function () {
   var loader;
@@ -1099,20 +1100,20 @@ Graph.prototype.refresh_graph = function () {
     console.log("No files to load.");
   }
   if (loader) loader.reload();
-};
+}
 
 Graph.prototype.change_source = function () {
   // Remove checkboxes, because new source has different checkboxes.
   this.filter.empty();
   this.refresh_graph();
-};
+}
 
 Graph.prototype.zoom_out = function () {
   // Reset zoom
   this.reset_range();
   this.plot_all_graphs();
   this.urllink();
-};
+}
 
 Graph.prototype.select_devices = function () {
   var self = this;
@@ -1142,7 +1143,7 @@ Graph.prototype.select_devices = function () {
     self.index_mode = "sagator";
     self.index_files.push($(this).val());
   });
-};
+}
 
 Graph.prototype.parse_query_string = function () {
   filter_services = [];
@@ -1214,7 +1215,7 @@ Graph.prototype.parse_query_string = function () {
     }
   }
   this.select_devices();
-};
+}
 
 /*
   Progress indicator
@@ -1227,7 +1228,7 @@ Progress = function(graph, loader) {
   this.tag = this.loader_tag.find("[id^=progress]");
   this.tag.text("");
   this.files_to_load = 0;
-};
+}
 
 Progress.prototype.echo = function () {
   if (this.files_to_load>0) {
@@ -1235,14 +1236,14 @@ Progress.prototype.echo = function () {
       " files to load (<a href=\"#\">skip</a>)");
     this.loader_tag.show();
   }
-};
+}
 
 Progress.prototype.add = function(files, bytes) {
   this.files_to_load += files;
   this.echo();
   if (files<=0)
     this.tag.text("No data to load!");
-};
+}
 
 Progress.prototype.update = function(remaining_files) {
   var self = this;
@@ -1261,7 +1262,7 @@ Progress.prototype.update = function(remaining_files) {
     this.loader_tag.hide();
   }
   return this.files_to_load;
-};
+}
 
 Progress.prototype.error = function(msg) {
   var error = this.loader_tag.find("#error");
@@ -1270,12 +1271,12 @@ Progress.prototype.error = function(msg) {
   } else {
     console.log(msg);
   }
-};
+}
 
 Progress.prototype.loading_error = function(filename, msg) {
   if (msg && msg!="abort")
     this.error("Error loading file " + filename + ": " + msg);
-};
+}
 
 /*
   Data loaders
@@ -1293,13 +1294,13 @@ Loader = function(graph, index_files) {
   if (!graph.range_from || !graph.range_to || graph.custom_range===false)
     graph.reset_range();
   this.graph.placeholder.empty();
-};
+}
 
 Loader.prototype.reload = function () {
   for (var idx=0; idx<this.index_files.length; idx++)
     this.load_index(this.index_files[idx]);
   last_reload = new Date();
-};
+}
 
 // File loaded, update counter, show graph if all files processed.
 Loader.prototype.file_loaded = function () {
@@ -1329,7 +1330,7 @@ Loader.prototype.file_loaded = function () {
       this.graph.onload();
     }
   }
-};
+}
 
 // Old browser support
 if (!Object.create) {
@@ -1337,7 +1338,7 @@ if (!Object.create) {
     function f() {}
     f.prototype = proto;
     return new f();
-  };
+  }
 }
 
 /*
@@ -1347,7 +1348,7 @@ if (!Object.create) {
 
 JSONLoader = function(graph, index_files) {
   Loader.call(this, graph, index_files);
-};
+}
 
 JSONLoader.prototype = Object.create(Loader.prototype);
 
@@ -1396,7 +1397,7 @@ JSONLoader.prototype.load_log = function(filename, args) {
   }).fail(function(jqXHR, textStatus, error) {
     self.progress.loading_error(filename, error);
   });
-};
+}
 
 // Load json index and start loading of files.
 JSONLoader.prototype.load_index = function(url) {
@@ -1491,7 +1492,7 @@ JSONLoader.prototype.load_index = function(url) {
   }).fail(function(jqXHR, textStatus, error) {
     self.progress.loading_error(url, error);
   });
-};
+}
 
 /*
   MRTG functions
@@ -1500,7 +1501,7 @@ JSONLoader.prototype.load_index = function(url) {
 
 MRTGLoader = function(graph, index_files) {
   Loader.call(this, graph, index_files);
-};
+}
 
 MRTGLoader.prototype = Object.create(JSONLoader.prototype);
 
@@ -1572,7 +1573,7 @@ MRTGLoader.prototype.load_index = function(url) {
   }).fail(function(jqXHR, textStatus, error) {
     self.progress.loading_error(url, error);
   });
-};
+}
 
 /*
   Storage functions
@@ -1582,7 +1583,7 @@ MRTGLoader.prototype.load_index = function(url) {
 StorageLoader = function(graph, index_files) {
   Loader.call(this, graph, index_files);
   this.tagsrc = graph.graph_source.find("option:selected").val();
-};
+}
 
 StorageLoader.prototype = Object.create(Loader.prototype);
 
@@ -1629,7 +1630,7 @@ StorageLoader.prototype.load_storwize = function(filename) {
     }
     self.file_loaded();
   });
-};
+}
 
 // Load unisphere stats for one file.
 StorageLoader.prototype.load_unisphere = function(filename) {
@@ -1731,7 +1732,7 @@ StorageLoader.prototype.load_unisphere = function(filename) {
     }
     self.file_loaded();
   });
-};
+}
 
 // Load compellent stats for one file.
 StorageLoader.prototype.load_compellent = function(filename) {
@@ -1802,7 +1803,7 @@ StorageLoader.prototype.load_compellent = function(filename) {
     }
     self.file_loaded();
   });
-};
+}
 
 // TrafGrapher internal files (Load DELL Unity)
 StorageLoader.prototype.load_tg = function(filename) {
@@ -1854,7 +1855,7 @@ StorageLoader.prototype.load_tg = function(filename) {
     }
     self.file_loaded();
   });
-};
+}
 
 // Load file index and start loading of files.
 StorageLoader.prototype.load_index = function(url) {
@@ -1930,7 +1931,7 @@ StorageLoader.prototype.load_index = function(url) {
   }).fail(function(jqXHR, textStatus, error) {
     self.progress.loading_error(url, error);
   });
-};
+}
 
 /*
   Nagios perfdata functions
@@ -1939,7 +1940,7 @@ StorageLoader.prototype.load_index = function(url) {
 
 NagiosLoader = function(graph, index_files) {
   Loader.call(this, graph, index_files);
-};
+}
 
 NagiosLoader.prototype = Object.create(Loader.prototype);
 
@@ -2213,7 +2214,7 @@ service_groups = {
     name: "Other",
     search: /./
   }
-};
+}
 
 // Load perfdata stats for one service label.
 NagiosLoader.prototype.load_data = function(filename, service) {
@@ -2304,7 +2305,7 @@ NagiosLoader.prototype.load_data = function(filename, service) {
   }).fail(function(jqXHR, textStatus, error) {
     self.progress.loading_error(filename, error);
   });
-};
+}
 
 // Load file index and start loading of files.
 NagiosLoader.prototype.load_index = function(url) {
@@ -2411,7 +2412,7 @@ NagiosLoader.prototype.load_index = function(url) {
   }).fail(function(jqXHR, textStatus, error) {
     self.progress.loading_error(url, error);
   });
-};
+}
 
 // call function on all graphs
 function callgraphs(fx) {
