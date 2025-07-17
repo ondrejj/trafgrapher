@@ -568,23 +568,24 @@ Graph.prototype.select_virt = function () {
   this.plot_graph();
   this.urllink();
 }
-Graph.prototype.select_zero = function () {
-  // Invert rows with only zero values in currently displayed range.
+Graph.prototype.select_value = function (value = 0) {
+  // Invert rows with only specific values in currently displayed range.
   var self = this;
-  function abs_sum(a, b) {
-    if (b[0]>=self.range_from && b[0]<=self.range_to) {
-      return a+Math.abs(b[1]);
-    }
-    return a;
-  }
   this.filter.find("input").each(function () {
     var sel = $(this);
     var deltas = self.deltas[this.name];
-    var sum_all = 0;
+    var eq_all = 0;
     for (var k in deltas) {
-      sum_all += deltas[k].reduce(abs_sum, 0);
+      eq_all += deltas[k].reduce((a, b) => {
+        if (b[0]>=self.range_from && b[0]<=self.range_to) {
+          if (b[1]!=value) {
+            return 1;	// found at least one different value
+          }
+        }
+        return a;
+      }, 0);
     }
-    if (sum_all==0) {
+    if (eq_all==0) {
       sel.prop("checked", !sel.prop("checked"));
     }
   });
@@ -627,7 +628,7 @@ Graph.prototype.add_menu_callbacks = function () {
   this.find("b_select_inv").click(function () { self.select_inv(); });
   this.find("b_select_none").click(function () { self.select_none(); });
   this.find("b_select_virt").click(function () { self.select_virt(); });
-  this.find("b_select_zero").click(function () { self.select_zero(); });
+  this.find("b_select_zero").click(function () { self.select_value(); });
   this.find("b_zoom_out").click(function () { self.zoom_out(); });
   this.find("b_reload").click(function () { self.refresh_graph(); });
   this.find("b_urllink").click(function () { self.urllink(); });
