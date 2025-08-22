@@ -4,7 +4,7 @@
 '''
 TrafGrapher collector
 
-(c) 2015-2024 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
+(c) 2015-2025 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
 
 Licensed under the MIT license.
 
@@ -20,7 +20,7 @@ Usage: tgc.py [--mkcfg|-c [community@]IP_or_hostname[:port]] \\
 		[--merge-dir=directory]
        tgc.py --ipset|--iptables|--nft \\
                 [-q|--quiet] download_cmd upload_cmd
-       tgc.py --netdev [filename|URL]
+       tgc.py --netdev [filename|URL] --override key:value
        tgc.py --hwmon /sys/class/hwmon
        tgc.py --files [-q|--quiet] file1 [file2 ...]
        tgc.py --cmd [-q|--quiet] cmd1 [cmd2 ...]
@@ -47,6 +47,7 @@ import time
 import json
 import getopt
 import hashlib
+from collections import defaultdict
 
 if sys.version_info[0] > 2:  # python3
     long = int
@@ -55,7 +56,7 @@ VERBOSE = False
 QUIET = False
 BACKUP = False
 INSECURE = False
-
+CONFIG_OVERRIDE = {}
 
 def pp(x):
     return x.prettyPrint()
@@ -1241,6 +1242,7 @@ def files_mkindex(files):
         cmd_type="files",
         ifs={}
     )
+    cfg.update(CONFIG_OVERRIDE)
     for cmdid, fn in enumerate(files):
         safe_fn = fn.strip("/").replace("/", "_")
         cfg["ifs"][safe_fn] = dict(
@@ -1258,6 +1260,7 @@ def cmd_mkindex(cmds):
         cmd_type="sh",
         ifs={}
     )
+    cfg.update(CONFIG_OVERRIDE)
     for cmdid, cmd in enumerate(cmds):
         descr = "%d:%s" % (cmdid, cmd)
         md5 = hashlib.md5(descr.encode("utf-8")).hexdigest()
@@ -1278,6 +1281,7 @@ def fwcounter_mkindex(name, ip, parser_src, parser_dst):
         cmd_dst=parser_dst.cmd,
         ifs={}
     )
+    cfg.update(CONFIG_OVERRIDE)
     ips = sorted(
         set([x[0] for x in parser_src.items()])
         &
@@ -1369,6 +1373,7 @@ class proc_net_dev(fwcounter_base):
             net_dev_filename=self.filename,
             ifs={}
         )
+        cfg.update(CONFIG_OVERRIDE)
         for iface_nr, (iface_name, bytes, packets) in enumerate(self.items()):
             cfg["ifs"][iface_nr] = dict(
                 index=iface_nr,
@@ -1392,6 +1397,7 @@ class sys_class_hwmon(fwcounter_base):
             cmd_type="files",
             ifs={}
         )
+        cfg.update(CONFIG_OVERRIDE)
         for hwmon in os.listdir(self.dir):
             dev_dir = os.path.join(self.dir, hwmon)
             name = open(os.path.join(dev_dir, "name")).read().strip()
@@ -1440,7 +1446,7 @@ def select_by_key(data, selector):
 def process_configs(files):
     filter_time = filter_value = ""
     if "--filter-time" in opts:
-        filter_time = opts["--filter-time"]
+        filter_time = opts["--filter-time"][0]
         if ':' in filter_time:
             # convert date and time format to timestamps
             filter_time = ",".join([
@@ -1448,9 +1454,9 @@ def process_configs(files):
                 for x in filter_time.split(",")
             ])
     if "--filter-value" in opts:
-        filter_value = opts["--filter-value"]
+        filter_value = opts["--filter-value"][0]
     force_compress = ('-z' in opts) or ('--compress' in opts)
-    entry = opts.get("--entry", "Octets")
+    entry = opts.get("--entry", ["Octets"])[0]
     for fn in files:
         if '@' in fn:
             community, fn = fn.split('@', 1)
@@ -1476,7 +1482,7 @@ def process_configs(files):
             )
         elif "--merge-dir" in opts:
             tdir = os.path.dirname(os.path.realpath(fn))
-            merge_logfiles(cfg, tdir, opts["--merge-dir"])
+            merge_logfiles(cfg, tdir, opts["--merge-dir"][0])
             sys.exit()
         elif "cmd_type" in cfg:
             if cfg["cmd_type"] == "sh":
@@ -1622,15 +1628,19 @@ def process_configs(files):
 
 
 if __name__ == "__main__":
-    opts, files = getopt.gnu_getopt(sys.argv[1:], 'hctzw:dvq',
-                    ['help', 'mkcfg', 'test', 'write=',
-                     'mkdir', 'id=', 'rename',
-                     'verbose', 'quiet', 'check', 'backup', 'insecure',
-                     'merge-dir=', 'filter=', 'filter-time=', 'filter-value=',
-                     'local', 'entry=', 'sensors-cisco', 'sensors-huawei',
-                     'iptables', 'ipset', 'nft',
-                     'netdev', 'hwmon', 'files', 'cmd'])
-    opts = dict(opts)
+    gopts, files = getopt.gnu_getopt(sys.argv[1:], 'hctzw:dvq', [
+        'help', 'mkcfg', 'test', 'write=', 'mkdir', 'id=', 'rename',
+        'verbose', 'quiet', 'check', 'backup', 'insecure',
+        'merge-dir=', 'filter=', 'filter-time=', 'filter-value=',
+        'local', 'entry=', 'sensors-cisco', 'sensors-huawei',
+        'iptables', 'ipset', 'nft',
+        'netdev', 'hwmon', 'files', 'cmd', 'override='
+    ])
+
+    opts = defaultdict(list)
+    for opt, arg in gopts:
+        opts[opt].append(arg)
+
     if "--verbose" in opts or "-v" in opts:
         VERBOSE = True
     elif "--quiet" in opts or "-q" in opts:
@@ -1639,6 +1649,10 @@ if __name__ == "__main__":
         BACKUP = True
     if "--insecure" in opts:
         INSECURE = True
+    if "--override" in opts:
+        for opt in opts["--override"]:
+            key, value = opt.split(":", 1)
+            CONFIG_OVERRIDE[key] = value
     if not files:
         print(__doc__)
         sys.exit()
@@ -1654,11 +1668,11 @@ if __name__ == "__main__":
         except:
             dns_name = name
         if "--id" in opts:
-            ifid = opts["--id"]
+            ifid = opts["--id"][0]
         else:
             ifid = "ifIndex"
         if "--filter" in opts:
-            iffilter = opts["--filter"]
+            iffilter = opts["--filter"][0]
         else:
             iffilter = None
         if dns_name == log_prefix:
@@ -1667,7 +1681,7 @@ if __name__ == "__main__":
             print("Connecting to: %s@%s [%s]" % (community, name, log_prefix))
         ret = {}
         if "--entry" in opts:
-            ret["entry"] = opts["--entry"]
+            ret["entry"] = opts["--entry"][0]
         if "--sensors-cisco" in opts:
             result = SNMP(name, community).get_sensors_cisco()
             ret['oids'] = result
@@ -1687,10 +1701,10 @@ if __name__ == "__main__":
             indent=2, separators=(',', ': ')
         )
         if "--write" in opts:
-            out_filename = opts["--write"]
+            out_filename = opts["--write"][0]
             dirname = os.path.dirname(out_filename)
         elif "-w" in opts:
-            out_filename = opts["-w"]
+            out_filename = opts["-w"][0]
             dirname = os.path.dirname(out_filename)
         else:
             out_filename = ""
