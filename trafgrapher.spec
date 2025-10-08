@@ -9,7 +9,7 @@
 
 Name:           trafgrapher
 Version:        3.4.0
-Release:        0.beta20%{?dist}
+Release:        0.beta21%{?dist}
 Summary:        Collect and display network/disk/storage transfers.
 
 License:        MIT

@@ -545,16 +545,34 @@ Graph.prototype.select_all = function () {
   this.urllink();
 }
 Graph.prototype.select_none = function () {
-  this.filter.find("input").prop("checked", false);
-  this.plot_graph();
+  if (this.groups) {
+    // nagios host graph
+    for (var srvi in this.groups) {
+      for (var grpi in this.groups[srvi]) {
+        this.groups[srvi][grpi].enabled = false;
+      }
+    }
+  } else {
+    this.filter.find("input").prop("checked", false);
+  }
+  this.plot_all_graphs();
   this.urllink();
 }
 Graph.prototype.select_inv = function () {
-  this.filter.find("input").each(function () {
-    var sel = $(this);
-    sel.prop("checked", !sel.prop("checked"));
-  });
-  this.plot_graph();
+  if (this.groups) {
+    // nagios host graph
+    for (var srvi in this.groups) {
+      for (var grpi in this.groups[srvi]) {
+        this.groups[srvi][grpi].enabled = !this.groups[srvi][grpi].enabled;
+      }
+    }
+  } else {
+    this.filter.find("input").each(function () {
+      var sel = $(this);
+      sel.prop("checked", !sel.prop("checked"));
+    });
+  }
+  this.plot_all_graphs();
   this.urllink();
 }
 Graph.prototype.select_virt = function () {
