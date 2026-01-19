@@ -1048,6 +1048,41 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
   // set default unit if still not defined
   if (multiple_axes[0].si_unit===undefined)
     multiple_axes[0].si_unit = unit;
+
+  const ctx = document.createElement('canvas');
+  this.placeholder.append(ctx);
+  console.log(flots);
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      //labels: [1,2,3,4,5],
+      datasets: [{
+        label: "TEST",
+        data: flots[0].data.map(([x, y]) => ({ x, y})),
+        tension: 0.1,
+        fill: true,
+        borderColor: 'red'
+      }]
+    },
+    options: {
+      parsing: false,
+      scales: {
+        x: {
+          type: 'time',
+          time: { unit: 'day' },
+          title: { display: true, text: 'Date' }
+        },
+        y: {
+          title: {
+            display: true,
+            text: 'Value'
+          }
+        }
+      }
+    }
+  });
+
+  /*
   this.plot = $.plot(placeholder || this.placeholder, flots, {
     xaxis: {
       //position: "bottom",
@@ -1077,6 +1112,7 @@ Graph.prototype.plot_graph = function(checked_choices, placeholder) {
       "border-color", "black").css(
       "color", "white");
   }
+  */
   // clear last graph values
   this.find("value_one").val("");
   this.find("value_sum").val("");
