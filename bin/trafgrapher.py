@@ -483,6 +483,19 @@ class SNMP:
                 return '.' + OID_TABLE.get(suffix, suffix)
         raise ValueError("Unable to convert OID")
 
+    def split_by_iid(self, vars):
+        iid = None
+        data = []
+        for var in vars:
+            if var.iid!=iid:
+                if data:
+                    yield data
+                data = []
+                iid = var.iid
+            data.append(var)
+        if data:
+            yield data
+
     def get_data(self, prefix, oids):
         vars = self.varlist(*[
             self.oid(prefix, x)
@@ -491,10 +504,11 @@ class SNMP:
         count = len(oids)
         varbind = self.session.walk(vars)
         # return itertools.batched(vars, len(oids))  # requires py3.12+
-        return [
-            vars[row:row+count]
-            for row in range(0, len(vars), count)
-        ]
+        #return [
+        #    vars[row:row+count]
+        #    for row in range(0, len(vars), count)
+        #]
+        return list(self.split_by_iid(vars))
 
     def get_info(self, ifid='ifIndex', log_prefix=None, oids=oids_info,
                  filter=None):
@@ -514,6 +528,8 @@ class SNMP:
             #    print("hcout")
             #    data["ifOutOctets"] = data["ifHCOutOctets"]
             # check IO retrieval
+            if 'ifIndex' not in data:
+                continue
             ifindex = data['ifIndex']
             if ifindex.startswith('-'):
                 # fix broken negative values for Huawei
@@ -558,7 +574,7 @@ class SNMP:
                 if data[filter] != 1:  # !UP
                     continue
                 del data[filter]
-            if data['ifName'] != 'Nu0':
+            if data.get('ifName', '') != 'Nu0':
                 ret[ifindex] = data
         return ret
 
