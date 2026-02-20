@@ -685,7 +685,7 @@ class SNMP:
                     )
         return ret
 
-    def getsome(self, prefix="", suffixes=[], ids=[]):
+    def getsome(self, prefix="", suffixes=[], ids=[], chunk_size=30):
         mibvars = []
         if ids:
             for id in ids:
@@ -698,9 +698,19 @@ class SNMP:
                 self.oid(prefix, str(suffix))
                 for suffix in suffixes
             ])
-        vars = self.varlist(*mibvars)
-        varbinds = self.session.get(vars)
-        return [x.val for x in vars]
+        values = []
+        chunks = [
+            mibvars[i:i+chunk_size]
+            for i in range(0, len(mibvars), chunk_size)
+        ]
+        for chunk in chunks:
+            vars = self.varlist(*chunk)
+            varbinds = self.session.get(vars)
+            if self.session.ErrorStr:
+                print(self.session.ErrorStr)
+                raise Exception(f"SNMP Error: {self.session.ErrorStr}")
+            values.extend([x.val for x in vars])
+        return values
 
 
 class grouper(dict):
