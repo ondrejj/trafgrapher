@@ -4,7 +4,7 @@
 '''
 TrafGrapher collector
 
-(c) 2015-2025 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
+(c) 2015-2026 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
 
 Licensed under the MIT license.
 
@@ -483,19 +483,6 @@ class SNMP:
                 return '.' + OID_TABLE.get(suffix, suffix)
         raise ValueError("Unable to convert OID")
 
-    def split_by_iid(self, vars):
-        iid = None
-        data = []
-        for var in vars:
-            if var.iid!=iid:
-                if data:
-                    yield data
-                data = []
-                iid = var.iid
-            data.append(var)
-        if data:
-            yield data
-
     def get_data(self, prefix, oids):
         vars = self.varlist(*[
             self.oid(prefix, x)
@@ -503,12 +490,17 @@ class SNMP:
         ])
         count = len(oids)
         varbind = self.session.walk(vars)
-        # return itertools.batched(vars, len(oids))  # requires py3.12+
-        #return [
-        #    vars[row:row+count]
-        #    for row in range(0, len(vars), count)
-        #]
-        return list(self.split_by_iid(vars))
+        if count==1:
+            return [[x] for x in vars]
+        data = {}
+        for var in vars:
+            if var.iid not in data:
+                data[var.iid] = {}
+            data[var.iid][var.tag] = var
+        return [
+            [row.get(oid) for oid in oids if oid in row]
+            for row in data.values()
+        ]
 
     def get_info(self, ifid='ifIndex', log_prefix=None, oids=oids_info,
                  filter=None):
