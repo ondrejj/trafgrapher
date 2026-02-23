@@ -707,8 +707,7 @@ class SNMP:
             vars = self.varlist(*chunk)
             varbinds = self.session.get(vars)
             if self.session.ErrorStr:
-                print(self.session.ErrorStr)
-                raise Exception(f"SNMP Error: {self.session.ErrorStr}")
+                exit(f"SNMP Error from {self.addr}: {self.session.ErrorStr}")
             values.extend([x.val for x in vars])
         return values
 
