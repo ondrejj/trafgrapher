@@ -9,7 +9,7 @@ TrafGrapher collector
 Licensed under the MIT license.
 
 Usage: tgc.py [--mkcfg|-c [community@]IP_or_hostname[:port]] \\
-                [--entry Octets|Errors|Discards|] \\
+                [--entry Octets|Errors|Discards] \\
 		[--write|-w index.json] [--mkdir|-d] [--verbose|-v] \\
 		[--filter ifOperStatus|ifAdminStatus] \\
 		[--sensors-cisco|--sensors-huawei] \\
@@ -505,7 +505,7 @@ class SNMP:
     def get_info(self, ifid='ifIndex', log_prefix=None, oids=oids_info,
                  filter=None):
         if filter:
-            oids[filter] = int
+            del oids[filter]
         ret = {}
         for row in self.get_data("IF-MIB", oids):
             data = dict([
