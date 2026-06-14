@@ -3,7 +3,7 @@
 '''
 Process nagios performance data for TrafGrapher
 
-(c) 2016-2024 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
+(c) 2016-2026 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
 
 Licensed under the MIT license.
 
@@ -70,11 +70,14 @@ class grouper(dict):
 
 
 class Logfiles:
+    re_hostname = re.compile("^[a-z][a-z0-9.-]*$")
     re_num_unit = re.compile("^(-?[0-9.]+)([a-zA-Z/%]*)$")
     re_plain = re.compile("^[A-Za-z0-9:.,=_-]*$")
 
     def __init__(self, hostname, service, label):
         self.hsl = "%s\t%s\t%s" % (hostname, service, label)
+        if not re.hostname.search(hostname):
+            hostname = "FORBIDDEN"
         self.dir = "%s/%s/%s" \
             % (prefix, hostname, self.escape(service))
         self.filename = "%s/%s" % (self.dir, self.escape(label))
@@ -244,7 +247,6 @@ if __name__ == "__main__":
         service_name = os.environ.get("NAGIOS_SERVICEDESC")
         service_perfdata = os.environ.get("NAGIOS_SERVICEPERFDATA")
         service_time = os.environ.get("NAGIOS_TIMET")
-        #print >> sys.stderr, service_name, service_perfdata
         if service_name and service_perfdata:
             for data in service_perfdata.split(" "):
                 label, values = data.split("=", 1)
@@ -258,7 +260,6 @@ if __name__ == "__main__":
             service_name = kw["SERVICEDESC"]
             service_perfdata = kw["SERVICEPERFDATA"]
             service_time = kw["TIMET"]
-            #print >> sys.stderr, service_name, service_perfdata
             if service_name and service_perfdata:
                 for data in shlex.split(service_perfdata):
                     try:
