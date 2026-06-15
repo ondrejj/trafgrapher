@@ -76,7 +76,9 @@ class Logfiles:
 
     def __init__(self, hostname, service, label):
         self.hsl = "%s\t%s\t%s" % (hostname, service, label)
-        if not re.hostname.search(hostname):
+        if not self.re_hostname.search(hostname):
+            # This host should never be used normally.
+            # Switch to FORBIDDEN host name on attacks.
             hostname = "FORBIDDEN"
         self.dir = "%s/%s/%s" \
             % (prefix, hostname, self.escape(service))
