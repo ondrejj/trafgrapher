@@ -70,7 +70,7 @@ class grouper(dict):
 
 
 class Logfiles:
-    re_hostname = re.compile("^[a-z][a-z0-9.-]*$")
+    re_hostname = re.compile("^[a-z0-9][a-z0-9.-]*$", re.I)
     re_num_unit = re.compile("^(-?[0-9.]+)([a-zA-Z/%]*)$")
     re_plain = re.compile("^[A-Za-z0-9:.,=_-]*$")
 
@@ -78,8 +78,8 @@ class Logfiles:
         self.hsl = "%s\t%s\t%s" % (hostname, service, label)
         if not self.re_hostname.search(hostname):
             # This host should never be used normally.
-            # Switch to FORBIDDEN host name on attacks.
-            hostname = "FORBIDDEN"
+            # Switch to _FORBIDDEN host name on attacks.
+            hostname = "_FORBIDDEN"
         self.dir = "%s/%s/%s" \
             % (prefix, hostname, self.escape(service))
         self.filename = "%s/%s" % (self.dir, self.escape(label))
