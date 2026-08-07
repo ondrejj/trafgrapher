@@ -1,6 +1,6 @@
 /*
   TrafGrapher
-  (c) 2015-2025 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
+  (c) 2015-2026 Jan ONDREJ (SAL) <ondrejj(at)salstar.sk>
   Licensed under the MIT license.
 */
 
@@ -2031,14 +2031,14 @@ service_groups = {
   },
   collisions: {
     name: "Network collistions",
-    search: /(eth|ens)[0-9]+\/collisions$/,
+    search: /(eth|ens|enp|bond|br|gre|tun)[0-9s]+\/collisions$/,
     unit: "/s",
     hide: true,
     next: true
   },
   eth_io: {
     name: "Ethernet [bits]",
-    search: /(eth|ens|tun)[0-9]+\/([rt]x_bytes|bytes_recv|bytes_sent)$/i,
+    search: /(eth|ens|enp|bond|br|gre|tun)[0-9s]+\/([rt]x_bytes|bytes_recv|bytes_sent)$/i,
     join_by: /(^rx_|^tx_|_recv$|_sent$)/,
     join_desc: "tx/rx",
     reversed: /(^rx|_recv$)/,
@@ -2047,7 +2047,7 @@ service_groups = {
   },
   eth_stat: {
     name: "Ethernet packets",
-    search: /(eth|ens|tun)[0-9]+\/.*(packets|ucast)/i,
+    search: /(eth|ens|enp|bond|br|gre|tun)[0-9s]+\/.*(packets|ucast)/i,
     join_by: /(^rx_|^tx_|in$|out$|_recv$|_sent$)/,
     join_desc: "tx/rx",
     reversed: /(^rx|in$|_recv$)/,
