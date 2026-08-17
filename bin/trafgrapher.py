@@ -583,6 +583,8 @@ class SNMP:
                 interface = str(row[0].val).replace(receive_sensor_string, "")
                 datatype, scale, precision, value \
                     = self.getsome("", oids_sensor[1:], [id])
+                if datatype=='' and scale=='' and precision=='':
+                    continue
                 scale = 1000**(float(scale)-9)
                 precision = 10**float(precision)
                 #value = float(value)*scale/precision
